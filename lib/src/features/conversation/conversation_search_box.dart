@@ -5,35 +5,42 @@ import 'package:mosh/src/app/mosh_shapes.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
+import 'package:mosh/src/features/conversation/conversation_helpers.dart'
+    show feedPadding;
+import 'package:mosh/src/features/shared/search_field.dart';
 
-/// Height of a search/filter tool in the tools row.
-const double kConversationToolHeight = 34;
+/// The padding of the search under a conversation's header and of the
+/// lines that take its place: 8 px above and below, the feed's own at the
+/// sides.
+EdgeInsets conversationToolsPadding({required bool compact}) =>
+    EdgeInsets.symmetric(
+        vertical: MoshSpace.s2, horizontal: feedPadding(compact: compact).left);
 
-/// Outer margin of the tools row under the chat header.
-const EdgeInsets kConversationToolsMargin = EdgeInsets.fromLTRB(22, 12, 22, 0);
-
-/// Gap between the search box and the filter toggle.
-const double kConversationToolsGap = 10;
-
-/// The search field: a 34px control with 8px corners and a line border on surfaceContainerHigh,
-/// holding an fg-3 glyph and a borderless 12.5px input. Focus swaps the
-/// border to a 45% moss tint over bg-0.
+/// The search inside a conversation: the Search field card, fed by the
+/// screen. It owns the controller, so a rebuild of the screen, which a poll
+/// causes every second, never moves the caret.
 class ConversationSearchBox extends StatefulWidget {
   const ConversationSearchBox({
     super.key,
     required this.search,
     required this.onSearch,
-    required this.l,
+    required this.hint,
     this.autofocus = false,
+    this.clearable = true,
     this.focusNode,
   });
 
   final String search;
   final ValueChanged<String> onSearch;
-  final AppLocalizations l;
+
+  /// What the field looks through, said while it is empty.
+  final String hint;
 
   /// The mobile panel autofocuses on mount; the desktop row does not.
   final bool autofocus;
+
+  /// Off on the phone, where the X beside the field closes the search.
+  final bool clearable;
 
   /// Supplied by the mobile panel so its test can assert focus.
   final FocusNode? focusNode;
@@ -45,14 +52,6 @@ class ConversationSearchBox extends StatefulWidget {
 class _ConversationSearchBoxState extends State<ConversationSearchBox> {
   late final TextEditingController _controller =
       TextEditingController(text: widget.search);
-  late final FocusNode _focusNode = widget.focusNode ?? FocusNode();
-  bool _focused = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _focusNode.addListener(_onFocusChange);
-  }
 
   @override
   void didUpdateWidget(covariant ConversationSearchBox oldWidget) {
@@ -65,74 +64,21 @@ class _ConversationSearchBoxState extends State<ConversationSearchBox> {
     }
   }
 
-  void _onFocusChange() {
-    if (_focused == _focusNode.hasFocus) return;
-    setState(() => _focused = _focusNode.hasFocus);
-  }
-
   @override
   void dispose() {
-    _focusNode.removeListener(_onFocusChange);
-    // Only dispose a node this widget created.
-    if (widget.focusNode == null) _focusNode.dispose();
     _controller.dispose();
     super.dispose();
   }
 
   @override
-  Widget build(BuildContext context) {
-    final colors = MoshColors.of(context);
-    return Semantics(
-      label: widget.l.chatSearchPlaceholder,
-      textField: true,
-      child: Container(
-        height: kConversationToolHeight,
-        padding: const EdgeInsets.symmetric(horizontal: 10),
-        decoration: BoxDecoration(
-          color: _focused
-              ? colors.surfaceContainerLowest
-              : colors.surfaceContainerHigh,
-          borderRadius: MoshShapes.control,
-          border: Border.all(
-            color: _focused
-                ? colors.primary.withValues(alpha: 0.45)
-                : colors.outlineVariant,
-          ),
-        ),
-        child: Row(
-          children: <Widget>[
-            Icon(
-              MoshIcons.search,
-              size: 16,
-              color: _focused ? colors.onSurface : colors.onSurfaceMuted,
-            ),
-            const SizedBox(width: 8), // glyph-to-input gap
-            Expanded(
-              child: TextField(
-                controller: _controller,
-                focusNode: _focusNode,
-                autofocus: widget.autofocus,
-                onChanged: widget.onSearch,
-                textInputAction: TextInputAction.search,
-                style: TextStyle(fontSize: 12.5, color: colors.onSurface),
-                decoration: InputDecoration(
-                  isDense: true,
-                  filled: false,
-                  contentPadding: EdgeInsets.zero,
-                  border: InputBorder.none,
-                  enabledBorder: InputBorder.none,
-                  focusedBorder: InputBorder.none,
-                  hintText: widget.l.chatSearchPlaceholder,
-                  hintStyle:
-                      TextStyle(fontSize: 12.5, color: colors.onSurfaceMuted),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  Widget build(BuildContext context) => SearchField(
+        controller: _controller,
+        hint: widget.hint,
+        onChanged: widget.onSearch,
+        focusNode: widget.focusNode,
+        autofocus: widget.autofocus,
+        clearable: widget.clearable,
+      );
 }
 
 /// The Segment card: a recessed pill track around two 32 px segments, of
@@ -210,11 +156,16 @@ class _FilterSegment extends StatelessWidget {
       tapTargetSize: MaterialTapTargetSize.shrinkWrap,
       iconSize: MoshSpace.s4,
     ).copyWith(overlayColor: MoshState.layer(colors.onSurface));
-    return TextButton.icon(
+    // The card keeps 4 px between the glyph and the label, half of what a
+    // button with an icon does.
+    return TextButton(
       onPressed: onTap,
       style: style,
-      icon: icon == null ? null : Icon(icon),
-      label: Text(label),
+      child:
+          Row(mainAxisSize: MainAxisSize.min, spacing: MoshSpace.s1, children: [
+        if (icon != null) Icon(icon),
+        Text(label),
+      ]),
     );
   }
 }

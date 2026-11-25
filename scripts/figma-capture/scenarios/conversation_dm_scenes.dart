@@ -53,8 +53,12 @@ final _dmScenes = <FigmaScene>[
   }),
   scene('dm-voice', 'Conversation / DM / Voice messages', (tester, size) async {
     final data = dmVoice();
-    await _dm(tester, size,
-        dmSession(messages: data.messages, attachments: data.transfers));
+    // The note that is still arriving spins, so the scene never settles.
+    await openShellUnsettled(tester, size,
+        gateway: seededGateway(
+            dm: dmSession(
+                messages: data.messages, attachments: data.transfers)),
+        location: AppRoutes.dmFor(dmId));
   }),
   scene('dm-calls', 'Conversation / DM / Call log', (tester, size) async {
     await _dm(tester, size, dmSession(messages: dmCalls()));
@@ -246,8 +250,11 @@ final _dmScenes = <FigmaScene>[
   scene('media-viewer', 'Conversation / Media viewer / Image',
       (tester, size) async {
     await _attachments(tester, size, onDisk: true);
-    await tester.tap(find.byWidgetPredicate(
-        (w) => w is Semantics && w.properties.label == 'Open harbour.jpg'));
+    // The picture in the feed, not its row in the shared files.
+    await tester.tap(find.descendant(
+        of: find.byType(ConversationMessageListView),
+        matching: find.byWidgetPredicate((w) =>
+            w is Semantics && w.properties.label == 'Open harbour.jpg')));
     await _settle(tester);
   }),
   scene('viewer-video', 'Conversation / Media viewer / Video unavailable',

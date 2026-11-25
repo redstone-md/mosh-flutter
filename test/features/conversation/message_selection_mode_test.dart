@@ -1,8 +1,10 @@
 // Shared message selection behavior and Telegram-style selection controls.
+import '../../support/contrast.dart';
+import 'package:mosh/src/rust/outbound_delivery.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/gestures.dart'
     show PointerDeviceKind, kSecondaryMouseButton;
 import 'package:flutter/material.dart';
-import 'package:flutter/semantics.dart' show CustomSemanticsAction;
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -37,11 +39,6 @@ void _expectPicked(int count) {
       findsOneWidget);
 }
 
-Color? _bubbleColor(WidgetTester tester, String id) => (tester
-        .widget<Container>(find.byKey(ValueKey('message-bubble-$id')))
-        .decoration as BoxDecoration)
-    .color;
-
 // Shared selection behavior needs the real list and host, without screen polling
 // and composer setup. Screen wiring, navigation and draft tests stay below.
 Future<void> _pumpSelectionList(WidgetTester tester) async {
@@ -71,8 +68,6 @@ void main() {
       final selectors = tester.widgetList<Checkbox>(find.byType(Checkbox));
       expect(
           selectors.where((selector) => selector.value == true), hasLength(1));
-      expect(selectors.every((selector) => selector.shape is CircleBorder),
-          isTrue);
       expect(find.text('Cancel'), findsOneWidget);
       await tester.tap(find.text('Cancel'));
       await tester.pumpAndSettle();
@@ -128,19 +123,37 @@ void main() {
             : TargetPlatformVariant.only(TargetPlatform.android));
   }
 
-  testWidgets('a tap anywhere on a row picks it and tints only its bubble',
+  testWidgets('a tap anywhere on a row picks it and bands only that row',
       (tester) async {
     await _pumpSelectionList(tester);
-    final firstColor = _bubbleColor(tester, 'm0');
-    final secondColor = _bubbleColor(tester, 'm1');
+    final unpicked = messageBand(tester, 'first note');
     await startMessageSelection(tester, 'second note');
-    expect(_bubbleColor(tester, 'm0'), firstColor);
-    expect(_bubbleColor(tester, 'm1'), isNot(secondColor));
+    expect(messageBand(tester, 'first note'), unpicked);
+    expect(messageBand(tester, 'second note'), isNot(unpicked));
     await tester.tapAt(
         tester.getTopRight(find.text('first note')) + const Offset(120, 4));
     await tester.pumpAndSettle();
     _expectPicked(2);
-    expect(_bubbleColor(tester, 'm0'), isNot(firstColor));
+    expect(messageBand(tester, 'first note'), isNot(unpicked));
+  });
+
+  testWidgets('what sits on the band of a picked row reads on it',
+      (tester) async {
+    await pumpConversation(tester, conversationCases().first, messages: [
+      const TestMessage(body: 'plain note', messageId: 'plain'),
+      const TestMessage.own(
+          body: 'failed note',
+          messageId: 'failed',
+          deliveryStatus: MessageDeliveryStatus.failed,
+          retryable: true),
+    ]);
+    await startMessageSelection(tester, 'failed note');
+    final notice = tester.renderObject<RenderParagraph>(find.descendant(
+        of: find.text('Not sent'), matching: find.byType(RichText)));
+    expect(
+        contrastRatio(
+            notice.text.style!.color!, messageBand(tester, 'failed note')),
+        greaterThanOrEqualTo(4.5));
   });
 
   testWidgets('the last deselection leaves the mode', (tester) async {

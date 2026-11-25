@@ -33,7 +33,7 @@ void main() {
       await pumpConversation(tester, testCase,
           gateway: gateway, messages: [TestMessage.own(attachment: file)]);
 
-      await tester.tap(_rowIcon(true, MoshIcons.play));
+      await tester.tap(_rowIcon(true, MoshIcons.file));
       await tester.pump();
 
       expect(gateway.countOf(GatewayMethod.downloadAttachment), 0);
@@ -51,14 +51,14 @@ void main() {
         TestMessage(messageId: 'incoming', attachment: file),
       ]);
 
-      await tester.tap(_rowIcon(true, MoshIcons.image));
+      await tester.tap(_rowIcon(true, MoshIcons.file));
       await tester.pump();
       expect(gateway.countOf(GatewayMethod.downloadAttachment), 0);
       expect(find.byType(MediaViewer), findsNothing);
 
       expect(tester.takeException(), isNull);
 
-      await tester.tap(_rowIcon(false, MoshIcons.image));
+      await tester.tap(_rowIcon(false, MoshIcons.download));
       await tester.pump();
       expect(gateway.countOf(GatewayMethod.downloadAttachment), 1);
       expect(find.byType(MediaViewer), findsNothing);
@@ -102,7 +102,8 @@ void main() {
               state: AttachmentState.offered),
         ]);
 
-        await tester.tap(_rowIcon(!outgoing, MoshIcons.image));
+        await tester.tap(_rowIcon(
+            !outgoing, outgoing ? MoshIcons.file : MoshIcons.download));
         await tester.pump();
 
         expect(gateway.countOf(GatewayMethod.downloadAttachment),

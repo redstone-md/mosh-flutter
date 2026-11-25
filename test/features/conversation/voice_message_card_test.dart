@@ -18,8 +18,10 @@ import 'package:mosh/src/app/mosh_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/features/conversation/voice_message_card.dart';
+import 'package:mosh/src/features/conversation/voice_waveform.dart';
 import 'package:mosh/src/rust/attachment_runtime.dart' show VoiceMeta;
 import 'package:mosh/src/rust/conversation/attachments.dart';
 
@@ -53,15 +55,16 @@ void main() {
   }
 
   testWidgets('a tap near the right edge seeks to ~1.0', (tester) async {
-    // 168px wave inside a much wider window: the old card-wide measurement
+    // The wave inside a much wider window: the old card-wide measurement
     // turned this same tap into ~0.6.
-    final ratio = await tapWaveAt(tester, const Offset(166, 18));
+    final ratio =
+        await tapWaveAt(tester, const Offset(VoiceWaveform.width - 2, 12));
 
     expect(ratio, closeTo(1.0, 0.02));
   });
 
   testWidgets('a tap near the left edge seeks to ~0.0', (tester) async {
-    final ratio = await tapWaveAt(tester, const Offset(1, 18));
+    final ratio = await tapWaveAt(tester, const Offset(1, 12));
 
     expect(ratio, closeTo(0.0, 0.02));
   });
@@ -72,7 +75,7 @@ void main() {
       MaterialApp(
         theme: moshThemeData,
         home: Scaffold(
-          body: Center(child: VoiceCardTimeLabel(ms: 5000)),
+          body: Center(child: VoiceCardTimeLabel(label: '0:05')),
         ),
       ),
     );
@@ -97,6 +100,7 @@ void main() {
     final downloaded = <String>[];
     Widget pumpCard(AttachmentView view) => MaterialApp(
           theme: moshThemeData,
+          localizationsDelegates: AppLocalizations.localizationsDelegates,
           home: Scaffold(
             body: Center(
               child: VoiceMessageCard(
@@ -116,8 +120,6 @@ void main() {
                 view: view,
                 busy: false,
                 onDownload: downloaded.add,
-                playLabel: 'Play',
-                pauseLabel: 'Pause',
               ),
             ),
           ),
@@ -155,10 +157,30 @@ void main() {
     ));
     await tester.pump();
     expect(tester.takeException(), isNull);
-    await tester.tap(find.byIcon(MoshIcons.play));
+    // While the audio arrives the button spins and says so.
+    expect(find.text('Loading'), findsOneWidget);
+    await tester.tap(find.byType(CircularProgressIndicator),
+        warnIfMissed: false);
     await tester.pump();
     expect(tester.takeException(), isNull);
     expect(downloaded, ['att-voice']);
+
+    // A transfer that failed offers to try again from the same button.
+    await tester.pumpWidget(pumpCard(
+      AttachmentView(
+        attachmentId: 'att-voice',
+        direction: 'incoming',
+        state: AttachmentState.failed,
+        completedChunks: BigInt.from(5),
+        chunkCount: BigInt.from(10),
+        localPath: null,
+      ),
+    ));
+    await tester.pump();
+    expect(find.text('Could not load'), findsOneWidget);
+    await tester.tap(find.byIcon(MoshIcons.refresh));
+    await tester.pump();
+    expect(downloaded, ['att-voice', 'att-voice']);
 
     // The local path arrives (download finished) with a play queued: the
     // card re-renders without throwing and the play affordance stays.

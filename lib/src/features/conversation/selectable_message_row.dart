@@ -1,20 +1,39 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show HardwareKeyboard;
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_dimensions.dart';
+import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
+import 'package:mosh/src/features/conversation/conversation_helpers.dart';
 import 'package:mosh/src/features/conversation/conversation_snapshot.dart';
 import 'package:mosh/src/features/conversation/conversation_tools.dart'
     show isMobileBreakpoint;
 import 'package:mosh/src/features/conversation/message_copy.dart';
 import 'package:mosh/src/features/conversation/message_selection.dart';
 
-/// One message row. While messages are picked, a tap anywhere on the row
-/// picks it, Shift extends from the last pick, and the row's own controls
-/// rest. The tree keeps one shape in both modes, so rows never remount.
+/// One message row of the feed, at the feed's side padding and its place
+/// in the rhythm of the runs: bubbles of one run sit 4 px apart and a new
+/// run starts 12 px lower.
+///
+/// While messages are picked every row leads with a checkbox, a tap
+/// anywhere on the row picks it, Shift extends from the last pick, and the
+/// row's own controls rest. A picked row carries a band across the feed.
+/// The tree keeps one shape in both modes, so rows never remount.
 class SelectableMessageRow extends StatelessWidget {
   const SelectableMessageRow(
-      {super.key, required this.message, required this.child});
+      {super.key,
+      required this.message,
+      required this.child,
+      this.grouped = false});
   final ConversationMessage message;
+
+  /// Whether the row continues the run above it.
+  final bool grouped;
   final Widget child;
+
+  /// Half the gap between the bubbles of a run: what a row keeps above and
+  /// below its bubble, and how far the band of a picked row reaches past
+  /// that, into the gap to its neighbour.
+  static const double _band = MoshSpace.s1 / 2;
 
   @override
   Widget build(BuildContext context) {
@@ -23,39 +42,78 @@ class SelectableMessageRow extends StatelessWidget {
     final id = scope == null ? null : message.messageId;
     final selecting = selection?.active ?? false;
     final selected = id != null && selection!.isSelected(id);
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: selecting && id != null ? () => _pick(selection!, id) : null,
-      child: Row(
-        textDirection:
-            isMobileBreakpoint(context) ? TextDirection.rtl : TextDirection.ltr,
-        children: [
-          Expanded(
-            child: CopyableMessage(
-              key: ValueKey(message.messageId ?? message),
-              body: message.body,
-              selectionId: id,
-              selecting: selecting,
-              selected: selecting && id != null ? selected : null,
-              onSelect: id == null ? null : () => selection!.toggle(id),
-              onDelete: id == null ? null : () => scope!.onDelete(message),
-              child: ExcludeFocus(
-                excluding: selecting,
-                child: AbsorbPointer(absorbing: selecting, child: child),
-              ),
+    final side = feedPadding(compact: isMobileBreakpoint(context)).left;
+    return Padding(
+      padding: EdgeInsets.only(top: messageRowSpacing(grouped) - 2 * _band),
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: selecting && id != null ? () => _pick(selection!, id) : null,
+        child: Stack(clipBehavior: Clip.none, children: [
+          _bandBehind(context, picked: selecting && selected),
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: side, vertical: _band),
+            child: Row(
+              spacing: MoshSpace.s2,
+              children: [
+                if (selecting && id != null)
+                  _selector(context, selection!, id, selected),
+                Expanded(
+                  child: CopyableMessage(
+                    key: ValueKey(message.messageId ?? message),
+                    body: message.body,
+                    selectionId: id,
+                    selecting: selecting,
+                    selected: selecting && id != null ? selected : null,
+                    onSelect: id == null ? null : () => selection!.toggle(id),
+                    onDelete:
+                        id == null ? null : () => scope!.onDelete(message),
+                    child: ExcludeFocus(
+                      excluding: selecting,
+                      child: AbsorbPointer(absorbing: selecting, child: child),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
-          if (selecting && id != null)
-            Checkbox(
-              key: ValueKey('message-selector-$id'),
-              value: selected,
-              shape: const CircleBorder(),
-              visualDensity: VisualDensity.standard,
-              materialTapTargetSize: MaterialTapTargetSize.padded,
-              semanticLabel: AppLocalizations.of(context)!.messageSelect,
-              onChanged: selection!.busy ? null : (_) => _pick(selection, id),
-            ),
-        ],
+        ]),
+      ),
+    );
+  }
+
+  /// The band of a picked row. It reaches 4 px beyond the bubble, over the
+  /// gaps to its neighbours, so the rows keep their rhythm when one is
+  /// picked; it is there, unpainted, while the row is not.
+  Widget _bandBehind(BuildContext context, {required bool picked}) =>
+      Positioned(
+        left: 0,
+        right: 0,
+        top: -_band,
+        bottom: -_band,
+        child: ColoredBox(
+            color: picked
+                ? MoshColors.of(context).secondaryContainer
+                : Colors.transparent),
+      );
+
+  /// The Checkbox card: a 24 px mark that picks the row, alone on the
+  /// desktop and inside a 48 px target on the phone.
+  Widget _selector(BuildContext context, MessageSelection selection, String id,
+      bool selected) {
+    final touch = MoshControl.touch(Theme.of(context).platform);
+    return Transform.scale(
+      scale: MoshSpace.s6 / Checkbox.width,
+      child: Checkbox(
+        key: ValueKey('message-selector-$id'),
+        value: selected,
+        materialTapTargetSize: touch
+            ? MaterialTapTargetSize.padded
+            : MaterialTapTargetSize.shrinkWrap,
+        visualDensity: touch
+            ? VisualDensity.standard
+            : const VisualDensity(horizontal: -4, vertical: -4),
+        semanticLabel: AppLocalizations.of(context)!.messageSelect,
+        onChanged: selection.busy ? null : (_) => _pick(selection, id),
       ),
     );
   }

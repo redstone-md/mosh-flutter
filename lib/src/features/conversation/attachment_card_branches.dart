@@ -1,127 +1,190 @@
 part of 'attachment_card.dart';
 
-/// Shows the cached preview or inline miniature above attachment controls.
-///
-/// The preview opens media, with transfer controls alongside the caption.
-/// The video play-overlay is decorative; the wrapper labels the open action.
-class _MediaPreviewCard extends StatelessWidget {
-  const _MediaPreviewCard({
+/// The Media card: a picture or a video shows its preview first, then its
+/// name and size on one line. A press on the preview opens it. While the
+/// file is arriving a ring over the preview shows how far it has come, and
+/// stops the transfer when pressed; a transfer that stopped or failed
+/// offers to pick it up again in the same place.
+class _MediaCard extends StatelessWidget {
+  const _MediaCard({
     required this.attachment,
-    required this.busy,
-    required this.onDownload,
-    required this.onCancel,
+    required this.tone,
+    required this.action,
     required this.onOpen,
-    this.messageFooter,
+    this.footer,
   });
 
   final ConversationAttachment attachment;
-  final bool busy;
-  final Widget? messageFooter;
-  final void Function(String attachmentId) onDownload;
-  final void Function(String attachmentId) onCancel;
-  final void Function(AttachmentDescriptor descriptor) onOpen;
+  final MessageTone tone;
+  final AttachmentAction? action;
+  final VoidCallback onOpen;
+
+  /// The time of a message that is this picture alone: it keeps a line of
+  /// its own under the name.
+  final Widget? footer;
+
+  /// The disc the play glyph of a video stands on.
+  static const double _disc = MoshSpace.s12;
+
+  /// The widest the line beside the name runs before it is cut.
+  static const double _detailMax = 144;
 
   @override
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
+    final text = Theme.of(context).textTheme;
+    final descriptor = attachment.descriptor;
+    final failed = attachment.failed;
+    // Set in as far as a message's text, so the file name and the text
+    // under it start on one line.
+    final caption = Padding(
+      padding: MoshShapes.bubbleInset,
+      child: Row(spacing: MoshSpace.s2, children: [
+        Expanded(
+            child: MiddleCutText(descriptor.fileName,
+                style: text.labelLarge!.copyWith(color: tone.ink))),
+        // The name takes what the size leaves; the size gives way only once
+        // it would take more than half of a narrow bubble.
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: _detailMax),
+          child: Text(
+            attachmentDetail(attachment, l, failed: l.attachmentMediaFailed),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: text.labelMedium!.copyWith(
+                color: failed ? tone.error : tone.quiet,
+                fontFeatures: kLiveNumberFontFeatures),
+          ),
+        ),
+      ]),
+    );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.end,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _preview(context, l),
+        const SizedBox(height: MoshSpace.s2),
+        caption,
+        if (footer case final footer?) ...[
+          const SizedBox(height: MoshSpace.s1),
+          footer,
+        ],
+      ],
+    );
+  }
+
+  Widget _preview(BuildContext context, AppLocalizations l) {
+    final colors = MoshColors.of(context);
     final descriptor = attachment.descriptor;
     final thumb = descriptor.thumbnailB64;
     // Decoded once per thumbnail and cached: list rebuilds must not re-run
     // base64 decoding on the UI thread. A malformed thumbnail yields empty
-    // bytes -> the image decode fails -> errorBuilder renders the
-    // broken-image fallback.
+    // bytes, the decode fails and the broken-image fallback shows.
     final (:bytes, size: mediaSize) = decodeMiniature(thumb);
-    // Drives the centered play-overlay on top of the thumbnail image.
-    final isVideo = descriptor.mime.startsWith('video/');
-    final previewLabel = l.attachmentOpenAria(descriptor.fileName);
+    final failed = attachment.failed;
+    final transfer = action?.opens == false ? action : null;
+    return Semantics(
+      label: l.attachmentOpenAria(descriptor.fileName),
+      image: true,
+      button: true,
+      child: GestureDetector(
+        // A press opens it, unless opening has to wait for another transfer.
+        onTap: action?.opens == true ? action!.onPressed : onOpen,
+        // The reserved height follows the width the bubble leaves.
+        child: LayoutBuilder(
+          builder: (context, constraints) => Container(
+            width: double.infinity,
+            height:
+                attachmentPreviewHeight(mediaSize, width: constraints.maxWidth),
+            clipBehavior: Clip.antiAlias,
+            decoration: BoxDecoration(
+              color: failed ? colors.errorContainer : colors.tertiaryContainer,
+              borderRadius: MoshShapes.attachment,
+            ),
+            child: Stack(
+              alignment: Alignment.center,
+              fit: StackFit.expand,
+              children: [
+                if (!failed) _previewImage(attachment, bytes, thumb ?? ''),
+                if (transfer != null)
+                  Center(child: _transferControl(context, transfer, l))
+                else if (attachment.isVideo)
+                  // Decorative: the preview itself is the open target.
+                  Center(
+                    child: ExcludeSemantics(
+                      child: _onDisc(
+                          colors,
+                          Icon(MoshIcons.play,
+                              size: MoshSpace.s6, color: colors.onSurface)),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 
-    return _FileCardShell(
-      failed: attachment.failed,
-      media: true,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // The preview is tappable (opens the local file) with the
-          // localized open-attachment action. The video play-overlay is
-          // decorative and stays on top.
-          Semantics(
-            label: previewLabel,
-            image: true,
-            button: true,
-            child: GestureDetector(
-              onTap: () => onOpen(descriptor),
-              // The bubble supplies the surface beneath transparent images.
-              // A narrower bubble scales the reserved height with the width.
-              child: LayoutBuilder(
-                  builder: (context, constraints) => Container(
-                        width: double.infinity,
-                        height: attachmentPreviewHeight(mediaSize,
-                            width: constraints.maxWidth),
-                        clipBehavior: Clip.antiAlias,
-                        decoration: BoxDecoration(
-                          color: MoshColors.of(context).outlineVariant,
-                          borderRadius: MoshShapes.attachment,
-                        ),
-                        child: Stack(
-                          alignment: Alignment.center,
-                          fit: StackFit.expand,
-                          children: [
-                            _previewImage(attachment, bytes, thumb ?? ''),
-                            if (isVideo)
-                              // 48px round dark play badge -- decorative, so no
-                              // semantics.
-                              Center(
-                                  child: Semantics(
-                                excludeSemantics: true,
-                                child: Container(
-                                  width: 48,
-                                  height: 48,
-                                  alignment: Alignment.center,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    color: MoshColors.of(context)
-                                        .surfaceContainerLowest
-                                        .withValues(alpha: 0.62),
-                                  ),
-                                  child: const Center(
-                                    child: Icon(
-                                      MoshIcons.play,
-                                      size: 24,
-                                      color: Colors.white,
-                                    ),
-                                  ),
-                                ),
-                              )),
-                          ],
-                        ),
-                      )),
+  Widget _onDisc(MoshColors colors, Widget child) => Container(
+        width: _disc,
+        height: _disc,
+        alignment: Alignment.center,
+        decoration:
+            BoxDecoration(shape: BoxShape.circle, color: colors.surface),
+        child: child,
+      );
+
+  /// The ring of a running transfer, which a press stops, or the button
+  /// that picks a stopped one up again.
+  Widget _transferControl(
+      BuildContext context, AttachmentAction transfer, AppLocalizations l) {
+    final progress = attachment.progress;
+    if (progress == null) {
+      return Semantics(
+        label: transfer.label,
+        button: true,
+        enabled: transfer.onPressed != null,
+        child: IconButton(
+          icon: Icon(transfer.glyph),
+          tooltip: transfer.tooltip,
+          onPressed: transfer.onPressed,
+          style: moshTonalIconButtonStyle(MoshColors.of(context)),
+        ),
+      );
+    }
+    // The ring alone, as the card draws it, and a control like any other:
+    // a keyboard reaches and presses it.
+    return Tooltip(
+      message: transfer.tooltip,
+      child: Semantics(
+        label: transfer.label,
+        button: true,
+        enabled: transfer.onPressed != null,
+        onTap: transfer.onPressed,
+        // The line beside the name already says how far the file has come.
+        excludeSemantics: true,
+        child: Material(
+          type: MaterialType.transparency,
+          child: InkWell(
+            customBorder: const CircleBorder(),
+            excludeFromSemantics: true,
+            onTap: transfer.onPressed,
+            // The stroke is centred on the indicator's edge, so the
+            // indicator is set in by half of it: a 4 px ring within 40.
+            child: SizedBox.square(
+              dimension: MoshSpace.s10,
+              child: Padding(
+                padding: const EdgeInsets.all(MoshSpace.s1 / 2),
+                child: CircularProgressIndicator(
+                    value: progress.fraction,
+                    strokeWidth: MoshSpace.s1,
+                    semanticsLabel:
+                        l.attachmentStateDownloading(progress.percent)),
+              ),
             ),
           ),
-          // Controls precede time in the metadata row so its trailing
-          // position stays fixed. The bubble supplies the bottom inset.
-          Padding(
-            padding: const EdgeInsetsDirectional.fromSTEB(
-                10, 8, MoshShapes.attachmentFooterInset, 0),
-            child: _buildBar(
-              l: l,
-              colors: MoshColors.of(context),
-              fileName: descriptor.fileName,
-              totalSize: descriptor.totalSize,
-              attachment: attachment,
-              messageFooter: messageFooter,
-              action: attachment.transferControl(busy: busy) != null
-                  ? AttachmentActions(
-                      attachment: attachment,
-                      busy: busy,
-                      onDownload: onDownload,
-                      onCancel: onCancel,
-                      l: l,
-                    )
-                  : null,
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -134,19 +197,16 @@ Widget _previewImage(
     image: _boundedPreview(AttachmentMiniatureImage(bytes, source: source)),
     fit: BoxFit.cover,
     gaplessPlayback: true,
-    errorBuilder: (context, _, __) => SizedBox.expand(
-      child: ColoredBox(
-        color: MoshColors.of(context).outlineVariant,
-        child: Icon(MoshIcons.imageBroken,
-            size: 32, color: MoshColors.of(context).onSurfaceMuted),
-      ),
+    errorBuilder: (context, _, __) => Center(
+      child: Icon(MoshIcons.imageBroken,
+          size: MoshSpace.s8,
+          color: MoshColors.of(context).onTertiaryContainer),
     ),
   );
   if (attachment.clearPreviewPath case final path?) {
     preview = _localPreview(path, preview, auxiliary: true);
   }
-  if (attachment.descriptor.mime.startsWith('image/') &&
-      attachment.localPath != null) {
+  if (attachment.isImage && attachment.localPath != null) {
     preview = _localPreview(attachment.localPath!, preview);
   }
   return preview;
@@ -164,10 +224,11 @@ Widget _localPreview(String path, Widget fallback, {bool auxiliary = false}) =>
       errorBuilder: (context, _, __) => fallback,
     );
 
-/// Bound both decoded axes, including remote images with extreme aspect ratios.
+/// Bound both decoded axes, including remote images with extreme aspect
+/// ratios. Twice the widest card and the tallest preview, for dense screens.
 ResizeImage _boundedPreview(ImageProvider<Object> provider) => ResizeImage(
       provider,
-      width: (kAttachmentMediaWidth * 2).toInt(),
+      width: (attachmentWidth(compact: false) * 2).toInt(),
       height: (kAttachmentPreviewMaxHeight * 2).toInt(),
       policy: ResizeImagePolicy.fit,
     );

@@ -51,21 +51,20 @@ these tokens instead of choosing their own corner radius.
 | --- | ---: | --- |
 | Search, settings, filters, standard buttons | Pill | One shape across states; the Components cards since MOSH-133 and MOSH-134 |
 | Conversation rows | 16px | Stable in selected and unselected states |
-| Message outside corners | 16px | Text/voice use 4px joins on the sender side; file/media retain 16px |
+| Message outside corners | 20px | 8px joins on the sender's side within a run, whatever the bubble holds; the Message card since MOSH-135 |
 | Composer control group | 16px | 8px control corner plus 8px inset |
-| Media and file icon surfaces | 8px | 16px message corner minus a uniform 8px inset |
+| Media and file icon surfaces | 12px | 20px message corner minus a uniform 8px inset |
 
-File and media messages keep 16px corners even within a sender series, with
-equal 8px insets and 8px inner corners. Image previews clip separately from
-their captions, so all four corners remain rounded. Captions add only an 8px
-gap above their text, leaving the bubble to provide the bottom inset once.
-Text and voice messages retain their optical insets and series joins.
-Text, files and media share a 12px trailing inset for time and delivery marks.
-Files add the remaining 4px inside their 8px bubble inset; media captions use
-that same 4px trailing inset. Preview geometry keeps its uniform 8px inset.
-A transfer control keeps one trailing slot beside the file name and metadata,
-so time never moves it. Time ends the last line, as in text bubbles: the
-progress bar while downloading, otherwise the metadata.
+Since MOSH-135 the feed is drawn from the Message, Feed rows, Attachment,
+Voice message and Search and selection cards. A bubble has the same 8px
+padding on every side; its text, its sender line and the caption of a picture
+are set in 8px further at the start and 4px at the end, which keeps the time
+and the delivery marks 12px from the edge. A file, a picture or a voice
+message rides above the text, which is then its caption and wraps at its
+width. The time ends the last line of the text; a file or a voice message
+alone keeps it in its own last line, under the transfer bar while the file
+arrives, and a picture keeps a line of its own for it. The one action of a
+file is its 40px plate, so the time never moves it.
 
 The message-search segment uses its outer 8px corner minus its 3px inset.
 Avatars and voice play remain circles because they are identity and transport
@@ -95,9 +94,10 @@ reserves 2px at each horizontal edge so that outline stays visible.
 
 ## Embedded files and voice
 
-Files use a flat row within the bubble instead of a second rounded card. Media
-previews clip to the embedded radius; failed transfers keep the existing error
-edge, label and action. The preview height comes from the inline miniature's
+Files use a flat row within the bubble instead of a second rounded card: the
+File card, which the list of shared files in the details reuses on a surface.
+Media previews clip to the embedded radius. A failed transfer is told by the
+error colour of its plate and its line, and the same plate tries again. The preview height comes from the inline miniature's
 JPEG/PNG header, including legacy EXIF orientation, before any decode. It
 scales with the available width (at most 320px), clamped to 120–260px, or is
 200px when unknown. Miniature, clear preview and original fill that box with cover

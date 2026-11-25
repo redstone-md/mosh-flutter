@@ -50,7 +50,6 @@ const MoshColors _darkColors = MoshColors(
   avatar3: Color(0xFF4A3A55),
   avatar4: Color(0xFF3E4A2C),
   onAvatar: Color(0xFFF4EFE9),
-  outgoingMessage: Color(0xFF45300C),
 );
 
 /// Collection "Mosh Light".
@@ -99,5 +98,4 @@ const MoshColors _lightColors = MoshColors(
   avatar3: Color(0xFFE2D6EC),
   avatar4: Color(0xFFDCE6C8),
   onAvatar: Color(0xFF231E19),
-  outgoingMessage: Color(0xFFFAE8C6),
 );

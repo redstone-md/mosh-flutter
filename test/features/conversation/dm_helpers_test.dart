@@ -6,6 +6,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/src/features/conversation/conversation_helpers.dart';
 
 import 'package:flutter/material.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
+import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
+import 'package:mosh/src/features/conversation/message_tone.dart';
 import 'package:mosh/src/rust/outbound_delivery.dart';
 import '../../support/pump.dart';
 
@@ -77,61 +80,32 @@ void main() {
     });
   });
 
-  // Widget tests for [DeliveryTicks]. The widget renders the FULL readable
-  // label (glyph + word) with a matching semantics label:
-  //   delivered -> "✓✓ delivered"
-  //   sent      -> "✓ sent"
-  //   pending   -> "sending…"
-  //   failed/null -> renders nothing.
-  // Each case pumps [DeliveryTicks] in a localized `MaterialApp` (en) and
-  // asserts BOTH the visible `Text` matches the localized label AND the
-  // `Semantics` label is "Delivery: <label>".
+  // The Delivery ticks card: one glyph per state, named for a screen reader
+  // by the state's label. A message on its way shows the clock of a queued
+  // one; a failed one has no tick at all.
   group('DeliveryTicks', () {
-    testWidgets(
-        'delivered -> "✓✓ delivered" text + "Delivery: ✓✓ delivered" semantics',
-        (tester) async {
-      await pumpScreen(
-          tester,
-          Scaffold(
-              body: const DeliveryTicks(
-                  status: MessageDeliveryStatus.delivered)));
-      expect(find.text('✓✓ delivered'), findsOneWidget);
-      expect(find.bySemanticsLabel('Delivery: ✓✓ delivered'), findsOneWidget);
-    });
+    final tone = MessageTone.from(MoshColors.dark, own: true);
+    for (final (status, icon, label) in [
+      (MessageDeliveryStatus.delivered, MoshIcons.doneAll, '✓✓ delivered'),
+      (MessageDeliveryStatus.sent, MoshIcons.check, '✓ sent'),
+      (MessageDeliveryStatus.pending, MoshIcons.schedule, 'sending…'),
+      (MessageDeliveryStatus.queued, MoshIcons.schedule, 'queued'),
+    ]) {
+      testWidgets('${status.name} draws its glyph and says "$label"',
+          (tester) async {
+        await pumpScreen(
+            tester, Scaffold(body: DeliveryTicks(status: status, tone: tone)));
+        expect(find.byIcon(icon), findsOneWidget);
+        expect(find.bySemanticsLabel(label), findsOneWidget);
+      });
+    }
 
-    testWidgets('sent -> "✓ sent" text + "Delivery: ✓ sent" semantics',
-        (tester) async {
-      await pumpScreen(
-          tester,
-          Scaffold(
-              body: const DeliveryTicks(status: MessageDeliveryStatus.sent)));
-      expect(find.text('✓ sent'), findsOneWidget);
-      expect(find.bySemanticsLabel('Delivery: ✓ sent'), findsOneWidget);
-    });
-
-    testWidgets('pending -> "sending…" text + "Delivery: sending…" semantics',
-        (tester) async {
-      await pumpScreen(
-          tester,
-          Scaffold(
-              body:
-                  const DeliveryTicks(status: MessageDeliveryStatus.pending)));
-      expect(find.text('sending…'), findsOneWidget);
-      expect(find.bySemanticsLabel('Delivery: sending…'), findsOneWidget);
-    });
-
-    testWidgets('failed -> renders nothing (no Text)', (tester) async {
-      await pumpScreen(
-          tester,
-          Scaffold(
-              body: const DeliveryTicks(status: MessageDeliveryStatus.failed)));
-      expect(find.byType(Text), findsNothing);
-    });
-
-    testWidgets('null status -> renders nothing (no Text)', (tester) async {
-      await pumpScreen(
-          tester, Scaffold(body: const DeliveryTicks(status: null)));
-      expect(find.byType(Text), findsNothing);
-    });
+    for (final status in [MessageDeliveryStatus.failed, null]) {
+      testWidgets('${status?.name} renders no tick', (tester) async {
+        await pumpScreen(
+            tester, Scaffold(body: DeliveryTicks(status: status, tone: tone)));
+        expect(find.byType(Icon), findsNothing);
+      });
+    }
   });
 }

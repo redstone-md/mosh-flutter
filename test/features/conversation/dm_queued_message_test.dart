@@ -54,7 +54,7 @@ void main() {
     );
 
     expect(find.text('report.pdf'), findsOneWidget);
-    expect(find.text('no live path'), findsOneWidget);
+    expect(find.byTooltip('no live path'), findsOneWidget);
     expect(find.text('Retry'), findsOneWidget);
   });
 }

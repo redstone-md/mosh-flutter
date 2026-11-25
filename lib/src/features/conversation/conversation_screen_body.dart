@@ -207,9 +207,13 @@ class ConversationScreenBody extends ConsumerWidget {
     );
     if (visible.isEmpty) {
       // There are messages, but the search or the filter hid every one.
+      final query = chrome.search.trim();
       return ConversationNotice(
-          title: l.chatSearchEmptyTitle,
-          line: chrome.filter == ConversationFilter.attachments
+          quiet: true,
+          title: query.isEmpty
+              ? l.chatSearchEmptyTitle
+              : l.chatSearchEmptyQuery(query),
+          line: query.isEmpty
               ? l.chatAttachmentEmptyBody
               : l.chatSearchEmptyBody);
     }

@@ -35,7 +35,7 @@ class _HostState extends State<_Host> {
     return ConversationSearchBox(
       search: _search,
       onSearch: setQuery,
-      l: AppLocalizations.of(context)!,
+      hint: AppLocalizations.of(context)!.chatSearchPlaceholder,
     );
   }
 }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_dimensions.dart';
 import 'package:mosh/src/features/conversation/conversation_search_box.dart';
 import 'package:mosh/src/features/conversation/conversation_snapshot.dart';
 
@@ -50,7 +51,8 @@ String messageSearchText(ConversationMessage message) {
   return pieces.join(' ').toLowerCase();
 }
 
-/// The wide-window search row: a search box and an All/Files toggle.
+/// The Conversation search card on the desktop: the search field and the
+/// All/Files segments beside it.
 class ConversationTools extends StatelessWidget {
   const ConversationTools({
     super.key,
@@ -69,21 +71,23 @@ class ConversationTools extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final files = filter == ConversationFilter.attachments;
     return Padding(
-      padding: kConversationToolsMargin,
+      padding: conversationToolsPadding(compact: false),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
+        spacing: MoshSpace.s2,
         children: [
           Expanded(
             child: ConversationSearchBox(
               search: search,
               onSearch: onSearch,
-              l: l,
+              hint: files
+                  ? l.chatSearchFilesPlaceholder
+                  : l.chatSearchPlaceholder,
             ),
           ),
-          const SizedBox(width: kConversationToolsGap),
           ConversationFilterToggle(
-            attachmentsActive: filter == ConversationFilter.attachments,
+            attachmentsActive: files,
             onAll: () => onFilter(ConversationFilter.all),
             onAttachments: () => onFilter(ConversationFilter.attachments),
             l: l,

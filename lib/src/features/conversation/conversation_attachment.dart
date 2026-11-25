@@ -38,6 +38,8 @@ class ConversationAttachment {
 
   bool get failed => state == AttachmentState.failed;
   bool get viewable => isViewableMedia(descriptor.mime);
+  bool get isImage => descriptor.mime.startsWith('image/');
+  bool get isVideo => descriptor.mime.startsWith('video/');
 
   String? get localPath {
     final path = _view?.localPath;
@@ -47,7 +49,7 @@ class ConversationAttachment {
   }
 
   String? get localImagePreview {
-    if (descriptor.mime.startsWith('image/') && localPath != null) {
+    if (isImage && localPath != null) {
       return localPath;
     }
     return clearPreviewPath;
@@ -55,18 +57,15 @@ class ConversationAttachment {
 
   String? get clearPreviewPath {
     final preview = _view?.previewPath;
-    final media = descriptor.mime.startsWith('image/') ||
-        descriptor.mime.startsWith('video/');
-    return media && preview != null && preview.isNotEmpty ? preview : null;
+    return (isImage || isVideo) && preview != null && preview.isNotEmpty
+        ? preview
+        : null;
   }
 
   bool get hasMediaPreview {
     if (localImagePreview != null) return true;
     final thumbnail = descriptor.thumbnailB64;
-    return thumbnail != null &&
-        thumbnail.isNotEmpty &&
-        (descriptor.mime.startsWith('image/') ||
-            descriptor.mime.startsWith('video/'));
+    return thumbnail != null && thumbnail.isNotEmpty && (isImage || isVideo);
   }
 
   ({AttachmentTransferAction action, bool enabled})? transferControl(

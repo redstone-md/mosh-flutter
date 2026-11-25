@@ -228,6 +228,19 @@
   "@attachmentTooLargeMessage": {
     "description": "Shown when the picked attachment is rejected for exceeding the 50 MB ceiling (mirrors React use-chat-orchestration `onError(\"Attachment exceeds the 50 MB limit\")`)"
   },
+  "chatSearchFilesPlaceholder": "Search files",
+  "@chatSearchFilesPlaceholder": {
+    "description": "Placeholder of the search inside a conversation while only messages with files are shown"
+  },
+  "chatFilterAllMessages": "All messages",
+  "@chatFilterAllMessages": {
+    "description": "The button on the phone that leaves the files filter of a conversation and shows every message again"
+  },
+  "chatSearchEmptyQuery": "No messages match “{query}”",
+  "@chatSearchEmptyQuery": {
+    "description": "Title shown in place of the feed when the search inside a conversation finds nothing",
+    "placeholders": { "query": { "type": "String" } }
+  },
   "chatSearchPlaceholder": "Search messages",
   "@chatSearchPlaceholder": {
     "description": "Placeholder for the message search field"
@@ -256,7 +269,7 @@
   "@chatSearchEmptyTitle": {
     "description": "Title shown when search has no results"
   },
-  "chatSearchEmptyBody": "Try another search or switch back to all messages.",
+  "chatSearchEmptyBody": "Search looks through the messages on this device",
   "@chatSearchEmptyBody": {
     "description": "Body shown when search has no results"
   },
@@ -823,10 +836,6 @@
   "@diagnosticsDiagnostics": {
     "description": "AppBar title of the diagnostics screen"
   },
-  "attachmentStateAvailable": "Available",
-  "@attachmentStateAvailable": {
-    "description": "Attachment transfer state label: file bytes are on disk locally"
-  },
   "attachmentStateDownloading": "Downloading {percent}%",
   "@attachmentStateDownloading": {
     "description": "Attachment transfer state label: chunks are in flight, {percent} of chunks completed",
@@ -836,6 +845,15 @@
       }
     }
   },
+  "attachmentProgressOf": "{percent}% of {size}",
+  "@attachmentProgressOf": {
+    "description": "The line under a file's name while it is being downloaded: how much has arrived, of its size",
+    "placeholders": { "percent": { "type": "int" }, "size": { "type": "String" } }
+  },
+  "attachmentMediaFailed": "Could not load",
+  "@attachmentMediaFailed": {
+    "description": "The line beside the name of a picture or a video whose transfer failed"
+  },
   "attachmentStateFailed": "Transfer failed",
   "@attachmentStateFailed": {
     "description": "Attachment transfer state label: transfer or verification failed, retry is possible"
@@ -843,10 +861,6 @@
   "attachmentStateCancelled": "Transfer cancelled",
   "@attachmentStateCancelled": {
     "description": "Attachment transfer state label: either side cancelled the transfer"
-  },
-  "attachmentStateOffered": "Ready to download",
-  "@attachmentStateOffered": {
-    "description": "Attachment transfer state label: manifest known, download not started yet"
   },
   "unreadBadge": "{count} unread",
   "@unreadBadge": {
@@ -1229,9 +1243,9 @@
   "@summaryFactMembers": {
     "description": "Fact label for the member-count row of the diagnostics summary card when a private group is active"
   },
-  "messageFailedToSend": "Failed to send",
+  "messageFailedToSend": "Not sent",
   "@messageFailedToSend": {
-    "description": "Fallback error text shown in the FailedMessageRetry row below a failed outbound message when deliveryError is null/empty (React inline literal in MessageLists.tsx FailedMessageRetry, the <span> fallback)"
+    "description": "The notice under a message that was not sent, beside its Retry button; the reason the network gave, when there is one, is its tooltip"
   },
   "messageFailedWithError": "Failed: {error}",
   "@messageFailedWithError": {
@@ -1467,6 +1481,10 @@
   "settingsTestRingtone": "Play test sound",
   "@settingsTestRingtone": {
     "description": "Sound settings: plays the call ringtone on the selected speakers"
+  },
+  "voiceMessageLoading": "Loading",
+  "@voiceMessageLoading": {
+    "description": "The line under the waveform of a voice message while its audio is still arriving"
   },
   "voiceMessagePlayLabel": "Play voice message",
   "@voiceMessagePlayLabel": {
@@ -2280,6 +2298,16 @@
   "callLogUpdateRequiredLabel": "Call failed: update Mosh",
   "@callLogUpdateRequiredLabel": {
     "description": "Call log pill for a call that could not connect because the two devices run incompatible Mosh versions."
+  },
+  "callLogSeconds": "{seconds} s",
+  "@callLogSeconds": {
+    "description": "How long a call under a minute lasted, in the call entry of a DM's feed after the time it rang",
+    "placeholders": { "seconds": { "type": "int" } }
+  },
+  "callLogMinutesSeconds": "{minutes} min {seconds} s",
+  "@callLogMinutesSeconds": {
+    "description": "How long a call lasted, in the call entry of a DM's feed after the time it rang",
+    "placeholders": { "minutes": { "type": "int" }, "seconds": { "type": "int" } }
   },
   "callLogOutgoingLabel": "Outgoing call",
   "callLogIncomingLabel": "Incoming call",

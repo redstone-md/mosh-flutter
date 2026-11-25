@@ -6,16 +6,16 @@ import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/app/mosh_shapes.dart';
 import 'package:mosh/src/app/mosh_theme.dart'
     show MoshColors, kLiveNumberFontFeatures;
+import 'package:mosh/src/features/conversation/message_tone.dart';
 
 import 'package:mosh/src/rust/outbound_delivery.dart';
 
-/// Gap between sender name and timestamp in a message meta row.
-const double kMessageMetaGap = 8;
+/// Gap between the sender's name and the fingerprint beside it.
+const double kMessageMetaGap = MoshSpace.s2;
 
-/// Avatar width in a message row. The real `CircleAvatar` and the spacer on
-/// a grouped row both use it, so grouped rows line up under the first row's
-/// avatar.
-const double messageAvatarSize = 32;
+/// Avatar width in a message row of a group or a channel. The avatar and
+/// the gutter kept under it on the later rows of a run both use it.
+const double messageAvatarSize = MoshSpace.s8;
 
 /// Height of the bar at the top of a conversation and of the panel beside
 /// it: the Top bar card's 64 px.
@@ -25,71 +25,62 @@ const double kChatHeaderHeight = MoshSpace.s16;
 /// its connection status.
 const double kConversationPanelWidth = 360;
 
-/// Gap from avatar to body in a message row.
-const double kMessageRowGap = 12;
+/// Gap from the avatar's gutter to the bubble.
+const double kMessageRowGap = MoshSpace.s2;
 
-/// The message list's own padding, shared by the DM, channel and group
-/// lists.
-const EdgeInsets kChatScrollPadding =
-    EdgeInsets.symmetric(horizontal: 22, vertical: 16);
+/// The measure of a bubble's text: a long link or a token without spaces
+/// breaks inside it.
+double messageMeasure({required bool compact}) => compact ? 232 : 480;
 
-/// Vertical lead-in for a message row: a continuation sits 4px under its
-/// predecessor (grouped), a fresh sender 12px under.
-double messageRowSpacing(bool grouped) => grouped ? 4 : 12;
+/// Width of a file or a picture in a bubble. A caption under it wraps at
+/// this width, as the bubble is no wider than the card; on the phone it is
+/// the width of a line of text.
+double attachmentWidth({required bool compact}) => compact
+    ? messageMeasure(compact: true) + MoshShapes.bubbleInset.horizontal
+    : 320;
 
-/// Compact delivery marks share a measured footer with the timestamp.
-const double kCompactDeliverySize = 15;
+/// The feed's own padding, shared by the DM, channel and group lists: 12 px
+/// at the sides on the phone, 20 px on the desktop.
+EdgeInsets feedPadding({required bool compact}) => EdgeInsets.symmetric(
+    horizontal: compact ? MoshSpace.s3 : MoshSpace.s5, vertical: MoshSpace.s4);
 
-/// Sender name in a message meta row: 13px bold fg-1.
-TextStyle messageMetaNameStyle(MoshColors colors) => TextStyle(
-      fontSize: 13,
-      fontWeight: FontWeight.w700,
-      color: colors.onSurface,
-    );
+/// Vertical lead-in for a message row: bubbles of one run sit 4 px apart
+/// and a new run starts 12 px lower.
+double messageRowSpacing(bool grouped) => grouped ? MoshSpace.s1 : MoshSpace.s3;
 
-TextStyle messageTimeStyle(MoshColors colors) => TextStyle(
-      fontSize: 11,
-      color: colors.onSurfaceMuted,
-      fontFeatures: kLiveNumberFontFeatures,
-    );
+/// The box a delivery mark takes beside the time, whatever its glyph.
+const double kDeliveryMarkSize = MoshSpace.s4;
 
-/// The message text itself: 13.5px at 1.5 line height in fg-1.
-TextStyle messageBodyStyle(MoshColors colors) =>
-    TextStyle(fontSize: 13.5, height: 1.5, color: colors.onSurface);
+/// The message text itself.
+TextStyle messageBodyStyle(BuildContext context, MessageTone tone) =>
+    Theme.of(context).textTheme.bodyLarge!.copyWith(color: tone.ink);
 
-/// Delivery-tick glyph row for an own-message row. Renders nothing for
-/// `failed` or null status, and shows the state glyph (`sent` -> one tick,
-/// `delivered` -> two ticks, `pending` -> ellipsis, `queued` -> a clock)
-/// otherwise.
+/// The time of a message, and the other quiet lines of its size.
+TextStyle messageTimeStyle(BuildContext context, MessageTone tone) =>
+    Theme.of(context)
+        .textTheme
+        .labelSmall!
+        .copyWith(color: tone.quiet, fontFeatures: kLiveNumberFontFeatures);
+
+/// The Delivery ticks card, beside the time of a message the user sent: a
+/// clock while the message is queued or on its way, one tick once it is
+/// sent, two once it is delivered. Renders nothing for `failed` or null.
 ///
-/// [read] is the [[Read receipt]]: when true the SAME two ticks change
-/// color (never a third tick) — the counterpart's authenticated receipt
-/// landed, so the delivered marks read as "seen". The label stays
-/// "delivered"; the color carries the read fact.
+/// [read] is the [[Read receipt]]: the same pair of ticks, never a third,
+/// drawn heavier and in the darker ink, as a colour alone is too close on
+/// the bubble. The label stays "delivered".
 class DeliveryTicks extends StatelessWidget {
   const DeliveryTicks(
-      {super.key,
-      required this.status,
-      this.read = false,
-      this.compact = false,
-      this.color});
+      {super.key, required this.status, required this.tone, this.read = false});
 
   final MessageDeliveryStatus? status;
+  final MessageTone tone;
 
   /// Whether the counterpart's read receipt has landed on this message.
   final bool read;
-  final bool compact;
-
-  /// Normal compact glyph tone; tinted bubbles need a brighter foreground.
-  /// The authenticated read state still uses the existing receipt accent.
-  final Color? color;
 
   @override
   Widget build(BuildContext context) {
-    final colors = MoshColors.of(context);
-    // Localized full label: "✓✓ delivered" / "✓ sent" / "sending…". The
-    // visible text IS the label (glyph + word). A queued message has no
-    // glyph in the font, so it draws a clock icon in front of its word.
     final l = AppLocalizations.of(context)!;
     final label = switch (status) {
       MessageDeliveryStatus.delivered => l.deliveryDelivered,
@@ -99,47 +90,26 @@ class DeliveryTicks extends StatelessWidget {
       MessageDeliveryStatus.failed || null => null,
     };
     if (label == null) return const SizedBox.shrink();
-    if (compact) {
-      final icon = switch (status) {
-        MessageDeliveryStatus.delivered => MoshIcons.doneAll,
-        MessageDeliveryStatus.sent => MoshIcons.check,
-        MessageDeliveryStatus.queued => MoshIcons.schedule,
-        _ => MoshIcons.moreHorizontal,
-      };
-      return Semantics(
-          label: label,
-          excludeSemantics: true,
-          child: Tooltip(
-              message: label,
-              child: Icon(icon,
-                  size: kCompactDeliverySize,
-                  color:
-                      read ? colors.primary : color ?? colors.onSurfaceMuted)));
-    }
-    // The read receipt changes the COLOR of the same glyphs, never adds a
-    // third tick: the delivered marks carry the theme's accent instead of
-    // the faint fg-4, exactly like a "seen" mark.
-    final style = read
-        ? TextStyle(fontSize: 10, color: colors.primary)
-        : TextStyle(fontSize: 10, color: colors.outline);
-    return Padding(
-      padding: const EdgeInsets.only(top: 1),
-      // The label already includes the glyph + word, so the a11y string is
-      // "Delivery: ✓✓ delivered" etc.
-      child: Semantics(
-        label: 'Delivery: $label',
-        excludeSemantics: true,
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (status == MessageDeliveryStatus.queued)
-              Padding(
-                padding: const EdgeInsets.only(right: 2),
-                child:
-                    Icon(MoshIcons.schedule, size: 10, color: colors.outline),
-              ),
-            Text(label, style: style),
-          ],
+    // Each of the paired ticks is drawn smaller than a lone one, so the
+    // lone tick and the clock are set a step down.
+    final (icon, size) = switch (status) {
+      MessageDeliveryStatus.delivered => (
+          read ? MoshIcons.doneAllRead : MoshIcons.doneAll,
+          MoshSpace.s4
+        ),
+      MessageDeliveryStatus.sent => (MoshIcons.check, MoshSpace.s3),
+      _ => (MoshIcons.schedule, MoshSpace.s3),
+    };
+    return Semantics(
+      label: label,
+      excludeSemantics: true,
+      child: Tooltip(
+        message: label,
+        child: SizedBox.square(
+          dimension: kDeliveryMarkSize,
+          child: Center(
+            child: Icon(icon, size: size, color: read ? tone.ink : tone.quiet),
+          ),
         ),
       ),
     );
@@ -150,11 +120,11 @@ DateTime? messageDate(BigInt? sentAtMs) => sentAtMs == null
     ? null
     : DateTime.fromMillisecondsSinceEpoch(sentAtMs.toInt()).toLocal();
 
-/// Locale-aware HH:mm clock for the sender-meta row. Formats the epoch in
-/// the LOCAL timezone via `intl`'s `DateFormat.Hm(locale)` so the
-/// hour/minute follow the device locale. Returns null when the message
+/// Locale-aware HH:mm clock of a message, as its footer shows it. Formats
+/// the epoch in the LOCAL timezone via `intl`'s `DateFormat.Hm(locale)` so
+/// the hour/minute follow the device locale. Returns null when the message
 /// has no `sentAtMs`. `locale` defaults to `'en'` and is fed by the
-/// `AppLocalizations` locale in [ConversationSenderMeta]; callers must
+/// `AppLocalizations` locale; callers must
 /// `initializeDateFormatting()` once in `main()` for non-en locales to
 /// format in-locale rather than fall back to en.
 String? formatClock(BigInt? sentAtMs, {String? locale}) {
@@ -163,9 +133,8 @@ String? formatClock(BigInt? sentAtMs, {String? locale}) {
   return DateFormat.Hm(locale ?? 'en').format(dt);
 }
 
-/// Full locale-aware date-time string for the sender-meta timestamp's
-/// tooltip (the hover tooltip). Renders a full date + time in the LOCAL
-/// timezone via `DateFormat.yMMMd(locale).add_Hm()` -- e.g. "Aug 1, 2026
+/// Full locale-aware date-time string for the tooltip of a message's time.
+/// Renders a full date + time in the LOCAL timezone via `DateFormat.yMMMd(locale).add_Hm()` -- e.g. "Aug 1, 2026
 /// 2:30 PM" (en). Returns null when the message has no `sentAtMs`.
 /// `locale` defaults to `'en'` and mirrors [formatClock]'s locale
 /// handling.

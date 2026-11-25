@@ -1,10 +1,10 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:mosh/src/app/mosh_theme.dart';
 import 'package:mosh/src/features/conversation/conversation_helpers.dart';
 import 'package:mosh/src/features/conversation/conversation_message_footer.dart';
 import 'package:mosh/src/features/conversation/conversation_text_metrics.dart';
+import 'package:mosh/src/features/conversation/message_tone.dart';
 
 /// Reserves actual space for the time beside the last line or beneath it.
 /// The body stays ordinary Text, preserving selection and exact clipboard text.
@@ -13,9 +13,13 @@ class ConversationMessageText extends StatelessWidget {
     super.key,
     required this.body,
     required this.footer,
+    required this.tone,
   });
 
   final String body;
+
+  /// The bubble the text sits in, which picks its ink.
+  final MessageTone tone;
   final ConversationMessageFooter footer;
 
   @override
@@ -23,7 +27,7 @@ class ConversationMessageText extends StatelessWidget {
         builder: (context, constraints) {
           final style = DefaultTextStyle.of(context)
               .style
-              .merge(messageBodyStyle(MoshColors.of(context)));
+              .merge(messageBodyStyle(context, tone));
           final footerSize = footer.measure(context);
           final layout =
               _measure(context, style, constraints.maxWidth, footerSize);
@@ -32,7 +36,7 @@ class ConversationMessageText extends StatelessWidget {
             child: Stack(clipBehavior: Clip.none, children: [
               Padding(
                 padding: EdgeInsets.only(
-                    bottom: layout.below ? footerSize.height + 4 : 0),
+                    bottom: layout.below ? footerSize.height : 0),
                 child: Text(body, style: style, textAlign: TextAlign.start),
               ),
               PositionedDirectional(end: 0, bottom: 0, child: footer),

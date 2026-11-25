@@ -16,6 +16,8 @@ class SearchField extends StatelessWidget {
     required this.onChanged,
     this.focusNode,
     this.shortcut,
+    this.autofocus = false,
+    this.clearable = true,
   });
 
   final TextEditingController controller;
@@ -23,6 +25,11 @@ class SearchField extends StatelessWidget {
   final ValueChanged<String> onChanged;
   final FocusNode? focusNode;
   final String? shortcut;
+  final bool autofocus;
+
+  /// Off where a button beside the field closes the search and so clears
+  /// it: the field then keeps no clear button of its own.
+  final bool clearable;
 
   @override
   Widget build(BuildContext context) {
@@ -33,6 +40,7 @@ class SearchField extends StatelessWidget {
       builder: (context, _) => TextField(
         controller: controller,
         focusNode: focusNode,
+        autofocus: autofocus,
         onChanged: onChanged,
         textInputAction: TextInputAction.search,
         style: theme.textTheme.bodyMedium,
@@ -64,6 +72,7 @@ class SearchField extends StatelessWidget {
 
   Widget? _suffix(BuildContext context) {
     if (controller.text.isNotEmpty) {
+      if (!clearable) return null;
       return IconButton(
         tooltip: MaterialLocalizations.of(context).clearButtonTooltip,
         icon: const Icon(MoshIcons.close),

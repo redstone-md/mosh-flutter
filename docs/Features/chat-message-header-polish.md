@@ -1,5 +1,11 @@
 # Message bubbles and conversation header
 
+> Since MOSH-135 the bubbles are drawn from the Message card of the
+> Components page: `outgoing` with its own dark inks, 20px corners with 8px
+> joins, no avatar beside a message of a direct chat. The geometry and the
+> colours below record the polish that came before it; the behaviour (time in
+> the last line, no repeated contact name, runs by sender) still holds.
+
 ## Approved scope
 
 The user approved this follow-up on 2026-10-01 after reviewing the first chat

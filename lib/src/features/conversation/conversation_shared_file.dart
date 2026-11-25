@@ -1,18 +1,18 @@
 import 'package:flutter/material.dart';
-import 'package:mosh/src/app/mosh_icons.dart';
-import 'package:mosh/src/app/mosh_shapes.dart';
 import 'package:mosh/l10n/app_localizations.dart';
-import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
+import 'package:mosh/src/app/mosh_dimensions.dart';
 import 'package:mosh/src/features/conversation/attachment_actions.dart';
 import 'package:mosh/src/features/conversation/conversation_attachment.dart';
-import 'package:mosh/src/features/conversation/attachment_thumb.dart';
 import 'package:mosh/src/features/conversation/conversation_message_list_view.dart';
 import 'package:mosh/src/features/conversation/conversation_snapshot.dart';
+import 'package:mosh/src/features/conversation/file_card.dart';
+import 'package:mosh/src/features/conversation/message_tone.dart';
 import 'package:mosh/src/rust/conversation/attachments.dart';
-import 'package:mosh/src/util/format.dart' show formatBytes;
 
-/// Compact file index. Previews and audio playback stay in the message cards;
-/// this row reuses their transfer actions without creating another media player.
+/// A row of the shared files in the conversation details: the File card on
+/// a surface, whatever the file is. Previews and audio playback stay in the
+/// message cards; the row keeps 8 px above and below its card, as a bubble
+/// does.
 class ConversationSharedFile extends StatelessWidget {
   const ConversationSharedFile({
     super.key,
@@ -27,52 +27,20 @@ class ConversationSharedFile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = MoshColors.of(context);
-    final l = AppLocalizations.of(context)!;
     final file = message.attachment!;
     final attachment =
         ConversationAttachment(descriptor: file, view: view, own: message.own);
-    final progress = attachment.progress;
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: AttachmentOpenTarget(
-        label: l.attachmentOpenAria(file.fileName),
-        onOpen:
-            attachment.localPath != null ? () => actions.onOpen(file) : null,
-        child: Row(children: [
-          Container(
-            width: kAttachmentThumbSize,
-            height: kAttachmentThumbSize,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-                color: colors.secondaryContainer,
-                borderRadius: MoshShapes.control),
-            child: Icon(MoshIcons.file, color: colors.primary, size: 23),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-              child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Tooltip(
-                  message: file.fileName,
-                  child: Text(file.fileName,
-                      maxLines: 1, overflow: TextOverflow.ellipsis)),
-              const SizedBox(height: 4),
-              Text(formatBytes(file.totalSize),
-                  style: Theme.of(context).textTheme.bodySmall),
-              if (progress != null)
-                LinearProgressIndicator(value: progress.fraction),
-            ],
-          )),
-          AttachmentActions(
-            attachment: attachment,
+      padding: const EdgeInsets.symmetric(vertical: MoshSpace.s2),
+      child: FileCard(
+        attachment: attachment,
+        tone: MessageTone.of(context, own: false),
+        action: attachmentAction(attachment,
             busy: actions.busy,
+            l: AppLocalizations.of(context)!,
             onDownload: actions.onDownload,
             onCancel: actions.onCancel,
-            l: l,
-          ),
-        ]),
+            onOpen: () => actions.onOpen(file)),
       ),
     );
   }

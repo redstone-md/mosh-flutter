@@ -90,6 +90,19 @@
   "attachmentNotAFile": "Прикрепить можно только файл, а не папку.",
   "attachmentUnreadable": "Не удалось прочитать скопированный файл. Возможно, он перемещён или недоступен.",
   "chatActionErrorPayloadTooLarge": "Это сообщение слишком большое для отправки.",
+  "chatSearchFilesPlaceholder": "Поиск по файлам",
+  "@chatSearchFilesPlaceholder": {
+    "description": "Placeholder of the search inside a conversation while only messages with files are shown"
+  },
+  "chatFilterAllMessages": "Все сообщения",
+  "@chatFilterAllMessages": {
+    "description": "The button on the phone that leaves the files filter of a conversation and shows every message again"
+  },
+  "chatSearchEmptyQuery": "Нет сообщений по запросу «{query}»",
+  "@chatSearchEmptyQuery": {
+    "description": "Title shown in place of the feed when the search inside a conversation finds nothing",
+    "placeholders": { "query": { "type": "String" } }
+  },
   "chatSearchPlaceholder": "Поиск сообщений",
  "chatFilterAll": "Все",
  "chatFilterAttachments": "Файлы",
@@ -100,7 +113,7 @@
  "openMessageSearch": "Открыть поиск сообщений",
   "closeMessageSearch": "Закрыть поиск сообщений",
   "chatSearchEmptyTitle": "Совпадений не найдено.",
-  "chatSearchEmptyBody": "Попробуйте другой поиск или вернитесь ко всем сообщениям.",
+  "chatSearchEmptyBody": "Поиск идёт по сообщениям на этом устройстве",
   "chatAttachmentEmptyBody": "В этом режиме нет вложений.",
   "chatCryptoFooter": "OpenMLS seal · ciphertext через gossip Moss",
   "stateIdle": "Неактивно",
@@ -243,10 +256,17 @@
   "orgRejoinNeededTitle": "Группа рассинхронизирована",
   "orgRejoinNeededBody": "Внутри группы произошла рассинхронизация. Попросите администратора пригласить вас заново.",
   "diagnosticsDiagnostics": "Диагностика",
-  "attachmentStateAvailable": "Доступно",
+  "attachmentProgressOf": "{percent}% из {size}",
+  "@attachmentProgressOf": {
+    "description": "The line under a file's name while it is being downloaded: how much has arrived, of its size",
+    "placeholders": { "percent": { "type": "int" }, "size": { "type": "String" } }
+  },
+  "attachmentMediaFailed": "Не удалось загрузить",
+  "@attachmentMediaFailed": {
+    "description": "The line beside the name of a picture or a video whose transfer failed"
+  },
   "attachmentStateFailed": "Передача не удалась",
   "attachmentStateCancelled": "Передача отменена",
-  "attachmentStateOffered": "Готово к загрузке",
   "attachmentStateDownloading": "Загрузка {percent}%",
   "unreadBadge": "{count} непрочитанных",
   "@unreadBadge": {
@@ -602,9 +622,9 @@
   "@summaryFactMembers": {
     "description": "Fact label for the member-count row of the diagnostics summary card when a private group is active"
   },
-  "messageFailedToSend": "Не удалось отправить",
+  "messageFailedToSend": "Не отправлено",
   "@messageFailedToSend": {
-    "description": "Fallback error text shown in the FailedMessageRetry row below a failed outbound message when deliveryError is null/empty (React inline literal in MessageLists.tsx FailedMessageRetry, the <span> fallback)"
+    "description": "The notice under a message that was not sent, beside its Retry button; the reason the network gave, when there is one, is its tooltip"
   },
   "messageFailedWithError": "Сбой: {error}",
   "@messageFailedWithError": {
@@ -741,6 +761,10 @@
   "settingsCameraDeviceHint": "Камера по умолчанию для видеозвонков. Применится со следующего звонка.",
   "settingsDeviceDefault": "Системный по умолчанию",
   "settingsTestRingtone": "Проверить звук",
+  "voiceMessageLoading": "Загрузка",
+  "@voiceMessageLoading": {
+    "description": "The line under the waveform of a voice message while its audio is still arriving"
+  },
   "voiceMessagePlayLabel": "Воспроизвести голосовое сообщение",
   "voiceMessagePauseLabel": "Поставить на паузу"
   ,
@@ -1220,6 +1244,16 @@
   "plusPaymentDetails": "Условия и реквизиты",
   "callLogNoAnswerLabel": "Нет ответа",
   "callLogUpdateRequiredLabel": "Звонок не состоялся: обновите Mosh",
+  "callLogSeconds": "{seconds} с",
+  "@callLogSeconds": {
+    "description": "How long a call under a minute lasted, in the call entry of a DM's feed after the time it rang",
+    "placeholders": { "seconds": { "type": "int" } }
+  },
+  "callLogMinutesSeconds": "{minutes} мин {seconds} с",
+  "@callLogMinutesSeconds": {
+    "description": "How long a call lasted, in the call entry of a DM's feed after the time it rang",
+    "placeholders": { "minutes": { "type": "int" }, "seconds": { "type": "int" } }
+  },
   "callLogOutgoingLabel": "Исходящий звонок",
   "callLogIncomingLabel": "Входящий звонок",
   "callMinimize": "Свернуть звонок",

@@ -30,7 +30,6 @@ void main() {
             body: ConversationSenderMeta(
               fromDevice: 'bob',
               fromFingerprint: peerFp,
-              sentAtMs: BigInt.from(1700000000000),
               peer: PeerActions(
                 ownFingerprint: own,
                 offered: const {},
@@ -78,7 +77,6 @@ void main() {
             body: ConversationSenderMeta(
               fromDevice: 'bob',
               fromFingerprint: peerFp,
-              sentAtMs: BigInt.from(1700000000000),
               peer: PeerActions(
                 ownFingerprint: own,
                 offered: const {peerFp},
@@ -117,7 +115,6 @@ void main() {
           body: ConversationSenderMeta(
             fromDevice: 'bob',
             fromFingerprint: peerFp,
-            sentAtMs: BigInt.from(1700000000000),
             peer: PeerActions(
               ownFingerprint: own,
               offered: const {},
@@ -157,7 +154,6 @@ void main() {
             body: ConversationSenderMeta(
               fromDevice: 'bob',
               fromFingerprint: peerFp,
-              sentAtMs: BigInt.from(1700000000000),
               peer: PeerActions(
                 ownFingerprint: own,
                 offered: const {},
@@ -192,7 +188,6 @@ void main() {
           body: ConversationSenderMeta(
             fromDevice: 'bob',
             fromFingerprint: peerFp,
-            sentAtMs: BigInt.from(1700000000000),
             peer: PeerActions(
               ownFingerprint: own,
               offered: const {},
@@ -231,7 +226,6 @@ void main() {
             body: ConversationSenderMeta(
               fromDevice: 'bob',
               fromFingerprint: peerFp,
-              sentAtMs: BigInt.from(1700000000000),
             ),
           ),
         );
@@ -254,7 +248,6 @@ void main() {
             body: ConversationSenderMeta(
               fromDevice: 'me',
               fromFingerprint: own,
-              sentAtMs: BigInt.from(1700000000000),
               peer: PeerActions(
                 ownFingerprint: own,
                 offered: const {},

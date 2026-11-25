@@ -2,10 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:mosh/src/features/conversation/conversation_call_binding.dart'
-    show conversationCallBindingProvider;
+    show conversationCallBindingProvider, startConversationCall;
 import 'package:mosh/src/features/conversation/conversation_screen.dart';
 import 'package:mosh/src/features/conversation/dm_screen_header.dart';
-import 'package:mosh/src/features/shared/conversation_action_error.dart';
 import 'package:mosh/src/gateway/conversation_target.dart' show DmTarget;
 
 class DmScreen extends ConsumerStatefulWidget {
@@ -33,13 +32,6 @@ class _DmScreenState extends ConsumerState<DmScreen> {
         ),
       );
 
-  Future<void> _startCall({bool video = false}) async {
-    final call = ref.read(conversationCallBindingProvider);
-    if (call == null) return;
-    final reportError = actionErrorReporter(context);
-    final start = video ? call.startVideo : call.start;
-    if (start == null) return;
-    final error = await start(ref, widget.sessionId);
-    if (error != null) reportError(error);
-  }
+  Future<void> _startCall({bool video = false}) =>
+      startConversationCall(ref, context, widget.sessionId, video: video);
 }

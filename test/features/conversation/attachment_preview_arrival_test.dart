@@ -158,9 +158,6 @@ void main() {
         as FileImage;
     expect(image.file.path, file.path);
     expect(downloads, isEmpty);
-    expect(find.byTooltip('Download'), findsOneWidget);
-    await tester.tap(find.byTooltip('Download'));
-    expect(downloads, ['photo']);
     expect(tester.takeException(), isNull);
   });
 

@@ -12,14 +12,14 @@ import '../../support/conversation_cases.dart';
 import '../../support/scriptable_gateway.dart';
 import '../shared/attachment_launcher_test_support.dart';
 
-/// The card shows at most one action button, so this finds it.
+/// The whole card is the target of its one action, so this finds it.
 Finder _action() => find.descendant(
       of: find.byType(AttachmentCard),
-      matching: find.byType(IconButton),
+      matching: find.byType(InkWell),
     );
 
 bool _actionEnabled(WidgetTester tester) =>
-    tester.widget<IconButton>(_action()).onPressed != null;
+    tester.widget<InkWell>(_action().first).onTap != null;
 
 void main() {
   for (final testCase in conversationCases()) {
@@ -47,7 +47,7 @@ void main() {
       );
 
       expect(find.text('video.mp4'), findsOneWidget);
-      expect(find.textContaining('Downloading 50%'), findsOneWidget);
+      expect(find.textContaining('50% of'), findsOneWidget);
       expect(find.byType(LinearProgressIndicator), findsOneWidget);
     });
 
@@ -68,7 +68,7 @@ void main() {
       expect(find.textContaining('Paused'), findsOneWidget);
       expect(find.byTooltip('Resume download'), findsOneWidget);
       expect(find.byType(LinearProgressIndicator), findsNothing);
-      await tester.tap(_action());
+      await tester.tap(_action().first);
       await tester.pump();
       expect(
           gateway
@@ -96,7 +96,7 @@ void main() {
       );
 
       expect(find.textContaining('Transfer failed'), findsOneWidget);
-      expect(find.byIcon(MoshIcons.error), findsOneWidget);
+      expect(find.byTooltip('Retry'), findsOneWidget);
       expect(find.byIcon(MoshIcons.file), findsNothing);
     });
 
@@ -121,10 +121,9 @@ void main() {
 
       expect(find.text('report.pdf'), findsOneWidget);
       expect(find.textContaining('1.5 KB'), findsOneWidget);
-      expect(find.textContaining('Ready to download'), findsOneWidget);
       expect(_actionEnabled(tester), isTrue);
 
-      await tester.tap(_action());
+      await tester.tap(_action().first);
       await tester.pump();
       expect(_actionEnabled(tester), isFalse);
 

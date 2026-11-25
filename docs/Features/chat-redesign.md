@@ -53,8 +53,8 @@ Flutter chat list, messages and details for DMs, private groups and public chann
   expandable connection diagnostics. Public channels show their known authors,
   with no invented roster. Groups show actual roster identities when available; unresolved
   identities remain shortened identifiers. Existing diagnostics expand on demand.
-- Shared files are deduplicated by attachment ID and reuse `AttachmentActions` and
-  controller callbacks for download, cancellation, retry and opening. Updating
+- Shared files are deduplicated by attachment ID and reuse the message's File
+  card (`FileCard`, `attachmentAction`) and controller callbacks for download, cancellation, retry and opening. Updating
   any conversation also refreshes its kind's list for current previews. Their
   icon backgrounds are 40px squares with centered glyphs.
 - The public-channel and encrypted-group information notices can be closed.

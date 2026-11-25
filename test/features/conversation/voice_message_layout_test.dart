@@ -1,33 +1,38 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/src/app/mosh_icons.dart';
+import 'package:mosh/src/app/mosh_theme.dart';
 import 'package:mosh/src/features/conversation/voice_message_card.dart';
+import 'package:mosh/src/features/conversation/voice_waveform.dart';
 import 'package:mosh/src/rust/attachment_runtime.dart' show VoiceMeta;
 import 'package:mosh/src/rust/conversation/attachments.dart';
 
 import '../../support/pump.dart';
 
-Future<void> _pumpVoice(WidgetTester tester, {double width = 280}) =>
+Future<void> _pumpVoice(WidgetTester tester,
+        {double width = 280,
+        TargetPlatform platform = TargetPlatform.windows}) =>
     pumpScreen(
       tester,
-      Scaffold(
-        body: Center(
-          child: SizedBox(
-            width: width,
-            child: VoiceMessageCard(
-              descriptor: AttachmentDescriptor(
-                attachmentId: 'voice-layout',
-                contentHash: 'voice-hash',
-                fileName: 'voice.m4a',
-                mime: 'audio/mp4',
-                totalSize: BigInt.from(4096),
-                voice: VoiceMeta(durationMs: 4200, peaksB64: ''),
+      Theme(
+        data: buildMoshTheme(MoshColors.dark, platform),
+        child: Scaffold(
+          body: Center(
+            child: SizedBox(
+              width: width,
+              child: VoiceMessageCard(
+                descriptor: AttachmentDescriptor(
+                  attachmentId: 'voice-layout',
+                  contentHash: 'voice-hash',
+                  fileName: 'voice.m4a',
+                  mime: 'audio/mp4',
+                  totalSize: BigInt.from(4096),
+                  voice: VoiceMeta(durationMs: 4200, peaksB64: ''),
+                ),
+                view: null,
+                busy: false,
+                onDownload: (_) {},
               ),
-              view: null,
-              busy: false,
-              onDownload: (_) {},
-              playLabel: 'Play',
-              pauseLabel: 'Pause',
             ),
           ),
         ),
@@ -35,15 +40,22 @@ Future<void> _pumpVoice(WidgetTester tester, {double width = 280}) =>
     );
 
 void main() {
-  testWidgets('voice play glyph is centered in its hit target', (tester) async {
-    await _pumpVoice(tester);
-    final icon = find.byIcon(MoshIcons.play);
-    final target =
-        find.ancestor(of: icon, matching: find.byType(InkWell)).first;
-    expect(tester.getCenter(icon), tester.getCenter(target));
-    expect(tester.getSize(target), const Size.square(40));
-    expect(tester.takeException(), isNull);
-  });
+  for (final (platform, side) in [
+    (TargetPlatform.windows, 40.0),
+    (TargetPlatform.android, 48.0),
+  ]) {
+    testWidgets(
+        'voice play glyph is centered in its ${side.toInt()} px target on '
+        '${platform.name}', (tester) async {
+      await _pumpVoice(tester, platform: platform);
+      final icon = find.byIcon(MoshIcons.play);
+      final target =
+          find.ancestor(of: icon, matching: find.byType(InkWell)).first;
+      expect(tester.getCenter(icon), tester.getCenter(target));
+      expect(tester.getSize(target), Size.square(side));
+      expect(tester.takeException(), isNull);
+    });
+  }
 
   testWidgets('voice waveform fits a narrow message and seeks across its width',
       (tester) async {

@@ -6,9 +6,11 @@ import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/features/conversation/conversation_helpers.dart';
 import 'package:mosh/src/features/conversation/conversation_message_row.dart';
 import 'package:mosh/src/features/conversation/conversation_snapshot.dart';
+import 'package:mosh/src/features/shared/avatar.dart';
 import 'package:mosh/src/gateway/conversation_target.dart';
 import 'package:mosh/src/rust/outbound_delivery.dart';
 
+import '../../support/contrast.dart';
 import '../../support/pump.dart';
 import '../../support/conversation_cases.dart';
 
@@ -89,12 +91,12 @@ void main() {
             .resolve(TextDirection.ltr);
       }
 
-      expect(corners('first').topLeft, const Radius.circular(16));
-      expect(corners('first').bottomLeft, const Radius.circular(4));
-      expect(corners('second').topLeft, const Radius.circular(4));
-      expect(corners('second').bottomLeft, const Radius.circular(16));
-      expect(corners('third').bottomRight, const Radius.circular(4));
-      expect(corners('fourth').topRight, const Radius.circular(4));
+      expect(corners('first').topLeft, const Radius.circular(20));
+      expect(corners('first').bottomLeft, const Radius.circular(8));
+      expect(corners('second').topLeft, const Radius.circular(8));
+      expect(corners('second').bottomLeft, const Radius.circular(20));
+      expect(corners('third').bottomRight, const Radius.circular(8));
+      expect(corners('fourth').topRight, const Radius.circular(8));
       final first =
           tester.getRect(find.byKey(const ValueKey('message-bubble-first')));
       final second =
@@ -102,6 +104,49 @@ void main() {
       expect(second.top - first.bottom, closeTo(4, 0.01));
     });
   }
+  for (final testCase in conversationCases()) {
+    testWidgets(
+        '${testCase.label}: only a group and a channel put an avatar beside '
+        'the first bubble of a run', (tester) async {
+      await pumpConversation(tester, testCase, messages: [
+        TestMessage(body: 'first', sentAtMs: _sentAt),
+        TestMessage(body: 'second', sentAtMs: _sentAt + BigInt.one),
+      ]);
+      final feed = find.byType(ConversationMessageRow);
+      expect(find.descendant(of: feed, matching: find.byType(Avatar)),
+          testCase.label == 'DM' ? findsNothing : findsOneWidget);
+    });
+  }
+
+  for (final own in [false, true]) {
+    testWidgets('the text of a bubble reads on its fill (own=$own)',
+        (tester) async {
+      await _pumpBubble(tester, 'hello', own: own);
+      final bubble = tester.widget<Container>(
+          find.byKey(const ValueKey('message-bubble-hello')));
+      final fill = (bubble.decoration as BoxDecoration).color!;
+      for (final text in ['hello', formatClock(_sentAt, locale: 'en')!]) {
+        final paragraph = tester.renderObject<RenderParagraph>(find.descendant(
+            of: find.text(text), matching: find.byType(RichText)));
+        expect(contrastRatio(paragraph.text.style!.color!, fill),
+            greaterThanOrEqualTo(4.5),
+            reason: text);
+      }
+    });
+  }
+
+  testWidgets('a token without spaces breaks inside the measure',
+      (tester) async {
+    final body = 'mosh1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh' * 3;
+    await _pumpBubble(tester, body, width: 760, own: true);
+    final bubble = tester.getRect(find.byKey(ValueKey('message-bubble-$body')));
+    final text = tester.getRect(find.text(body));
+    expect(text.width, lessThanOrEqualTo(480));
+    expect(bubble.contains(text.topLeft) && bubble.contains(text.bottomRight),
+        isTrue);
+    expect(text.height, greaterThan(24));
+  });
+
   for (final body in ['hello', 'a longer first line\nok']) {
     testWidgets('time shares the last line when it fits: $body',
         (tester) async {

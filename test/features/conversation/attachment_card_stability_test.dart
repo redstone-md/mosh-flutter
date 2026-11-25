@@ -171,7 +171,7 @@ void main() {
     expect(tester.widget<RawImage>(find.byType(RawImage)).image, isNotNull);
   });
 
-  testWidgets('time keeps the cancel button in place and stays off progress',
+  testWidgets('time keeps the cancel plate in place and stays off progress',
       (tester) async {
     final downloading = _view(AttachmentState.downloading);
     await pumpScreen(
@@ -182,18 +182,15 @@ void main() {
         tester,
         _card(_descriptor(null, mime: 'application/zip'), downloading,
             footer: const Text('22:20')));
-    final cancel = tester.getRect(find.byTooltip('Cancel download'));
     expect(_cancelInCard(tester), alone);
     final time = tester.getRect(find.text('22:20'));
     final meta = tester.getRect(find.textContaining('71%'));
     final progress = tester.getRect(find.byType(LinearProgressIndicator));
 
-    // Like text bubbles, time ends the last line; here that is the progress.
-    expect(time.top, greaterThanOrEqualTo(meta.bottom));
-    expect(time.center.dy, closeTo(progress.center.dy, 1));
-    expect(progress.right, lessThanOrEqualTo(time.left));
-    // The button's plate reaches the card's edge; the time keeps its inset.
-    expect(time.right, lessThanOrEqualTo(cancel.right));
+    // Like text bubbles, time ends the last line: the detail under the bar.
+    expect(progress.bottom, lessThanOrEqualTo(meta.top));
+    expect(time.center.dy, closeTo(meta.center.dy, 2));
+    expect(meta.right, lessThanOrEqualTo(time.left));
     expect(tester.takeException(), isNull);
   });
 }

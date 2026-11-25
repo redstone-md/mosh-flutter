@@ -16,6 +16,7 @@ class ConversationNotice extends StatelessWidget {
     required this.title,
     required this.line,
     this.failed = false,
+    this.quiet = false,
     this.actionLabel,
     this.onAction,
   });
@@ -23,6 +24,10 @@ class ConversationNotice extends StatelessWidget {
   final String title;
   final String line;
   final bool failed;
+
+  /// The Search empty card: a search that found nothing says so in smaller
+  /// type and closer to the header, as the feed is still there behind it.
+  final bool quiet;
   final String? actionLabel;
   final VoidCallback? onAction;
 
@@ -37,9 +42,12 @@ class ConversationNotice extends StatelessWidget {
     return Center(
       child: SingleChildScrollView(
         padding: EdgeInsets.symmetric(
-            vertical: MoshSpace.s12,
-            horizontal:
-                isMobileBreakpoint(context) ? MoshSpace.s3 : MoshSpace.s5),
+            vertical: quiet ? MoshSpace.s8 : MoshSpace.s12,
+            horizontal: quiet
+                ? MoshSpace.s4
+                : isMobileBreakpoint(context)
+                    ? MoshSpace.s3
+                    : MoshSpace.s5),
         child: ConstrainedBox(
           // No wider than the measure, and 32 px clear of each edge.
           constraints: BoxConstraints(
@@ -48,13 +56,13 @@ class ConversationNotice extends StatelessWidget {
           child: Column(mainAxisSize: MainAxisSize.min, children: [
             Text(title,
                 textAlign: TextAlign.center,
-                style: text.titleMedium!
+                style: (quiet ? text.titleSmall : text.titleMedium)!
                     .copyWith(color: failed ? colors.error : colors.onSurface)),
             const SizedBox(height: MoshSpace.s1),
             Text(line,
                 textAlign: TextAlign.center,
-                style:
-                    text.bodyMedium!.copyWith(color: colors.onSurfaceVariant)),
+                style: (quiet ? text.bodySmall : text.bodyMedium)!
+                    .copyWith(color: colors.onSurfaceVariant)),
             if (actionLabel case final label?) ...[
               const SizedBox(height: MoshSpace.s2),
               OutlinedButton(onPressed: onAction, child: Text(label)),

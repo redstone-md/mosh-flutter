@@ -32,19 +32,12 @@ class GroupRejoinNeededError extends StatelessWidget {
             children: [
               TextSpan(
                 text: '$title.',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                  color: error,
-                  fontSize: 12,
-                ),
+                style: theme.textTheme.labelMedium?.copyWith(color: error),
               ),
               const TextSpan(text: ' '),
               TextSpan(
                 text: body,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: error,
-                  fontSize: 12,
-                ),
+                style: theme.textTheme.bodySmall?.copyWith(color: error),
               ),
             ],
           ),

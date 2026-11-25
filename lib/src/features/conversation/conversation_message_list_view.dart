@@ -3,12 +3,15 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_dimensions.dart';
 import 'package:mosh/src/features/conversation/conversation_helpers.dart';
 import 'package:mosh/src/features/conversation/conversation_date_divider.dart';
 import 'package:mosh/src/features/conversation/conversation_message_row.dart';
 import 'package:mosh/src/features/conversation/conversation_snapshot.dart';
 import 'package:mosh/src/features/conversation/conversation_unread_divider.dart';
 import 'package:mosh/src/features/conversation/conversation_sender_meta.dart';
+import 'package:mosh/src/features/conversation/conversation_tools.dart'
+    show isMobileBreakpoint;
 import 'package:mosh/src/features/conversation/message_copy.dart';
 import 'package:mosh/src/features/conversation/selectable_message_row.dart';
 import 'package:mosh/src/gateway/conversation_target.dart'
@@ -220,11 +223,15 @@ class _ConversationMessageListViewState
     final l = AppLocalizations.of(context)!;
     final kind = widget.snapshot.target.kind;
     final rows = groupConversationMessages(widget.messages).reversed.toList();
+    final sides = EdgeInsets.symmetric(
+        horizontal: feedPadding(compact: isMobileBreakpoint(context)).left);
     return MessageSelectionArea(
       key: ValueKey(widget.snapshot.target),
       child: ListView.builder(
         controller: _scroll,
-        padding: kChatScrollPadding,
+        // The rows keep the side padding themselves, so the band of a
+        // picked one runs across the feed.
+        padding: const EdgeInsets.symmetric(vertical: MoshSpace.s4),
         reverse: true,
         itemCount: rows.length,
         itemBuilder: (context, index) {
@@ -236,12 +243,17 @@ class _ConversationMessageListViewState
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 if (date != null && !DateUtils.isSameDay(date, previous))
-                  ConversationDateDivider(date: date),
+                  Padding(
+                      padding: sides,
+                      child: ConversationDateDivider(date: date)),
                 if (widget.firstUnreadId != null &&
                     rows[index].message.messageId == widget.firstUnreadId)
-                  ConversationUnreadDivider(key: _unreadDivider),
+                  Padding(
+                      padding: sides,
+                      child: ConversationUnreadDivider(key: _unreadDivider)),
                 SelectableMessageRow(
                     message: rows[index].message,
+                    grouped: rows[index].grouped,
                     child: _buildRow(context, rows[index], kind, l)),
               ]);
         },
@@ -256,8 +268,9 @@ class _ConversationMessageListViewState
     AppLocalizations l,
   ) {
     if (row.message.nameChange case final change?) {
+      // The Group notice card: what a group says about itself.
       return Padding(
-          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 24),
+          padding: const EdgeInsets.symmetric(vertical: MoshSpace.s2),
           child: Text(
               row.message.deliveryError != null
                   ? row.message.deliveryError == 'superseded'
@@ -265,7 +278,7 @@ class _ConversationMessageListViewState
                       : l.chatNameRejected
                   : l.chatNameChanged(row.message.fromDevice, change.name),
               textAlign: TextAlign.center,
-              style: Theme.of(context).textTheme.bodySmall));
+              style: Theme.of(context).textTheme.labelMedium));
     }
     final attachment = row.message.attachment;
     final view = attachment == null
@@ -274,6 +287,7 @@ class _ConversationMessageListViewState
     final callbacks = widget.attachmentCallbacks(view, own: row.message.own);
     final messageRow = ConversationMessageRow(
       message: row.message,
+      conversationId: widget.snapshot.target.id,
       conversationKey: widget.snapshot.target.key,
       kind: kind,
       grouped: row.grouped,
