@@ -37,11 +37,6 @@ void _expectPicked(int count) {
       findsOneWidget);
 }
 
-Color? _bubbleColor(WidgetTester tester, String id) => (tester
-        .widget<Container>(find.byKey(ValueKey('message-bubble-$id')))
-        .decoration as BoxDecoration)
-    .color;
-
 // Shared selection behavior needs the real list and host, without screen polling
 // and composer setup. Screen wiring, navigation and draft tests stay below.
 Future<void> _pumpSelectionList(WidgetTester tester) async {
@@ -71,8 +66,6 @@ void main() {
       final selectors = tester.widgetList<Checkbox>(find.byType(Checkbox));
       expect(
           selectors.where((selector) => selector.value == true), hasLength(1));
-      expect(selectors.every((selector) => selector.shape is CircleBorder),
-          isTrue);
       expect(find.text('Cancel'), findsOneWidget);
       await tester.tap(find.text('Cancel'));
       await tester.pumpAndSettle();
@@ -128,19 +121,18 @@ void main() {
             : TargetPlatformVariant.only(TargetPlatform.android));
   }
 
-  testWidgets('a tap anywhere on a row picks it and tints only its bubble',
+  testWidgets('a tap anywhere on a row picks it and bands only that row',
       (tester) async {
     await _pumpSelectionList(tester);
-    final firstColor = _bubbleColor(tester, 'm0');
-    final secondColor = _bubbleColor(tester, 'm1');
+    final unpicked = messageBand(tester, 'first note');
     await startMessageSelection(tester, 'second note');
-    expect(_bubbleColor(tester, 'm0'), firstColor);
-    expect(_bubbleColor(tester, 'm1'), isNot(secondColor));
+    expect(messageBand(tester, 'first note'), unpicked);
+    expect(messageBand(tester, 'second note'), isNot(unpicked));
     await tester.tapAt(
         tester.getTopRight(find.text('first note')) + const Offset(120, 4));
     await tester.pumpAndSettle();
     _expectPicked(2);
-    expect(_bubbleColor(tester, 'm0'), isNot(firstColor));
+    expect(messageBand(tester, 'first note'), isNot(unpicked));
   });
 
   testWidgets('the last deselection leaves the mode', (tester) async {

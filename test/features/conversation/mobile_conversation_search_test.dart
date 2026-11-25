@@ -149,7 +149,8 @@ void main() {
       expect(size, Size.zero);
     });
 
-    testWidgets('filter == attachments renders paperclip + label + "All"',
+    testWidgets(
+        'filter == attachments renders paperclip + label + "All messages"',
         (tester) async {
       await _pump(
         tester,
@@ -161,14 +162,14 @@ void main() {
                 )),
       );
       final l = _l(tester);
-      // Paperclip icon (MoshIcons.attach) + the "Files" label + the "All"
-      // reset button.
+      // Paperclip icon (MoshIcons.attach) + the "Files" label + the way
+      // back to every message.
       expect(find.byIcon(MoshIcons.attach), findsOneWidget);
       expect(find.text(l.chatFilterAttachments), findsOneWidget);
-      expect(find.text(l.chatFilterAll), findsOneWidget);
+      expect(find.text(l.chatFilterAllMessages), findsOneWidget);
     });
 
-    testWidgets('tapping "All" fires onFilter(ConversationFilter.all)',
+    testWidgets('tapping "All messages" fires onFilter(ConversationFilter.all)',
         (tester) async {
       ConversationFilter? captured;
       await _pump(

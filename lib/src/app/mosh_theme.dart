@@ -53,6 +53,7 @@ ThemeData buildMoshTheme(
     textButtonTheme: _textButtonTheme(colors, text, platform),
     iconButtonTheme: _iconButtonTheme(colors, platform),
     chipTheme: _chipTheme(colors, text),
+    checkboxTheme: _checkboxTheme(colors),
     progressIndicatorTheme: _progressTheme(colors),
     sliderTheme: _sliderTheme(colors),
     iconTheme: IconThemeData(color: colors.onSurfaceVariant),

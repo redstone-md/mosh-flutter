@@ -90,71 +90,67 @@ class ConversationMessageRow extends StatelessWidget {
     final gutter = _namesSender ? messageAvatarSize + kMessageRowGap : 0.0;
     final failed =
         message.own && message.deliveryStatus == MessageDeliveryStatus.failed;
-    return Padding(
-      padding: EdgeInsets.only(top: messageRowSpacing(grouped)),
-      child: LayoutBuilder(
-        builder: (context, constraints) => Row(
-          mainAxisAlignment:
-              message.own ? MainAxisAlignment.end : MainAxisAlignment.start,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (_namesSender) ...[
-              // The gutter stays under the avatar of the run's first row.
-              if (grouped)
-                const SizedBox(width: messageAvatarSize)
-              else
-                SelectionContainer.disabled(
-                    child: Avatar(
-                        name: message.fromDevice,
-                        plusIdentity: _plusIdentity,
-                        radius: messageAvatarSize / 2)),
-              const SizedBox(width: kMessageRowGap),
-            ],
-            ConstrainedBox(
-              constraints: BoxConstraints(
-                  maxWidth: (constraints.maxWidth - gutter)
-                      .clamp(0.0, double.infinity)),
-              // A failure sits under its bubble, on the bubble's side.
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // A call is a bubble of its own.
-                  if (message.callEvent case final call?)
-                    SelectionContainer.disabled(
-                      child: CallLogEntry(
-                          event: call,
-                          outgoing: message.own,
-                          sentAtMs: message.sentAtMs,
-                          conversationId: conversationId,
-                          l: l),
-                    )
-                  else
-                    MessageBubble(
-                      id: message.messageId ?? message.body,
-                      tone: MessageTone.of(context, own: message.own),
-                      own: message.own,
-                      grouped: grouped,
-                      continuesBelow: continuesBelow,
-                      gone: message.deletion != null,
-                      selectionId: message.messageId,
-                      child: _body(context),
-                    ),
-                  if (failed)
-                    SelectionContainer.disabled(
-                      child: FailedMessageRetry(
-                        deliveryError: message.deliveryError,
-                        onRetry: message.canRetry
-                            ? () => onRetry(message.messageId!)
-                            : null,
-                        l: l.toFailedMessageRetryL10n(),
-                      ),
-                    ),
-                ],
-              ),
-            ),
+    return LayoutBuilder(
+      builder: (context, constraints) => Row(
+        mainAxisAlignment:
+            message.own ? MainAxisAlignment.end : MainAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (_namesSender) ...[
+            // The gutter stays under the avatar of the run's first row.
+            if (grouped)
+              const SizedBox(width: messageAvatarSize)
+            else
+              SelectionContainer.disabled(
+                  child: Avatar(
+                      name: message.fromDevice,
+                      plusIdentity: _plusIdentity,
+                      radius: messageAvatarSize / 2)),
+            const SizedBox(width: kMessageRowGap),
           ],
-        ),
+          ConstrainedBox(
+            constraints: BoxConstraints(
+                maxWidth: (constraints.maxWidth - gutter)
+                    .clamp(0.0, double.infinity)),
+            // A failure sits under its bubble, on the bubble's side.
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // A call is a bubble of its own.
+                if (message.callEvent case final call?)
+                  SelectionContainer.disabled(
+                    child: CallLogEntry(
+                        event: call,
+                        outgoing: message.own,
+                        sentAtMs: message.sentAtMs,
+                        conversationId: conversationId,
+                        l: l),
+                  )
+                else
+                  MessageBubble(
+                    id: message.messageId ?? message.body,
+                    tone: MessageTone.of(context, own: message.own),
+                    own: message.own,
+                    grouped: grouped,
+                    continuesBelow: continuesBelow,
+                    gone: message.deletion != null,
+                    child: _body(context),
+                  ),
+                if (failed)
+                  SelectionContainer.disabled(
+                    child: FailedMessageRetry(
+                      deliveryError: message.deliveryError,
+                      onRetry: message.canRetry
+                          ? () => onRetry(message.messageId!)
+                          : null,
+                      l: l.toFailedMessageRetryL10n(),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/src/features/conversation/message_copy.dart';
+import 'package:mosh/src/features/conversation/selectable_message_row.dart';
 
 /// Find the row's shortcut focus, outside its nested control focus nodes.
 FocusNode messageRowFocus(WidgetTester tester, String body) => tester
@@ -14,6 +15,18 @@ FocusNode messageRowFocus(WidgetTester tester, String body) => tester
             matching: find.byType(Focus))
         .first)
     .focusNode!;
+
+/// The band across the feed behind the row that shows [body]: transparent
+/// until the row is picked.
+Color messageBand(WidgetTester tester, String body) => tester
+    .widget<ColoredBox>(find
+        .descendant(
+            of: find.ancestor(
+                of: find.text(body),
+                matching: find.byType(SelectableMessageRow)),
+            matching: find.byType(ColoredBox))
+        .first)
+    .color;
 
 /// Enter selection through the same menu action users invoke.
 Future<void> startMessageSelection(WidgetTester tester, String body,

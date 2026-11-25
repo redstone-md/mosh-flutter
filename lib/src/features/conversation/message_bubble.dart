@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import 'package:mosh/src/app/mosh_shapes.dart';
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
-import 'package:mosh/src/features/conversation/message_selection.dart';
 import 'package:mosh/src/features/conversation/message_tone.dart';
 
 /// The bubble of the Message card: it hugs what it holds, in the colour of
@@ -19,7 +18,6 @@ class MessageBubble extends StatelessWidget {
     required this.continuesBelow,
     required this.child,
     this.gone = false,
-    this.selectionId,
   });
 
   /// Names the bubble for tests and tools: `message-bubble-<id>`.
@@ -35,8 +33,6 @@ class MessageBubble extends StatelessWidget {
   /// A deleted message, or one awaiting its deletion.
   final bool gone;
 
-  /// The message's id while it can be picked.
-  final String? selectionId;
   final Widget child;
 
   BorderRadiusDirectional get _corners {
@@ -51,23 +47,13 @@ class MessageBubble extends StatelessWidget {
     );
   }
 
-  Color _fill(BuildContext context) {
-    final selection = MessageSelectionScope.maybeOf(context)?.selection;
-    final id = selectionId;
-    final selected = id != null && (selection?.isSelected(id) ?? false);
-    return selected
-        ? Color.alphaBlend(
-            MoshColors.of(context).primary.withValues(alpha: 0.22), tone.fill)
-        : tone.fill;
-  }
-
   @override
   Widget build(BuildContext context) => Container(
         key: ValueKey('message-bubble-$id'),
         padding: MoshShapes.bubblePadding,
         clipBehavior: Clip.antiAlias,
         decoration: BoxDecoration(
-          color: gone ? null : _fill(context),
+          color: gone ? null : tone.fill,
           border: gone
               ? Border.all(color: MoshColors.of(context).outlineVariant)
               : null,

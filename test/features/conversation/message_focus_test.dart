@@ -73,9 +73,7 @@ Future<void> _menuSelection(
 ) async {
   final copied = captureClipboard(tester);
   await pumpConversation(tester, conversation, messages: _messages);
-  final bubble = find.byKey(const ValueKey('message-bubble-first'));
-  final normalColor =
-      (tester.widget<Container>(bubble).decoration as BoxDecoration).color;
+  final normalColor = messageBand(tester, _body);
   final focus = messageRowFocus(tester, _body);
   await tester.tap(
     find.text(_body),
@@ -89,9 +87,7 @@ Future<void> _menuSelection(
   _expectNoRowOutline(tester);
   await tester.pumpAndSettle();
   expect(find.byType(MessageSelectionBar), findsOneWidget);
-  final selectedColor =
-      (tester.widget<Container>(bubble).decoration as BoxDecoration).color;
-  expect(selectedColor, isNot(normalColor));
+  expect(messageBand(tester, _body), isNot(normalColor));
 
   await sendPlatformShortcut(tester, LogicalKeyboardKey.keyC);
   expect(copied, [_body]);

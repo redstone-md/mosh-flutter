@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_dimensions.dart';
 import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/features/conversation/conversation_tools.dart'
     show isMobileBreakpoint;
@@ -18,28 +19,28 @@ class MessageSelectionActions extends StatelessWidget {
     final text = scope.selectedText();
     final l = AppLocalizations.of(context)!;
     return Wrap(
-        spacing: 8,
-        runSpacing: 8,
+        spacing: MoshSpace.s2,
+        runSpacing: MoshSpace.s2,
         alignment: WrapAlignment.center,
         children: [
           TextButton.icon(
             onPressed: enabled && text.isNotEmpty ? scope.onCopySelected : null,
             icon: const Icon(MoshIcons.copy),
             label: Text(l.nativeMenuCopy),
-            style: TextButton.styleFrom(minimumSize: const Size(48, 48)),
           ),
           FilledButton.icon(
             onPressed: enabled ? scope.onDeleteSelected : null,
             icon: const Icon(MoshIcons.delete),
             label: Text(l.messageSelectionDelete),
-            style: moshDangerButtonStyle(context).copyWith(
-                minimumSize: const WidgetStatePropertyAll(Size(48, 48))),
+            style: moshDangerButtonStyle(context),
           ),
         ]);
   }
 }
 
-/// Hides the narrow composer without losing its draft or mounted controls.
+/// The Selection actions card: on the phone the actions take the composer's
+/// place at the bottom, within reach of the thumb. The composer is hidden
+/// without losing its draft or its mounted controls.
 class MessageSelectionComposer extends StatelessWidget {
   const MessageSelectionComposer({super.key, required this.child});
   final Widget child;
@@ -56,11 +57,9 @@ class MessageSelectionComposer extends StatelessWidget {
         Container(
           width: double.infinity,
           alignment: Alignment.center,
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          decoration: BoxDecoration(
-            color: colors.surface,
-            border: Border(top: BorderSide(color: colors.outlineVariant)),
-          ),
+          padding: const EdgeInsets.symmetric(
+              horizontal: MoshSpace.s3, vertical: MoshSpace.s2),
+          color: colors.surface,
           child: const MessageSelectionActions(),
         ),
     ]);

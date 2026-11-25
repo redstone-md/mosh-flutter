@@ -37,8 +37,9 @@ void main() {
       final own = find.byKey(const ValueKey('message-selector-m1'));
       final peer = find.byKey(const ValueKey('message-selector-m2'));
       expect(find.byType(Checkbox), findsNWidgets(2));
-      expect(tester.getRect(own).left,
-          greaterThan(tester.getRect(find.text('own note')).right));
+      // The checkbox leads its row, on the desktop as on the phone.
+      expect(tester.getRect(own).right,
+          lessThan(tester.getRect(find.text('own note')).left));
       expect(
           tester.getSemantics(own),
           isSemantics(

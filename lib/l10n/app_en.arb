@@ -228,6 +228,19 @@
   "@attachmentTooLargeMessage": {
     "description": "Shown when the picked attachment is rejected for exceeding the 50 MB ceiling (mirrors React use-chat-orchestration `onError(\"Attachment exceeds the 50 MB limit\")`)"
   },
+  "chatSearchFilesPlaceholder": "Search files",
+  "@chatSearchFilesPlaceholder": {
+    "description": "Placeholder of the search inside a conversation while only messages with files are shown"
+  },
+  "chatFilterAllMessages": "All messages",
+  "@chatFilterAllMessages": {
+    "description": "The button on the phone that leaves the files filter of a conversation and shows every message again"
+  },
+  "chatSearchEmptyQuery": "No messages match “{query}”",
+  "@chatSearchEmptyQuery": {
+    "description": "Title shown in place of the feed when the search inside a conversation finds nothing",
+    "placeholders": { "query": { "type": "String" } }
+  },
   "chatSearchPlaceholder": "Search messages",
   "@chatSearchPlaceholder": {
     "description": "Placeholder for the message search field"
@@ -256,7 +269,7 @@
   "@chatSearchEmptyTitle": {
     "description": "Title shown when search has no results"
   },
-  "chatSearchEmptyBody": "Try another search or switch back to all messages.",
+  "chatSearchEmptyBody": "Search looks through the messages on this device",
   "@chatSearchEmptyBody": {
     "description": "Body shown when search has no results"
   },

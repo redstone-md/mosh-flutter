@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_dimensions.dart';
 import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/app/mosh_theme.dart'
     show MoshColors, moshTonalIconButtonStyle;
@@ -77,41 +78,39 @@ class _MobileConversationSearchState extends State<MobileConversationSearch> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: kConversationToolsMargin,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Expanded(
-            child: ConversationSearchBox(
-              search: widget.search,
-              onSearch: widget.onSearch,
-              l: widget.l,
-              autofocus: true,
-              focusNode: _focusNode,
+  Widget build(BuildContext context) => Padding(
+        padding: conversationToolsPadding(compact: true),
+        child: Row(
+          spacing: MoshSpace.s2,
+          children: [
+            Expanded(
+              child: ConversationSearchBox(
+                search: widget.search,
+                onSearch: widget.onSearch,
+                hint: widget.l.chatSearchPlaceholder,
+                autofocus: true,
+                clearable: false,
+                focusNode: _focusNode,
+              ),
             ),
-          ),
-          const SizedBox(width: kConversationToolsGap),
-          // Close button: clears the query THEN closes (order matters; the
-          // panel unmounts after the clear).
-          IconButton(
-            icon: const Icon(MoshIcons.close, size: 15),
-            tooltip: widget.l.closeMessageSearch,
-            onPressed: () {
-              widget.onSearch('');
-              widget.onClose();
-            },
-          ),
-        ],
-      ),
-    );
-  }
+            // Clears the query THEN closes (order matters; the panel
+            // unmounts after the clear).
+            IconButton(
+              icon: const Icon(MoshIcons.close),
+              tooltip: widget.l.closeMessageSearch,
+              onPressed: () {
+                widget.onSearch('');
+                widget.onClose();
+              },
+            ),
+          ],
+        ),
+      );
 }
 
-/// Mobile "active filter" notice strip: renders NOTHING while the filter
-/// is `all`, and a small row with a paperclip + the "Files" label + an
-/// "All" reset button while the filter is `attachments`. Tapping "All"
+/// The files filter on the phone: renders NOTHING while the filter is
+/// `all`, and a line that says what is shown and how to go back while it is
+/// `attachments`: a paperclip, "Files" and an "All messages" button, which
 /// calls `onFilter(all)`.
 ///
 /// The host renders this unconditionally (always in the layout) -- it
@@ -137,15 +136,17 @@ class MobileConversationFilterNotice extends StatelessWidget {
     }
     final theme = Theme.of(context);
     return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 4, 12, 4),
+      padding: conversationToolsPadding(compact: true),
       child: Row(
+        spacing: MoshSpace.s2,
         children: [
-          Icon(MoshIcons.attach, size: 13, color: theme.colorScheme.primary),
-          const SizedBox(width: 6),
-          Expanded(child: Text(l.chatFilterAttachments)),
+          Icon(MoshIcons.attach, color: theme.colorScheme.primary),
+          Expanded(
+              child: Text(l.chatFilterAttachments,
+                  style: theme.textTheme.labelLarge)),
           TextButton(
             onPressed: () => onFilter(ConversationFilter.all),
-            child: Text(l.chatFilterAll),
+            child: Text(l.chatFilterAllMessages),
           ),
         ],
       ),

@@ -90,6 +90,19 @@
   "attachmentNotAFile": "Прикрепить можно только файл, а не папку.",
   "attachmentUnreadable": "Не удалось прочитать скопированный файл. Возможно, он перемещён или недоступен.",
   "chatActionErrorPayloadTooLarge": "Это сообщение слишком большое для отправки.",
+  "chatSearchFilesPlaceholder": "Поиск по файлам",
+  "@chatSearchFilesPlaceholder": {
+    "description": "Placeholder of the search inside a conversation while only messages with files are shown"
+  },
+  "chatFilterAllMessages": "Все сообщения",
+  "@chatFilterAllMessages": {
+    "description": "The button on the phone that leaves the files filter of a conversation and shows every message again"
+  },
+  "chatSearchEmptyQuery": "Нет сообщений по запросу «{query}»",
+  "@chatSearchEmptyQuery": {
+    "description": "Title shown in place of the feed when the search inside a conversation finds nothing",
+    "placeholders": { "query": { "type": "String" } }
+  },
   "chatSearchPlaceholder": "Поиск сообщений",
  "chatFilterAll": "Все",
  "chatFilterAttachments": "Файлы",
@@ -100,7 +113,7 @@
  "openMessageSearch": "Открыть поиск сообщений",
   "closeMessageSearch": "Закрыть поиск сообщений",
   "chatSearchEmptyTitle": "Совпадений не найдено.",
-  "chatSearchEmptyBody": "Попробуйте другой поиск или вернитесь ко всем сообщениям.",
+  "chatSearchEmptyBody": "Поиск идёт по сообщениям на этом устройстве",
   "chatAttachmentEmptyBody": "В этом режиме нет вложений.",
   "chatCryptoFooter": "OpenMLS seal · ciphertext через gossip Moss",
   "stateIdle": "Неактивно",
