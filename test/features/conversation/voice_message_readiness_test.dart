@@ -63,8 +63,6 @@ Future<void> _pumpVoice(WidgetTester tester, Player player,
                     attachmentId: 'voice', state: state, localPath: path),
                 busy: false,
                 onDownload: (_) {},
-                playLabel: 'Play',
-                pauseLabel: 'Pause',
                 createPlayer: () => player)));
 
 void main() {
@@ -92,15 +90,14 @@ void main() {
         tester,
         Scaffold(
             body: VoiceMessageCard(
-                descriptor: _voice(),
-                view: testAttachmentView(
-                    attachmentId: 'voice',
-                    state: AttachmentState.offered,
-                    localPath: ''),
-                busy: false,
-                onDownload: downloads.add,
-                playLabel: 'Play',
-                pauseLabel: 'Pause')));
+          descriptor: _voice(),
+          view: testAttachmentView(
+              attachmentId: 'voice',
+              state: AttachmentState.offered,
+              localPath: ''),
+          busy: false,
+          onDownload: downloads.add,
+        )));
 
     await tester.tap(find.byIcon(MoshIcons.play));
     await tester.pump();

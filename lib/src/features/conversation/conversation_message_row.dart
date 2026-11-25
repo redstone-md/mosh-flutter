@@ -5,7 +5,6 @@ import 'package:mosh/src/app/mosh_dimensions.dart';
 import 'package:mosh/src/app/mosh_shapes.dart';
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 import 'package:mosh/src/features/conversation/attachment_card.dart';
-import 'package:mosh/src/features/conversation/conversation_attachment.dart';
 import 'package:mosh/src/features/conversation/conversation_helpers.dart';
 import 'package:mosh/src/features/conversation/conversation_message_footer.dart';
 import 'package:mosh/src/features/conversation/conversation_message_text.dart';
@@ -152,7 +151,6 @@ class ConversationMessageRow extends StatelessWidget {
           MessageBubble(
             id: message.messageId ?? message.body,
             tone: MessageTone.of(context, own: message.own),
-            own: message.own,
             grouped: grouped,
             continuesBelow: continuesBelow,
             gone: message.deletion != null,
@@ -174,8 +172,7 @@ class ConversationMessageRow extends StatelessWidget {
 
   /// What the bubble holds, top to bottom: the sender, a file, a picture or
   /// a voice message, then the text. The time ends the last line of the
-  /// text; a file or a voice message alone keeps it in its own last line,
-  /// and a picture, like a message with nothing else, keeps a line for it.
+  /// text; an attachment alone places it itself.
   Widget _body(BuildContext context, Color? onBand) {
     if (message.deletion case final deleted?) {
       return _DeletedNote(deleted: deleted, l: l, ink: onBand);
@@ -185,9 +182,6 @@ class ConversationMessageRow extends StatelessWidget {
     final hasFooter = footer.measure(context).height > 0;
     final attachment = message.attachment;
     final hasText = message.body.isNotEmpty;
-    final timeInCard = attachment != null &&
-        AttachmentCard.timeRidesIn(ConversationAttachment(
-            descriptor: attachment, view: attachmentView, own: message.own));
     // Under an attachment the text is a caption and wraps at its width.
     final measure = attachment == null
         ? messageMeasure(compact: compact)
@@ -214,14 +208,16 @@ class ConversationMessageRow extends StatelessWidget {
                 peer: peer,
               )),
             if (attachment != null)
-              _attachmentCard(attachment,
-                  hasText || !hasFooter || !timeInCard ? null : footer),
+              _attachmentCard(
+                  attachment, hasText || !hasFooter ? null : footer),
             if (hasText)
               inset(ConversationMessageText(
-                  body: message.body, footer: footer, own: message.own)),
+                  body: message.body,
+                  footer: footer,
+                  tone: MessageTone.of(context, own: message.own))),
           ],
         ),
-        if (!hasText && !timeInCard && hasFooter) inset(footer),
+        if (!hasText && attachment == null && hasFooter) inset(footer),
       ],
     );
   }

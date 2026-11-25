@@ -13,20 +13,21 @@ class ConversationMessageText extends StatelessWidget {
     super.key,
     required this.body,
     required this.footer,
-    required this.own,
+    required this.tone,
   });
 
   final String body;
 
-  /// Whether the user sent it, which picks the ink of the text.
-  final bool own;
+  /// The bubble the text sits in, which picks its ink.
+  final MessageTone tone;
   final ConversationMessageFooter footer;
 
   @override
   Widget build(BuildContext context) => LayoutBuilder(
         builder: (context, constraints) {
-          final style = DefaultTextStyle.of(context).style.merge(
-              messageBodyStyle(context, MessageTone.of(context, own: own)));
+          final style = DefaultTextStyle.of(context)
+              .style
+              .merge(messageBodyStyle(context, tone));
           final footerSize = footer.measure(context);
           final layout =
               _measure(context, style, constraints.maxWidth, footerSize);

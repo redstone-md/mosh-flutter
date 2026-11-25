@@ -8,6 +8,7 @@ import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 @immutable
 class MessageTone {
   const MessageTone._({
+    required this.own,
     required this.fill,
     required this.ink,
     required this.quiet,
@@ -29,6 +30,7 @@ class MessageTone {
 
   factory MessageTone.from(MoshColors c, {required bool own}) => own
       ? MessageTone._(
+          own: true,
           fill: c.outgoing,
           ink: c.onOutgoing,
           quiet: c.onOutgoingVariant,
@@ -43,6 +45,7 @@ class MessageTone {
           track: c.onOutgoingVariant,
         )
       : MessageTone._(
+          own: false,
           fill: c.incoming,
           ink: c.onSurface,
           quiet: c.onSurfaceMuted,
@@ -56,6 +59,10 @@ class MessageTone {
           rest: c.outline,
           track: c.surfaceContainerHighest,
         );
+
+  /// Whether this is the tone of a message the user sent, whose bubble
+  /// sits on the trailing side.
+  final bool own;
 
   /// The bubble itself.
   final Color fill;

@@ -54,8 +54,8 @@ class AttachmentCard extends StatelessWidget {
   final bool busy;
 
   /// The time of a message that is this attachment alone. A file and a
-  /// voice message end their last line with it; a picture leaves it to the
-  /// bubble, see [timeRidesIn].
+  /// voice message end their last line with it; a picture keeps a line of
+  /// its own for it under its name.
   final Widget? messageFooter;
 
   /// Fires `Gateway.downloadAttachment`; the screen invalidates the session
@@ -69,12 +69,6 @@ class AttachmentCard extends StatelessWidget {
   /// MediaViewer or non-media files to the OS launcher.
   final void Function(AttachmentDescriptor descriptor) onOpen;
 
-  /// Whether the card of [attachment] has a last line of its own for the
-  /// time of the message: a file and a voice message do, a picture and a
-  /// video keep a line under them for it.
-  static bool timeRidesIn(ConversationAttachment attachment) =>
-      attachment.descriptor.voice != null || !attachment.hasMediaPreview;
-
   @override
   Widget build(BuildContext context) {
     final attachment =
@@ -87,8 +81,6 @@ class AttachmentCard extends StatelessWidget {
         own: own,
         busy: busy,
         onDownload: onDownload,
-        playLabel: l.voiceMessagePlayLabel,
-        pauseLabel: l.voiceMessagePauseLabel,
         messageFooter: messageFooter,
       );
     }
@@ -109,7 +101,8 @@ class AttachmentCard extends StatelessWidget {
               attachment: attachment,
               tone: tone,
               action: action,
-              onOpen: () => onOpen(descriptor))
+              onOpen: () => onOpen(descriptor),
+              footer: messageFooter)
           : FileCard(
               attachment: attachment,
               tone: tone,

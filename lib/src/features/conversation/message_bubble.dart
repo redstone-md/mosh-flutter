@@ -13,7 +13,6 @@ class MessageBubble extends StatelessWidget {
     super.key,
     required this.id,
     required this.tone,
-    required this.own,
     required this.grouped,
     required this.continuesBelow,
     required this.child,
@@ -23,9 +22,6 @@ class MessageBubble extends StatelessWidget {
   /// Names the bubble for tests and tools: `message-bubble-<id>`.
   final String id;
   final MessageTone tone;
-
-  /// Which side the sender is on: the trailing one for the user.
-  final bool own;
 
   /// Whether the run continues above and below this bubble.
   final bool grouped, continuesBelow;
@@ -40,10 +36,10 @@ class MessageBubble extends StatelessWidget {
     final top = grouped ? MoshShapes.messageJoin : round;
     final bottom = continuesBelow ? MoshShapes.messageJoin : round;
     return BorderRadiusDirectional.only(
-      topStart: own ? round : top,
-      bottomStart: own ? round : bottom,
-      topEnd: own ? top : round,
-      bottomEnd: own ? bottom : round,
+      topStart: tone.own ? round : top,
+      bottomStart: tone.own ? round : bottom,
+      topEnd: tone.own ? top : round,
+      bottomEnd: tone.own ? bottom : round,
     );
   }
 

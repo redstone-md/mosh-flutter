@@ -120,8 +120,6 @@ void main() {
                 view: view,
                 busy: false,
                 onDownload: downloaded.add,
-                playLabel: 'Play',
-                pauseLabel: 'Pause',
               ),
             ),
           ),

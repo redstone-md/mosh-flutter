@@ -11,12 +11,17 @@ class _MediaCard extends StatelessWidget {
     required this.tone,
     required this.action,
     required this.onOpen,
+    this.footer,
   });
 
   final ConversationAttachment attachment;
   final MessageTone tone;
   final AttachmentAction? action;
   final VoidCallback onOpen;
+
+  /// The time of a message that is this picture alone: it keeps a line of
+  /// its own under the name.
+  final Widget? footer;
 
   /// The disc a control stands on over a picture.
   static const double _disc = MoshSpace.s12;
@@ -27,31 +32,37 @@ class _MediaCard extends StatelessWidget {
     final text = Theme.of(context).textTheme;
     final descriptor = attachment.descriptor;
     final failed = attachment.failed;
+    // Set in as far as a message's text, so the file name and the text
+    // under it start on one line.
+    final caption = Padding(
+      padding: MoshShapes.bubbleInset,
+      child: Row(spacing: MoshSpace.s2, children: [
+        Expanded(
+            child: MiddleCutText(descriptor.fileName,
+                style: text.labelLarge!.copyWith(color: tone.ink))),
+        Flexible(
+          child: Text(
+            attachmentDetail(attachment, l, failed: l.attachmentMediaFailed),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: text.labelMedium!.copyWith(
+                color: failed ? tone.error : tone.quiet,
+                fontFeatures: kLiveNumberFontFeatures),
+          ),
+        ),
+      ]),
+    );
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.end,
       mainAxisSize: MainAxisSize.min,
-      spacing: MoshSpace.s2,
       children: [
         _preview(context, l),
-        // Set in as far as a message's text, so the file name and the text
-        // under it start on one line.
-        Padding(
-          padding: MoshShapes.bubbleInset,
-          child: Row(spacing: MoshSpace.s2, children: [
-            Expanded(
-                child: MiddleCutText(descriptor.fileName,
-                    style: text.labelLarge!.copyWith(color: tone.ink))),
-            Flexible(
-                child: Text(
-              attachmentDetail(attachment, l, failed: l.attachmentMediaFailed),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: text.labelMedium!.copyWith(
-                  color: failed ? tone.error : tone.quiet,
-                  fontFeatures: kLiveNumberFontFeatures),
-            )),
-          ]),
-        ),
+        const SizedBox(height: MoshSpace.s2),
+        caption,
+        if (footer case final footer?) ...[
+          const SizedBox(height: MoshSpace.s1),
+          footer,
+        ],
       ],
     );
   }

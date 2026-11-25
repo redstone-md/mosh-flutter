@@ -29,8 +29,6 @@ class VoiceMessageCard extends StatefulWidget {
     required this.view,
     required this.busy,
     required this.onDownload,
-    required this.playLabel,
-    required this.pauseLabel,
     this.own = false,
     this.messageFooter,
     this.createPlayer = createMediaPlayer,
@@ -42,8 +40,6 @@ class VoiceMessageCard extends StatefulWidget {
   final bool busy;
   final void Function(String attachmentId) onDownload;
 
-  final String playLabel;
-  final String pauseLabel;
   final Widget? messageFooter;
 
   /// Makes the card's player; tests pass their own.
@@ -208,8 +204,8 @@ class _VoiceMessageCardState extends State<VoiceMessageCard> {
           label: _failed
               ? l.attachmentRetry
               : _playing
-                  ? widget.pauseLabel
-                  : widget.playLabel,
+                  ? l.voiceMessagePauseLabel
+                  : l.voiceMessagePlayLabel,
           loading: _loading,
           onPressed: !_loading &&
                   (_attachment.localPath != null ||
