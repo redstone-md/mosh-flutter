@@ -213,7 +213,11 @@ ChipThemeData _chipTheme(MoshColors c, TextTheme text) {
         c,
         (states) => states.contains(WidgetState.selected)
             ? BorderSide.none
-            : BorderSide(color: c.outlineVariant)),
+            // A chip grows by the part of its edge that lies inside it, so
+            // the edge is drawn outside: a chip is 32 px lit and unlit.
+            : BorderSide(
+                color: c.outlineVariant,
+                strokeAlign: BorderSide.strokeAlignOutside)),
     color: WidgetStateProperty.resolveWith((states) {
       final lit = states.contains(WidgetState.selected);
       if (states.contains(WidgetState.disabled)) {

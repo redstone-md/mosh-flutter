@@ -166,8 +166,7 @@ void main() {
     expect(find.byKey(const ValueKey('conversation-details-docked')),
         findsOneWidget);
   });
-  testWidgets(
-      'conversation types have distinct cues in rail, filter and header',
+  testWidgets('conversation types have distinct cues in rail and header',
       (tester) async {
     await pumpShellApp(tester,
         gateway: _gateway(), physical: const Size(1536, 900));
@@ -200,10 +199,6 @@ void main() {
       await _checkDockedDetails(tester, title,
           screenshot: 'desktop-${kind.name}');
     }
-    expect(
-        find.descendant(
-            of: find.byType(ChoiceChip), matching: find.byType(Icon)),
-        findsNWidgets(3));
   });
   setUp(() {
     const channel = MethodChannel('com.llfbandit.record/messages');

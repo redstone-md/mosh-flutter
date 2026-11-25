@@ -27,6 +27,19 @@ void main() {
       final chip = tester.getRect(find.byType(ChoiceChip).first);
       // A chip's tap target pads its painted pill vertically only.
       expect(chip.left, search.left);
+
+      // Audit (MOSH-134): an unlit chip was 2px taller than the lit one.
+      final ink = {
+        for (final chip in find.byType(ChoiceChip).evaluate())
+          tester
+              .getSize(find
+                  .descendant(
+                      of: find.byWidget(chip.widget),
+                      matching: find.byType(Material))
+                  .first)
+              .height
+      };
+      expect(ink, {32.0});
     });
   }
 }

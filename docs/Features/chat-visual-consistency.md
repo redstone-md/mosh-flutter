@@ -122,13 +122,13 @@ on the avatar plate picked from the name.
 
 | Type | Glyph |
 | --- | --- |
-| Personal | Chat bubble in the filter; the contact's initials on the avatar |
+| Personal | The contact's initials on the avatar |
 | Group | Participants |
 | Channel | `#` |
 
 Since MOSH-134 the type has no colour of its own: the open chat is the one
 `secondaryContainer` row for every type, and a lit filter is the same fill.
-Glyphs, localized tooltip/type labels and channel-name prefixes communicate the
+The filters name the types in words. Glyphs, localized tooltip/type labels and channel-name prefixes communicate the
 type. Runtime protection indicators continue to read actual snapshots.
 
 ## Initial consistency verification

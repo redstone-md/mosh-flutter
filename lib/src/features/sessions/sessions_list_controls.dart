@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/app/mosh_dimensions.dart';
-import 'package:mosh/src/features/shared/conversation_kind_style.dart';
 import 'package:mosh/src/features/shared/search_field.dart';
 import 'package:mosh/src/gateway/conversation_target.dart';
 
@@ -92,19 +91,7 @@ class SessionsListControls extends StatelessWidget {
       // The Filter chip card: 32 px, inside a 48 px tap target on a phone.
       child: ChoiceChip(
         visualDensity: VisualDensity.standard,
-        label: Row(
-          mainAxisSize: MainAxisSize.min,
-          spacing: MoshSpace.s1,
-          children: [
-            // The glyph takes the label's colour, lit or not.
-            if (entry.key != null)
-              Builder(
-                  builder: (context) => Icon(entry.key!.icon,
-                      size: MoshSpace.s4,
-                      color: DefaultTextStyle.of(context).style.color)),
-            Flexible(child: Text(entry.value, overflow: TextOverflow.ellipsis)),
-          ],
-        ),
+        label: Text(entry.value, overflow: TextOverflow.ellipsis),
         selected: entry.key == kind,
         onSelected: (_) => onKind(entry.key),
       ),
