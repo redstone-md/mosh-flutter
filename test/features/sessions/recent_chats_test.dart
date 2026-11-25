@@ -140,7 +140,9 @@ void main() {
     expect(titles(), ['Crew']);
     await tester.enterText(find.byKey(const Key('chat-list-search')), 'Bob');
     await tester.pumpAndSettle();
-    expect(find.text('No matching chats'), findsOneWidget);
+    expect(find.text('Nothing matches “Bob”'), findsOneWidget);
+    expect(find.text('Search looks through chat names and messages'),
+        findsOneWidget);
     await tester.tap(find.widgetWithText(ChoiceChip, 'All'));
     await tester.pumpAndSettle();
     expect(titles(), ['#general']);

@@ -17,8 +17,13 @@ abstract final class MoshShapes {
 
   /// Buttons, chips, badges and everything else drawn as a pill.
   static const pill = StadiumBorder();
+
+  /// The corners of a pill, where a border radius is asked for.
+  static const pillCorners = BorderRadius.all(Radius.circular(MoshRadius.full));
+
+  /// A row of the chat list, in every state.
   static const conversationRow =
-      BorderRadius.all(Radius.circular(MoshRadius.medium));
+      BorderRadius.all(Radius.circular(MoshRadius.large));
   static const menu = BorderRadius.all(Radius.circular(MoshRadius.medium));
   static const message = BorderRadius.all(Radius.circular(messageRadius));
   static const composer = BorderRadius.all(Radius.circular(MoshRadius.large));

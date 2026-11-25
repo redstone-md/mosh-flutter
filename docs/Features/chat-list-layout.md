@@ -20,8 +20,9 @@ navigation.
   resize it in 16px steps; Left at the narrowest width collapses it and Right
   expands the strip. Screen readers get a slider named "Chat list width"
   with increase and decrease actions and a collapse or expand action.
-- **The strip.** It shows New chat, Search, one avatar per conversation with
-  its unread badge, organization avatars and Settings. Names appear in
+- **The strip.** It shows New chat, Search and Settings as 48px icon
+  buttons, one 64px avatar row per conversation with its unread badge on the
+  corner, and organization avatars. Names appear in
   tooltips and screen readers read the full row. Conversation avatars open
   their chat. Invitations and organizations expand the list instead of acting,
   so a click on an avatar never accepts anything. Search and Ctrl/Cmd+K expand
@@ -33,9 +34,20 @@ navigation.
   malformed data means the default layout. A failed save is logged and only
   loses the choice on the next launch. Phones ignore it.
 - **Insets.** List rows, the pinned New chat and Settings buttons and the search
-  field sit 12px from both edges. The list scrollbar runs in the right gutter.
-  Filter chips line up with the search field. The clip leaves room for their
-  focus ring.
+  field sit 8px from both edges and 16px from the top and bottom, with 8px
+  between them; a row keeps its content 12px inside its own edge. The list
+  scrollbar runs in the right gutter. Filter chips line up with the search
+  field. The clip leaves room for their focus ring.
+- **Rows.** MOSH-134 draws the list from the Chat row, Chat list and
+  Organisation cards of the Components page. A row is 64px with 16px corners:
+  the name and the time over the last message and the unread count. The open
+  chat is the one `secondaryContainer` row, whatever its type; hover, press
+  and focus are `MoshState` layers, and a row stays pressed under its open
+  menu. An invitation offers its two answers as buttons in the row.
+- **Search.** The field is a pill with a clear button while it holds a query.
+  It looks through chat names, participants and the text of the messages
+  loaded on this device. An empty list, an empty search and a failed load each
+  show a notice in place of the rows; a failed load offers to try again.
 - **Returning from settings.** Rail buttons and rows remount their ink when a
   covering route or an offstage phone branch resumes their tickers, so the
   press ink frozen under settings does not finish fading after Back.
@@ -57,6 +69,10 @@ rail widgets whether to render the strip. `CompactRailItem` renders a
   semantics, restarts, phones, Ctrl+K and preserved state.
 - `rail_compact_test.dart` covers strip rows, invitations, organizations,
   failed loads, the empty state and Settings.
+- `rail_item_test.dart` covers the row's contrast in both palettes, its
+  selected and menu-open states, large text and the truncation tooltip;
+  `search_field_test.dart` the field's clear button and its quiet inks;
+  `recent_chats_test.dart` the search, message text included.
 - `preferences_test.dart` (group `rail_layout`) covers storage.
 - `rail_insets_test.dart` covers insets.
 - `rail_settings_button_return_test.dart` covers the press ink.

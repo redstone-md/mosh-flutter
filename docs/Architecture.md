@@ -131,9 +131,10 @@ progress. Voice playback consumes a queued request only after success and checks
 its lifetime before starting after an asynchronous load.
 
 The sessions rail builds one sorted list of `RailEntry` values from the existing
-snapshots. `RailActivity` computes previews and participants in one scan. Search
+snapshots. `RailActivity` computes previews and participants in one scan and
+answers whether a message of the loaded history says the searched text. Search
 and kind filters are local. Shared geometry lives in `app/mosh_shapes.dart`;
-`ConversationKindStyle` shares accents, labels and glyphs. Conversation details
+`ConversationKindStyle` shares labels and glyphs. Conversation details
 reuse one widget between the third desktop column and narrow modal layouts.
 On desktop `RailPane` sizes the rail from `railLayoutProvider` and collapses it
 to an avatar strip that `RailCompactScope` announces to the rail widgets.

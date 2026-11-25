@@ -47,7 +47,10 @@ final orgAndToastScenes = <FigmaScene>[
   FigmaScene('org-pending', 'Chats / Organisation / Waiting for roster',
       (tester, size) async {
     await mountChats(tester, size,
-        gateway: shortGateway(), script: (_, b) => b.seedOrgs([riverside()]));
+        gateway: shortGateway(),
+        // The section waits with a spinner, which never settles.
+        settle: false,
+        script: (_, b) => b.seedOrgs([riverside()]));
   }),
   FigmaScene('org-busy', 'Chats / Organisation / Busy', (tester, size) async {
     final bridge = await mountChats(tester, size,

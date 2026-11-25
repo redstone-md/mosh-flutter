@@ -150,7 +150,7 @@ void main() {
                 meshId: 'mesh',
                 ownPeerId: 'self',
                 confirmationCode: 'CODE',
-                inRoster: false,
+                inRoster: true,
                 members: const [],
                 dmOffers: [
                   const OrgDmOfferView(

@@ -1,7 +1,6 @@
 // What a conversation shows when it has nothing to show
 // (conversation_screen_body._ConversationEmpty and its load error), beside the
-// notices of an empty chat list (sessions_rail_list._EmptyState,
-// sessions_screen._ErrorState), which the Chat list card owns as List notice.
+// notices of an empty chat list (RailNotice), which the Chat list card owns as List notice.
 card('Empty and error state', 'An empty place says what will appear in it and what to do next, in the same voice as the rest of the app and without a drawing to fill the room. When loading failed it says what is safe, and offers to try again. The chat list’s own notices are the List notice of the Chat list card; here they stand beside the conversation’s so the two read as one family.');
 // Per kind: title, line, and the action when there is one.
 const EMPTY = {

@@ -1,6 +1,6 @@
 // The organisation section of the chat list: OrgSection with its header
-// (org_section._Header), member rows (_MemberRow), offers (_OfferRow, drawn by
-// the Invitation row) and the new-group form (_NewGroupForm).
+// (org_section._Header), member rows (_MemberRow), offers (InvitationRow, the
+// Invitation row) and the new-group form (_NewGroupForm).
 card('Organisation', 'A member of an organisation sees its people under the chats: who is in it, who wants to talk, and a field to start a group with them. While a change is on its way the section is busy and its controls wait. Until the list of members arrives the section says so.');
 const headers = await grid('Organisation header', axis('State', ['Default', 'Busy']), DEVICES, ({ State, Device }) => {
   const h = box('Organisation header', { component: true, dir: 'H', gap: 2, pad: [0, 0, 0, 3], w: ROW[Device], minHk: 12 });

@@ -2,6 +2,7 @@
 // filter chips started 2px right of the search field above them.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mosh/src/features/sessions/rail_buttons.dart';
 import 'package:mosh/src/features/sessions/rail_item.dart';
 import 'package:mosh/src/features/sessions/sessions_screen.dart';
 

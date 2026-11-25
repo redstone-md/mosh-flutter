@@ -116,20 +116,20 @@ test-font artifact.
 
 ## Conversation type cues
 
-`ConversationKindStyle` owns the accent, tint, glyph and localized type label.
-`ConversationKindAvatar` composes the existing personal initials avatar with a
-small chat badge, or renders the group/channel glyph on a tinted circle.
+`ConversationKindStyle` owns the glyph and the localized type label.
+`ConversationKindAvatar` shows a person's initials, or the group/channel glyph,
+on the avatar plate picked from the name.
 
-| Type | Accent | Glyph |
-| --- | --- | --- |
-| Personal | Saffron (`primary`) | Chat bubble, with the contact's initials |
-| Group | Sand (`secondary`) | Participants |
-| Channel | Blue (`tertiary`) | `#` |
+| Type | Glyph |
+| --- | --- |
+| Personal | Chat bubble in the filter; the contact's initials on the avatar |
+| Group | Participants |
+| Channel | `#` |
 
-Selected rows and filters use the matching tint. Text remains neutral. Glyphs,
-localized tooltip/type labels and channel-name prefixes communicate the type
-without relying on color. These accents do not imply a connection or encryption
-state; runtime protection indicators continue to read actual snapshots.
+Since MOSH-134 the type has no colour of its own: the open chat is the one
+`secondaryContainer` row for every type, and a lit filter is the same fill.
+Glyphs, localized tooltip/type labels and channel-name prefixes communicate the
+type. Runtime protection indicators continue to read actual snapshots.
 
 ## Initial consistency verification
 

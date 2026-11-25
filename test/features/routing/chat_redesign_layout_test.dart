@@ -273,8 +273,9 @@ void main() {
       await tester.sendKeyEvent(LogicalKeyboardKey.keyK);
       await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);
       await tester.pumpAndSettle();
-      final search = tester
-          .widget<TextField>(find.byKey(const ValueKey('chat-list-search')));
+      final search = tester.widget<TextField>(find.descendant(
+          of: find.byKey(const ValueKey('chat-list-search')),
+          matching: find.byType(TextField)));
       expect(search.focusNode!.hasFocus, isTrue);
       if (width <= 580) {
         expect(appRouter.routeInformationProvider.value.uri.path,

@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/src/features/conversation/chat_row_menu.dart';
 import 'package:mosh/src/features/conversation/rename_chat_dialog.dart';
 import 'package:mosh/src/features/sessions/rail_entry.dart';
+import 'package:mosh/src/features/sessions/rail_item.dart';
 import 'package:mosh/src/rust/private_group_runtime.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
 import 'package:mosh/src/util/format.dart' show shorten;
@@ -27,9 +28,9 @@ void main() {
         Scaffold(
             body: ChatRowMenu(
                 entry: entry,
-                child: Builder(
-                    builder: (context) => entry.buildRow(context,
-                        (unreadCount: 0, active: false, onSelect: null))))),
+                builder: (context, menuOpen) => entry.buildRow(
+                    context, (unreadCount: 0, active: false, onSelect: null),
+                    menuOpen: menuOpen))),
         overrides: [
           gatewayProvider.overrideWithValue(gateway),
           bridgeFacadeProvider.overrideWithValue(
@@ -43,6 +44,8 @@ void main() {
         buttons: kSecondaryMouseButton);
     await gesture.up();
     await tester.pumpAndSettle();
+    // The row stays pressed under its open menu.
+    expect(tester.widget<RailItem>(find.byType(RailItem)).menuOpen, isTrue);
     await tester.tap(find.text('Rename chat'));
     await tester.pumpAndSettle();
     final input = tester.widget<TextField>(find.descendant(
@@ -92,7 +95,7 @@ void main() {
         Scaffold(
             body: ChatRowMenu(
                 entry: entry,
-                child: const SizedBox(
+                builder: (_, __) => const SizedBox(
                     width: 300, height: 70, child: Text('Chat row')))),
         overrides: [
           gatewayProvider.overrideWithValue(gateway),

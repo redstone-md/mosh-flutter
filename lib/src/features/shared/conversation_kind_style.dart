@@ -1,20 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/app/mosh_icons.dart';
-import 'package:mosh/src/app/mosh_theme.dart';
 import 'package:mosh/src/features/shared/avatar.dart';
 import 'package:mosh/src/gateway/conversation_target.dart';
 
 /// Type cues shared by the rail, its filters, and conversation headers.
 extension ConversationKindStyle on ConversationKind {
-  Color accent(MoshColors colors) => switch (this) {
-        ConversationKind.dm => colors.primary,
-        ConversationKind.group => colors.secondary,
-        ConversationKind.channel => colors.tertiary,
-      };
-
-  Color tint(MoshColors colors) => accent(colors).withValues(alpha: 0.14);
-
   IconData get icon => switch (this) {
         ConversationKind.dm => MoshIcons.chat,
         ConversationKind.group => MoshIcons.group,

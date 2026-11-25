@@ -7,12 +7,12 @@ import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 import 'package:mosh/src/features/shared/conversation_action_error.dart'
     show ConversationActionError;
-import 'package:mosh/src/features/conversation/conversation_tools.dart'
-    show isMobileBreakpoint;
 import 'package:mosh/src/features/sessions/sessions_rail_list.dart';
 import 'package:mosh/src/features/sessions/sessions_list_controls.dart';
+import 'package:mosh/src/features/sessions/rail_buttons.dart';
 import 'package:mosh/src/features/sessions/rail_compact.dart';
 import 'package:mosh/src/features/sessions/rail_item.dart';
+import 'package:mosh/src/features/sessions/rail_notice.dart';
 import 'package:mosh/src/features/sessions/sessions_rail_actions.dart';
 import 'package:mosh/src/gateway/conversation_target.dart'
     show ConversationKind;
@@ -20,9 +20,8 @@ import 'package:mosh/src/routing/app_router.dart' show AppRoutes;
 import 'package:mosh/src/state/conversation_providers.dart'
     show conversationListProvider, sessionsOf;
 
-/// The DM sessions-list screen: one row per conversation, a FAB to start a
-/// new session, and an empty state. See the file header for how the rail is
-/// composed.
+/// The chat list: the button that starts a conversation, the search and the
+/// filters, one row per conversation, and settings under them.
 class SessionsScreen extends ConsumerStatefulWidget {
   const SessionsScreen({super.key});
 
@@ -48,7 +47,7 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
       // Pinned controls inset themselves; the list insets its rows inside
       // the scroller, so its scrollbar runs in the right gutter and both
       // sides of a row stay [kRailPadding] from the edge.
-      padding: const EdgeInsets.symmetric(vertical: kRailPadding),
+      padding: const EdgeInsets.symmetric(vertical: kRailEdge),
       child: Column(children: _sections(context, compact)),
     );
     // The rail carries NO header of
@@ -74,47 +73,38 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
   }
 
   List<Widget> _sections(BuildContext context, bool compact) {
+    final l = AppLocalizations.of(context)!;
     final async = ref.watch(conversationListProvider(ConversationKind.dm));
     return <Widget>[
-      // The NewSession button + its divider are pinned above `.rail-list`,
-      // outside the scroller and independent of whether any conversation
-      // exists.
-      _inset(_newButton(context, compact)),
+      // Starting a conversation is pinned above the list, outside the
+      // scroller and independent of whether any conversation exists.
+      _inset(RailNewButton(
+          label: l.shellNewSession,
+          onTap: () => openNewSessionAction(context, ref))),
       const SizedBox(height: kRailPadding),
-      _inset(_search(context, compact)),
-      SizedBox(height: isMobileBreakpoint(context) ? 4 : 8),
+      _inset(_search(l, compact)),
+      // The search and the filters bring their own gap to the rows.
+      if (compact) const SizedBox(height: kRailPadding),
       Expanded(
         child: SessionsRailList(
           dmSessions: sessionsOf(async.value),
           query: _query,
           kind: _kind,
-          status: _status(async, AppLocalizations.of(context)!, compact),
+          status: _status(async, l, compact),
         ),
       ),
-      // The gear, pinned BELOW the scroller (the same fixed slot the
-      // NewSession button holds above it) so it never scrolls away — the
-      // Discord placement.
+      // Settings are pinned below the scroller, so they never scroll away.
       const SizedBox(height: kRailPadding),
-      _inset(_settingsButton(context, compact)),
+      _inset(RailSettingsButton(
+          label: l.settingsGearLabel,
+          onTap: () => context.push(AppRoutes.settings))),
     ];
   }
 
-  Widget _newButton(BuildContext context, bool compact) {
-    final label = AppLocalizations.of(context)!.shellNewSession;
-    void open() => openNewSessionAction(context, ref);
-    return compact
-        ? CompactRailButton(
-            icon: const CompactNewIcon(),
-            label: label,
-            filled: true,
-            onTap: open)
-        : RailNewButton(label: label, onTap: open);
-  }
-
-  Widget _search(BuildContext context, bool compact) => compact
+  Widget _search(AppLocalizations l, bool compact) => compact
       ? CompactRailButton(
-          icon: const Icon(MoshIcons.search, size: 20),
-          label: AppLocalizations.of(context)!.chatListSearch,
+          icon: MoshIcons.search,
+          label: l.chatListSearch,
           onTap: () => expandChatList(ref, focusSearch: true))
       : SessionsListControls(
           focusNode: ref.watch(chatListSearchFocusProvider),
@@ -123,18 +113,6 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
           onSearch: (value) => setState(() => _query = value),
           onKind: (value) => setState(() => _kind = value),
         );
-
-  Widget _settingsButton(BuildContext context, bool compact) {
-    final label = AppLocalizations.of(context)!.settingsGearLabel;
-    void open() => context.push(AppRoutes.settings);
-    return compact
-        ? CompactRailButton(
-            icon: Icon(MoshIcons.settings,
-                size: 18, color: MoshColors.of(context).onSurfaceVariant),
-            label: label,
-            onTap: open)
-        : RailSettingsButton(label: label, onTap: open);
-  }
 
   Widget? _status(
           AsyncValue<Object?> async, AppLocalizations l, bool compact) =>
@@ -148,13 +126,30 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
           ),
         ),
         error: (e, _) => compact
-            ? CompactRailButton(
-                icon: const Icon(MoshIcons.error, size: 20),
-                label: l.sessionsError,
-                onTap: _retry)
-            : _ErrorState(error: e, ref: ref),
+            // A row of the list is as wide as the list; the button is not.
+            ? Center(
+                child: CompactRailButton(
+                    icon: MoshIcons.error,
+                    label: l.sessionsError,
+                    ink: MoshColors.of(context).error,
+                    onTap: _retry))
+            : _failed(e, l),
         data: (_) => null,
       );
+
+  /// The list could not be loaded. Only a bridge failure has a worded
+  /// reason; anything else would show raw exception text, so the notice
+  /// says what is safe instead.
+  Widget _failed(Object error, AppLocalizations l) {
+    final reason = ConversationActionError.of(error);
+    return RailNotice(
+      failed: true,
+      title: l.sessionsError,
+      detail: reason.kind == null ? l.sessionsErrorBody : reason.describe(l),
+      actionLabel: l.sessionsRetry,
+      onAction: _retry,
+    );
+  }
 
   void _retry() => ref
       .read(conversationListProvider(ConversationKind.dm).notifier)
@@ -163,64 +158,4 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
   Widget _inset(Widget child) => Padding(
       padding: const EdgeInsets.symmetric(horizontal: kRailPadding),
       child: child);
-}
-
-/// Error state with a Retry button that re-runs the DM entry's refresh.
-/// Shares the rail's scroll area so Retry stays reachable in short windows.
-class _ErrorState extends StatelessWidget {
-  const _ErrorState({required this.error, required this.ref});
-
-  final Object error;
-  final WidgetRef ref;
-
-  @override
-  Widget build(BuildContext context) {
-    final l = AppLocalizations.of(context)!;
-    final theme = Theme.of(context);
-    // Only a bridge failure has a worded reason. Anything else would show
-    // raw exception text, so the title and Try again stand alone.
-    final reason = ConversationActionError.of(error);
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // One live region, so a screen reader announces the failure
-            // and its reason together when the list fails to load.
-            Semantics(
-              liveRegion: true,
-              container: true,
-              child: Column(
-                children: [
-                  Text(
-                    l.sessionsError,
-                    style: theme.textTheme.titleMedium,
-                    textAlign: TextAlign.center,
-                  ),
-                  if (reason.kind != null) ...[
-                    const SizedBox(height: 8),
-                    Text(
-                      reason.describe(l),
-                      textAlign: TextAlign.center,
-                      style: theme.textTheme.bodySmall,
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            const SizedBox(height: 18),
-            FilledButton(
-              onPressed: () => ref
-                  .read(
-                    conversationListProvider(ConversationKind.dm).notifier,
-                  )
-                  .refresh(),
-              child: Text(l.sessionsRetry),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
 }

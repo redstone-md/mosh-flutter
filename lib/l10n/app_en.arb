@@ -268,14 +268,6 @@
   "@chatCryptoFooter": {
     "description": "Footer noting the cryptographic transport"
   },
-  "chatNoSessionTitle": "Welcome to Mosh.",
-  "@chatNoSessionTitle": {
-    "description": "Title shown on the no-session welcome screen"
-  },
-  "chatNoSessionBody": "Create an invite or paste one to start your first encrypted conversation.",
-  "@chatNoSessionBody": {
-    "description": "Body shown on the no-session welcome screen"
-  },
   "stateIdle": "Idle",
   "@stateIdle": {
     "description": "State label for the idle connection state"
@@ -324,9 +316,13 @@
   "@backToConversations": {
     "description": "Mobile back control that returns from a chat pane to the conversation rail"
   },
-  "sessionsError": "Unable to load conversations",
+  "sessionsError": "The chat list could not be loaded",
   "@sessionsError": {
     "description": "Error message shown when loading the session list fails"
+  },
+  "sessionsErrorBody": "Your chats are safe on this device. Try again.",
+  "@sessionsErrorBody": {
+    "description": "Line under the chat list's load error when the failure has no worded reason"
   },
   "sessionsRetry": "Try again",
   "@sessionsRetry": {
@@ -673,7 +669,7 @@
   },
   "railOfferAccept": "Accept chat invite from {name}",
   "@railOfferAccept": {
-    "description": "Semantics label for a pending DM-offer row (the whole row is an accept affordance)",
+    "description": "Tooltip and screen-reader name of the accept button on a pending DM-offer row",
     "placeholders": {
       "name": { "type": "String" }
     }
@@ -1672,9 +1668,13 @@
       }
     }
   },
-  "orgPendingHint": "Your confirmation code — give it to your admin",
+  "orgPendingHint": "Give this confirmation code to your admin",
   "@orgPendingHint": {
     "description": "Hint under the confirmation code while not yet in roster (React OrgSection.tsx orgText.pendingHint)"
+  },
+  "orgRosterWaiting": "Waiting for the list of members",
+  "@orgRosterWaiting": {
+    "description": "Notice in an organisation section until its roster arrives"
   },
   "orgDmOffer": "wants to chat",
   "@orgDmOffer": {
@@ -1709,13 +1709,9 @@
   "@orgNewGroup": {
     "description": "Tooltip for the new-group submit button (React OrgSection.tsx orgText.newGroup)"
   },
-  "orgNewGroupPlaceholder": "e.g. Design review",
-  "@orgNewGroupPlaceholder": {
-    "description": "Placeholder for the new-group input (React OrgSection.tsx orgText.newGroupPlaceholder)"
-  },
   "orgNewGroupLabel": "Group name",
   "@orgNewGroupLabel": {
-    "description": "Visible label of the new org group name field"
+    "description": "Placeholder and screen-reader name of the new org group name field"
   },
   "orgAcceptDmAria": "Accept chat invite from {name}",
   "@orgAcceptDmAria": {
@@ -1918,6 +1914,14 @@
   "chatListYou": "You",
   "chatListInvitations": "Invitations",
   "chatListEmpty": "No matching chats",
+  "chatListNoChatsTitle": "No conversations yet",
+  "chatListNoChatsBody": "Start one, or open an invite link someone sent you",
+  "chatListNoResults": "Nothing matches “{query}”",
+  "@chatListNoResults": {
+    "description": "Title of the chat list when the search finds no chat; {query} is what was searched for",
+    "placeholders": { "query": { "type": "String" } }
+  },
+  "chatListNoResultsBody": "Search looks through chat names and messages",
   "chatDetailsTitle": "Conversation details",
   "chatDetailsFiles": "Shared files",
   "chatDetailsNoFiles": "No shared files yet",

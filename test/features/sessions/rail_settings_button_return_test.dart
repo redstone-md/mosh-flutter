@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show LogicalKeyboardKey;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/src/app/mosh_icons.dart';
-import 'package:mosh/src/features/sessions/rail_item.dart';
+import 'package:mosh/src/features/sessions/rail_buttons.dart';
 import 'package:mosh/src/features/shared/focus_ring.dart';
 import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/state/gateway_provider.dart';

@@ -1,18 +1,17 @@
 import 'package:flutter/material.dart';
-import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/state/chat_names_provider.dart' show chatDisplayName;
 import 'package:go_router/go_router.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
-import 'package:mosh/src/features/conversation/conversation_helpers.dart'
-    show UnreadBadge;
 import 'package:mosh/src/features/conversation/peer_label.dart' show peerLabel;
 import 'package:mosh/src/features/conversation/dm_state.dart' show dmStateLabel;
-import 'package:mosh/src/features/sessions/rail_item.dart'
-    show RailItem, RailItemKind;
+import 'package:mosh/src/features/sessions/rail_compact.dart'
+    show CompactExpandItem, RailCompactScope;
+import 'package:mosh/src/features/sessions/rail_item.dart' show RailItem;
 import 'package:mosh/src/features/sessions/rail_activity.dart';
 import 'package:mosh/src/features/shared/avatar.dart' show Avatar;
 import 'package:mosh/src/features/shared/conversation_kind_style.dart';
+import 'package:mosh/src/features/shared/invitation_row.dart';
 import 'package:mosh/src/gateway/conversation_target.dart'
     show ConversationKind, ConversationRef;
 import 'package:mosh/src/routing/app_router.dart' show AppRoutes;
@@ -94,8 +93,10 @@ sealed class RailEntry {
   }
 
   /// This row's widget. [chrome] is what the rail computed from [ref]; the
-  /// row decides what to render with it.
-  Widget buildRow(BuildContext context, RailRowChrome chrome);
+  /// row decides what to render with it. [menuOpen] keeps the row pressed
+  /// under its open menu.
+  Widget buildRow(BuildContext context, RailRowChrome chrome,
+      {bool menuOpen = false});
 }
 
 List<RailEntry> recentRailEntries(
@@ -162,11 +163,12 @@ final class DmRailEntry extends RailEntry {
       ConversationRef(kind: ConversationKind.dm, id: session.sessionId);
 
   @override
-  Widget buildRow(BuildContext context, RailRowChrome chrome) {
+  Widget buildRow(BuildContext context, RailRowChrome chrome,
+      {bool menuOpen = false}) {
     final l = AppLocalizations.of(context)!;
     final label = displayName(l);
     return RailItem(
-      kind: RailItemKind.dm,
+      kind: ref.kind,
       leading: ConversationKindAvatar(
           kind: ref.kind,
           name: label,
@@ -177,8 +179,8 @@ final class DmRailEntry extends RailEntry {
       subtitle: revokedOrgName != null
           ? l.orgRevokedBadge(revokedOrgName!)
           : preview(l) ?? dmStateLabel(l, session.state),
-      // The expanded rail hides `.rail-dot`, so the badge stands alone.
-      trailing: UnreadBadge(count: chrome.unreadCount),
+      unreadCount: chrome.unreadCount,
+      menuOpen: menuOpen,
       active: chrome.active,
       onTap: () {
         // Clear the badge + mark the conversation open first, then
@@ -212,16 +214,18 @@ final class ChannelRailEntry extends RailEntry {
       ConversationRef(kind: ConversationKind.channel, id: channel.name);
 
   @override
-  Widget buildRow(BuildContext context, RailRowChrome chrome) {
+  Widget buildRow(BuildContext context, RailRowChrome chrome,
+      {bool menuOpen = false}) {
     return RailItem(
-      kind: RailItemKind.channel,
+      kind: ref.kind,
       leading: ConversationKindAvatar(
           kind: ref.kind, name: displayName(AppLocalizations.of(context)!)),
       title: displayName(AppLocalizations.of(context)!),
       timestamp: timestamp(context),
       // An empty topic yields no subtitle line ([RailItem] hides it).
       subtitle: preview(AppLocalizations.of(context)!) ?? channel.topic,
-      trailing: UnreadBadge(count: chrome.unreadCount),
+      unreadCount: chrome.unreadCount,
+      menuOpen: menuOpen,
       active: chrome.active,
       onTap: () {
         chrome.onSelect?.call();
@@ -251,20 +255,20 @@ final class GroupRailEntry extends RailEntry {
       ConversationRef(kind: ConversationKind.group, id: group.groupId);
 
   @override
-  Widget buildRow(BuildContext context, RailRowChrome chrome) {
+  Widget buildRow(BuildContext context, RailRowChrome chrome,
+      {bool menuOpen = false}) {
     final l = AppLocalizations.of(context)!;
     final label = displayName(l);
     return RailItem(
-      kind: RailItemKind.group,
+      kind: ref.kind,
       leading: ConversationKindAvatar(kind: ref.kind, name: label),
       title: label,
       timestamp: timestamp(context),
       // `memberCount` is a `BigInt`; narrowing to `int` is safe for
       // realistic member counts.
       subtitle: preview(l) ?? l.membersCount(group.memberCount.toInt()),
-      // The expanded rail hides `.rail-admin-crown` and `.rail-dot`
-      // outright, so the badge is the only trailing element.
-      trailing: UnreadBadge(count: chrome.unreadCount),
+      unreadCount: chrome.unreadCount,
+      menuOpen: menuOpen,
       active: chrome.active,
       onTap: () {
         chrome.onSelect?.call();
@@ -274,8 +278,8 @@ final class GroupRailEntry extends RailEntry {
   }
 }
 
-/// One pending DM-offer row: the whole row accepts, the trailing X
-/// dismisses.
+/// One pending DM offer: an [InvitationRow] whose two buttons accept and
+/// dismiss it. In the collapsed list it is an avatar that expands the list.
 ///
 /// It is the one row that opens no conversation: [ref] is null, because an
 /// offer has no session behind it until it is accepted. It takes the accept
@@ -295,35 +299,32 @@ final class OfferRailEntry extends RailEntry {
   ConversationRef? get ref => null;
 
   @override
-  Widget buildRow(BuildContext context, RailRowChrome chrome) {
+  Widget buildRow(BuildContext context, RailRowChrome chrome,
+      {bool menuOpen = false}) {
     final l = AppLocalizations.of(context)!;
     final fromDevice = pending.offer.fromDevice;
-    return RailItem(
-      kind: RailItemKind.dm,
-      leading: Avatar(
-          name: fromDevice,
-          plusIdentity: pending.offer.authenticated == true
-              ? pending.offer.fromFingerprint
-              : null),
+    final compact = RailCompactScope.of(context);
+    final avatar = Avatar(
+        name: fromDevice,
+        radius: compact ? 24 : 20,
+        plusIdentity: pending.offer.authenticated == true
+            ? pending.offer.fromFingerprint
+            : null);
+    final detail = pending.kind == ConversationKind.channel
+        ? '#${pending.host}'
+        : l.onboardGroupInvite;
+    if (compact) {
+      return CompactExpandItem(
+          leading: avatar, name: fromDevice, detail: detail);
+    }
+    return InvitationRow(
+      leading: avatar,
       title: fromDevice,
-      subtitle: pending.kind == ConversationKind.channel
-          ? '#${pending.host}'
-          : l.onboardGroupInvite,
-      semanticLabel: l.railOfferAccept(fromDevice),
-      // Offer badge icon.
-      trailing: Icon(
-        MoshIcons.chat,
-        size: 14,
-        color: Theme.of(context).colorScheme.primary,
-      ),
-      // Beside the accept target, not inside it: two sibling buttons.
-      action: IconButton(
-        icon: const Icon(MoshIcons.close, size: 16),
-        tooltip: l.railOfferDismiss,
-        visualDensity: VisualDensity.compact,
-        onPressed: onDismiss,
-      ),
-      onTap: onAccept,
+      detail: detail,
+      acceptLabel: l.railOfferAccept(fromDevice),
+      declineLabel: l.railOfferDismiss,
+      onAccept: onAccept,
+      onDecline: onDismiss,
     );
   }
 }
