@@ -5,9 +5,6 @@ import 'package:mosh/src/app/mosh_shapes.dart';
 import 'package:mosh/src/app/mosh_spinner.dart';
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 
-/// The gap between the controls of the composer.
-const double kComposerGap = MoshSpace.s1;
-
 /// The send button of the Composer card: a 40 px plate in the accent, in a
 /// 48 px target on the phone. Without [onPressed] the plate is unlit.
 class ComposerSendButton extends StatelessWidget {

@@ -13,7 +13,6 @@ import 'package:mosh/src/features/conversation/conversation_tools.dart'
     show isMobileBreakpoint;
 import 'package:mosh/src/features/shared/composer_send_button.dart';
 import 'package:mosh/src/features/shared/voice_composer.dart';
-import 'package:mosh/src/rust/api/audio_devices.dart' show audioInputDeviceId;
 import 'package:super_clipboard/super_clipboard.dart' show ClipboardDataReader;
 
 /// The send button's key. It holds an icon, not a label, so widget tests
@@ -22,10 +21,6 @@ const Key kComposerSendButtonKey = Key('composer-send-button');
 
 /// The counter shows once this few characters are left.
 const int kComposerCounterThreshold = 200;
-
-/// The production input pick: mosh-core's audio-devices store. A top-level
-/// default (not inline) so the composer stays const-constructible.
-String? _storedComposerInputDeviceId() => audioInputDeviceId();
 
 /// The Composer card, shared by the DM, the channel and the group: one field
 /// for everything a person sends. With nothing typed the far end holds the
@@ -51,7 +46,7 @@ class ConversationComposer extends StatelessWidget {
     required this.voiceLabels,
     required this.onSendVoice,
     required this.onVoiceError,
-    this.inputDeviceId = _storedComposerInputDeviceId,
+    this.inputDeviceId = storedVoiceInputDeviceId,
     this.onTyping,
     this.readClipboard = readSystemClipboard,
   });
@@ -144,7 +139,7 @@ class ConversationComposer extends StatelessWidget {
     final colors = MoshColors.of(context);
     final empty = text.trim().isEmpty;
     return Row(
-      spacing: kComposerGap,
+      spacing: MoshShapes.composerGap,
       children: [
         AttachmentPicker(
           disabled: sending || disabled,

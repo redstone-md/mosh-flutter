@@ -9,14 +9,12 @@ class ContextualIconSwitcher extends StatelessWidget {
     this.size,
     this.color,
     this.duration = const Duration(milliseconds: 160),
-    this.offset = Offset.zero,
   });
 
   final IconData icon;
   final double? size;
   final Color? color;
   final Duration duration;
-  final Offset offset;
 
   @override
   Widget build(BuildContext context) {
@@ -33,11 +31,8 @@ class ContextualIconSwitcher extends StatelessWidget {
           ),
         );
       },
-      child: Transform.translate(
-        key: ValueKey<IconData>(icon),
-        offset: offset,
-        child: Icon(icon, size: size, color: color),
-      ),
+      child:
+          Icon(icon, key: ValueKey<IconData>(icon), size: size, color: color),
     );
   }
 }

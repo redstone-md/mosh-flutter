@@ -62,7 +62,7 @@ class VoiceRecording extends ChangeNotifier {
   String? get clip => _files.clip;
 
   /// The waveform of the recording so far.
-  Uint8List get peaks => voiceWaveform(_meter.levels);
+  Uint8List get peaks => _meter.peaks;
 
   /// Whether an action is still closing or joining files.
   bool get busy => _busy;
@@ -155,7 +155,7 @@ class VoiceRecording extends ChangeNotifier {
   /// Starts a new file and the clock. A composer that went out of sight
   /// while the recorder was starting is paused at once.
   Future<void> _capture() async {
-    final path = _files.live = await newVoiceClipPath();
+    final path = _files.live = await _VoiceFiles.create();
     // The stored input pick (audio-devices.json); null = platform default.
     // The label is cosmetic on the platform side, so the id doubles as it.
     final picked = inputDeviceId();
@@ -236,17 +236,17 @@ class _VoiceFiles {
       clip = segment ?? before;
       return;
     }
-    final joined = await newVoiceClipPath();
+    final joined = await _VoiceFiles.create();
     try {
       await join(segments: [before, segment], output: joined);
     } catch (_) {
-      deleteVoiceClip(joined);
+      _delete(joined);
       rethrow;
     } finally {
-      deleteVoiceClip(segment);
+      _delete(segment);
     }
     clip = joined;
-    deleteVoiceClip(before);
+    _delete(before);
   }
 
   /// Hands [clip] over: its file is the caller's from here on.
@@ -257,9 +257,34 @@ class _VoiceFiles {
   }
 
   void deleteAll() {
-    deleteVoiceClip(live);
-    deleteVoiceClip(clip);
+    _delete(live);
+    _delete(clip);
     live = clip = null;
+  }
+
+  /// A new file for a piece of a recording, in `mosh-voice/` under the app
+  /// cache. The directory is created here, recursively: `record_macos`
+  /// writes through `AVCaptureFileOutput`, which creates no parent
+  /// directory and reports that only to a delegate nobody hears, so a
+  /// missing directory surfaced as errno 2 when the clip was read for
+  /// sending (macOS 0.9.3). Created here, a broken directory fails at
+  /// capture time, visibly.
+  static Future<String> create() async {
+    final cache = await getApplicationCacheDirectory();
+    final dir = Directory('${cache.path}/mosh-voice');
+    // Sync: the directory must exist before the recorder gets the path.
+    dir.createSync(recursive: true);
+    final stamp = DateTime.now().microsecondsSinceEpoch;
+    return '${dir.path}/mosh-voice-$stamp.m4a';
+  }
+
+  /// Best effort and synchronous: a clip is a few megabytes at most.
+  static void _delete(String? path) {
+    if (path == null) return;
+    try {
+      final file = File(path);
+      if (file.existsSync()) file.deleteSync();
+    } catch (_) {/* best-effort */}
   }
 }
 
@@ -283,6 +308,20 @@ class _VoiceMeter {
   StreamSubscription<Amplitude>? _amplitudes;
 
   _MeterReading get reading => (elapsed: elapsed, levels: levels.length);
+
+  /// The loudness as the [waveformBuckets] peaks a voice message carries,
+  /// spread over the recording's length.
+  Uint8List get peaks {
+    final peaks = Uint8List(waveformBuckets);
+    final count = levels.length;
+    if (count == 0) return peaks;
+    for (var bucket = 0; bucket < waveformBuckets; bucket++) {
+      final from = bucket * count ~/ waveformBuckets;
+      final to = math.max(from + 1, (bucket + 1) * count ~/ waveformBuckets);
+      peaks[bucket] = levels.sublist(from, to).reduce(math.max);
+    }
+    return peaks;
+  }
 
   void start(AudioRecorder recorder) {
     _amplitudes = recorder
@@ -310,42 +349,4 @@ class _VoiceMeter {
     elapsed = to.elapsed;
     levels.length = to.levels;
   }
-}
-
-/// A new file for a piece of a recording, in `mosh-voice/` under the app
-/// cache. The directory is created here, recursively: `record_macos` writes
-/// through `AVCaptureFileOutput`, which creates no parent directory and
-/// reports that only to a delegate nobody hears, so a missing directory
-/// surfaced as errno 2 when the clip was read for sending (macOS 0.9.3).
-/// Created here, a broken directory fails at capture time, visibly.
-Future<String> newVoiceClipPath() async {
-  final cache = await getApplicationCacheDirectory();
-  final dir = Directory('${cache.path}/mosh-voice');
-  // Sync: the directory must exist before the recorder gets the path.
-  dir.createSync(recursive: true);
-  return '${dir.path}/mosh-voice-${DateTime.now().microsecondsSinceEpoch}.m4a';
-}
-
-/// Removes a recorded file. Best effort and synchronous: a clip is a few
-/// megabytes at most.
-void deleteVoiceClip(String? path) {
-  if (path == null) return;
-  try {
-    final file = File(path);
-    if (file.existsSync()) file.deleteSync();
-  } catch (_) {/* best-effort */}
-}
-
-/// Loudness readings, one per tick of a recording, as the
-/// [waveformBuckets] peaks a voice message carries, spread over its length.
-Uint8List voiceWaveform(List<int> levels) {
-  final peaks = Uint8List(waveformBuckets);
-  final count = levels.length;
-  if (count == 0) return peaks;
-  for (var bucket = 0; bucket < waveformBuckets; bucket++) {
-    final from = bucket * count ~/ waveformBuckets;
-    final to = math.max(from + 1, (bucket + 1) * count ~/ waveformBuckets);
-    peaks[bucket] = levels.sublist(from, to).reduce(math.max);
-  }
-  return peaks;
 }

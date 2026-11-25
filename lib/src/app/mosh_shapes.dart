@@ -48,4 +48,7 @@ abstract final class MoshShapes {
 
   static const controlShape = RoundedRectangleBorder(borderRadius: control);
   static const composerPadding = EdgeInsets.all(MoshSpace.s1);
+
+  /// The gap between the controls of the composer.
+  static const double composerGap = MoshSpace.s1;
 }

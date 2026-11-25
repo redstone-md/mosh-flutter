@@ -84,7 +84,7 @@ export const SCREEN_PARTS = [
 // widget of their own would otherwise land on the host. It lands on MoshApp.
 export const WRAPPERS = [
   'ToastHost', 'VpnConsentOverlay', 'PlusHost', 'voice_call_host._CallHostOverlay',
-  'FocusRing', 'MoshLoading', 'PressScale', 'ResumedInk', 'OpticalIcon', 'ContextualIconSwitcher', 'ModalFocusTrap', 'MoshDialogTransition',
+  'FocusRing', 'MoshLoading', 'PressScale', 'ResumedInk', 'ContextualIconSwitcher', 'ModalFocusTrap', 'MoshDialogTransition',
   'StartReveal', 'toast_card._Bump', 'SetupStepTransition', 'first_run_transition._SetupPanel',
   'CopyableMessage', 'SelectableMessageRow', 'MessageContextMenu', 'MessageSelectionHost', 'ChatDropZone',
   'CallVideoSurfaceScope', 'CallVideoSurfaceReport', 'mosh_shell._SemanticsPane',

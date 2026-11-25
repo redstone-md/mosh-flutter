@@ -19,9 +19,9 @@ import 'package:mosh/src/rust/api/voice_clip.dart' show joinVoiceSegments;
 
 export 'package:mosh/src/features/shared/voice_composer_types.dart';
 
-/// The production input pick: mosh-core's audio-devices store. A top
-///-level default (not inline) so the widget stays const-constructible.
-String? _storedInputDeviceId() => audioInputDeviceId();
+/// The production input pick: mosh-core's audio-devices store. A top-level
+/// default (not inline) so the composers stay const-constructible.
+String? storedVoiceInputDeviceId() => audioInputDeviceId();
 
 /// The voice half of the Composer card. At rest it shows [idle], the row
 /// its owner draws around the microphone it is handed. A press on the
@@ -39,7 +39,7 @@ class VoiceComposer extends StatefulWidget {
     required this.onSend,
     required this.onError,
     required this.idle,
-    this.inputDeviceId = _storedInputDeviceId,
+    this.inputDeviceId = storedVoiceInputDeviceId,
     this.createPlayer = createMediaPlayer,
     this.joinSegments = joinVoiceSegments,
   });
@@ -202,7 +202,7 @@ class _VoiceComposerState extends State<VoiceComposer> {
   Widget _recordingRow(BuildContext context) {
     final labels = widget.labels;
     return Row(
-      spacing: kComposerGap,
+      spacing: MoshShapes.composerGap,
       children: [
         Expanded(
           child: Padding(
@@ -241,7 +241,7 @@ class _VoiceComposerState extends State<VoiceComposer> {
   Widget _pausedRow() {
     final labels = widget.labels;
     return Row(
-      spacing: kComposerGap,
+      spacing: MoshShapes.composerGap,
       children: [
         IconButton(
           icon: const Icon(MoshIcons.delete),
