@@ -8,20 +8,21 @@ import 'package:mosh/src/features/sessions/rail_entry.dart';
 import 'package:mosh/src/state/chat_names_provider.dart';
 
 /// A secondary click or long press opens the same rename flow as the header.
+/// [builder] draws the row and is told while its menu is open, so the row
+/// stays pressed under it.
 class ChatRowMenu extends ConsumerWidget {
-  const ChatRowMenu({super.key, required this.entry, required this.child});
+  const ChatRowMenu({super.key, required this.entry, required this.builder});
   final RailEntry entry;
-  final Widget child;
+  final Widget Function(BuildContext context, bool menuOpen) builder;
 
   bool get _canRename => switch (entry) {
         GroupRailEntry(:final group) => group.isAdmin && group.state == 'ready',
-        OfferRailEntry() => false,
         _ => true,
       };
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    if (!_canRename) return child;
+    if (!_canRename) return builder(context, false);
     final l = AppLocalizations.of(context)!;
     final enabled = entry is GroupRailEntry ||
         ref.watch(personalChatRenameAvailableProvider);
@@ -33,7 +34,7 @@ class ChatRowMenu extends ConsumerWidget {
             icon: MoshIcons.edit,
             onPressed: !enabled
                 ? null
-                : () => showRenameChatDialog(context, entry.ref!.target,
+                : () => showRenameChatDialog(context, entry.ref.target,
                     name: entry.displayName(l),
                     originalName: entry.originalName(l),
                     hasPersonalName: entry.personalName != null))
@@ -44,7 +45,7 @@ class ChatRowMenu extends ConsumerWidget {
             controller.open(position: details.localPosition),
         onLongPressStart: (details) =>
             controller.open(position: details.localPosition),
-        child: child,
+        child: builder(context, controller.isOpen),
       ),
     );
   }

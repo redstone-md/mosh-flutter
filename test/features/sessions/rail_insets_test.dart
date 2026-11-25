@@ -2,6 +2,7 @@
 // filter chips started 2px right of the search field above them.
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mosh/src/features/sessions/rail_buttons.dart';
 import 'package:mosh/src/features/sessions/rail_item.dart';
 import 'package:mosh/src/features/sessions/sessions_screen.dart';
 
@@ -28,4 +29,15 @@ void main() {
       expect(chip.left, search.left);
     });
   }
+
+  // MOSH-134: an unlit chip grew by its edge, 2px taller than the lit one,
+  // so lighting a filter moved its neighbours.
+  testWidgets('a filter is as tall unlit as lit', (tester) async {
+    await pumpRail(tester);
+    final heights = {
+      for (final chip in find.byType(ChoiceChip).evaluate())
+        tester.getSize(find.byWidget(chip.widget)).height
+    };
+    expect(heights, hasLength(1));
+  });
 }

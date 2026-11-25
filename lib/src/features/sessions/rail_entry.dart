@@ -1,17 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/state/chat_names_provider.dart' show chatDisplayName;
 import 'package:go_router/go_router.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
-import 'package:mosh/src/features/conversation/conversation_helpers.dart'
-    show UnreadBadge;
 import 'package:mosh/src/features/conversation/peer_label.dart' show peerLabel;
 import 'package:mosh/src/features/conversation/dm_state.dart' show dmStateLabel;
-import 'package:mosh/src/features/sessions/rail_item.dart'
-    show RailItem, RailItemKind;
+import 'package:mosh/src/features/sessions/rail_item.dart' show RailItem;
 import 'package:mosh/src/features/sessions/rail_activity.dart';
-import 'package:mosh/src/features/shared/avatar.dart' show Avatar;
 import 'package:mosh/src/features/shared/conversation_kind_style.dart';
 import 'package:mosh/src/gateway/conversation_target.dart'
     show ConversationKind, ConversationRef;
@@ -21,20 +16,17 @@ import 'package:mosh/src/rust/channel_runtime/types.dart' show ChannelSnapshot;
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
     show SessionSnapshot, DmSessionState;
 import 'package:mosh/src/rust/private_group_runtime.dart' show GroupSnapshot;
-import 'package:mosh/src/state/dm_offer_providers.dart' show PendingDmOffer;
 import 'package:mosh/src/util/format.dart' show shorten;
 
-/// What the rail knows about a row and the row does not: its unread count,
-/// whether it is the open conversation, and the hook that clears the badge
-/// and marks the conversation open.
-///
-/// All three come from the row's [RailEntry.ref], so a row that opens no
-/// conversation gets zero, false and null -- there is no badge to clear and
-/// no conversation to mark open.
+/// What the rail knows about a row and the row does not: its unread count
+/// and whether it is the open conversation, both read by [RailEntry.ref],
+/// whether the row's menu is open, and the hook that clears the badge and
+/// marks the conversation open.
 typedef RailRowChrome = ({
   int unreadCount,
   bool active,
-  VoidCallback? onSelect,
+  bool menuOpen,
+  VoidCallback onSelect,
 });
 
 /// One row of the sessions rail: the conversation it opens, plus the chrome
@@ -42,17 +34,14 @@ typedef RailRowChrome = ({
 sealed class RailEntry {
   const RailEntry();
 
-  /// The conversation this row opens, or null for a row that opens no
-  /// conversation yet -- a pending DM offer has no session behind it until
-  /// it is accepted.
-  ConversationRef? get ref;
+  /// The conversation this row opens.
+  ConversationRef get ref;
 
   String originalName(AppLocalizations l) => switch (this) {
         DmRailEntry(:final session) => peerLabel(l, session),
         ChannelRailEntry(:final channel) => '#${channel.name}',
         GroupRailEntry(:final group) =>
           group.label ?? shorten(group.groupId, 6),
-        OfferRailEntry() => '',
       };
 
   String? get personalName => null;
@@ -61,7 +50,7 @@ sealed class RailEntry {
 
   RailActivity get activity => const RailActivity();
 
-  String searchText(AppLocalizations l) => ref?.id ?? '';
+  String searchText(AppLocalizations l) => ref.id;
 
   String? preview(AppLocalizations l) {
     if (activity.deletion case final deleted?) {
@@ -73,7 +62,7 @@ sealed class RailEntry {
     if (text == null) return null;
     final prefix = activity.own
         ? l.chatListYou
-        : ref?.kind == ConversationKind.dm
+        : ref.kind == ConversationKind.dm
             ? null
             : activity.sender;
     return prefix == null ? text : '$prefix: $text';
@@ -93,7 +82,7 @@ sealed class RailEntry {
         : MaterialLocalizations.of(context).formatShortDate(date);
   }
 
-  /// This row's widget. [chrome] is what the rail computed from [ref]; the
+  /// This row's widget. [chrome] is what the rail knows about the row; the
   /// row decides what to render with it.
   Widget buildRow(BuildContext context, RailRowChrome chrome);
 }
@@ -108,8 +97,9 @@ List<RailEntry> recentRailEntries(
   final visible = entries
       .where(
         (entry) =>
-            (kind == null || entry.ref?.kind == kind) &&
-            entry.searchText(l).toLowerCase().contains(search),
+            (kind == null || entry.ref.kind == kind) &&
+            (entry.searchText(l).toLowerCase().contains(search) ||
+                (search.isNotEmpty && entry.activity.mentions(search))),
       )
       .toList();
   visible.sort((a, b) {
@@ -125,7 +115,7 @@ List<RailEntry> recentRailEntries(
     }
     if (a.activity.text != null && b.activity.text == null) return -1;
     if (b.activity.text != null && a.activity.text == null) return 1;
-    return (a.ref?.key ?? '').compareTo(b.ref?.key ?? '');
+    return a.ref.key.compareTo(b.ref.key);
   });
   return visible;
 }
@@ -165,7 +155,7 @@ final class DmRailEntry extends RailEntry {
     final l = AppLocalizations.of(context)!;
     final label = displayName(l);
     return RailItem(
-      kind: RailItemKind.dm,
+      kind: ref.kind,
       leading: ConversationKindAvatar(
           kind: ref.kind,
           name: label,
@@ -176,13 +166,13 @@ final class DmRailEntry extends RailEntry {
       subtitle: revokedOrgName != null
           ? l.orgRevokedBadge(revokedOrgName!)
           : preview(l) ?? dmStateLabel(l, session.state),
-      // The expanded rail hides `.rail-dot`, so the badge stands alone.
-      trailing: UnreadBadge(count: chrome.unreadCount),
+      unreadCount: chrome.unreadCount,
+      menuOpen: chrome.menuOpen,
       active: chrome.active,
       onTap: () {
         // Clear the badge + mark the conversation open first, then
         // navigate.
-        chrome.onSelect?.call();
+        chrome.onSelect();
         context.go(AppRoutes.dmFor(session.sessionId));
       },
     );
@@ -213,17 +203,18 @@ final class ChannelRailEntry extends RailEntry {
   @override
   Widget buildRow(BuildContext context, RailRowChrome chrome) {
     return RailItem(
-      kind: RailItemKind.channel,
+      kind: ref.kind,
       leading: ConversationKindAvatar(
           kind: ref.kind, name: displayName(AppLocalizations.of(context)!)),
       title: displayName(AppLocalizations.of(context)!),
       timestamp: timestamp(context),
       // An empty topic yields no subtitle line ([RailItem] hides it).
       subtitle: preview(AppLocalizations.of(context)!) ?? channel.topic,
-      trailing: UnreadBadge(count: chrome.unreadCount),
+      unreadCount: chrome.unreadCount,
+      menuOpen: chrome.menuOpen,
       active: chrome.active,
       onTap: () {
-        chrome.onSelect?.call();
+        chrome.onSelect();
         context.go(AppRoutes.channelFor(channel.name));
       },
     );
@@ -254,75 +245,20 @@ final class GroupRailEntry extends RailEntry {
     final l = AppLocalizations.of(context)!;
     final label = displayName(l);
     return RailItem(
-      kind: RailItemKind.group,
+      kind: ref.kind,
       leading: ConversationKindAvatar(kind: ref.kind, name: label),
       title: label,
       timestamp: timestamp(context),
       // `memberCount` is a `BigInt`; narrowing to `int` is safe for
       // realistic member counts.
       subtitle: preview(l) ?? l.membersCount(group.memberCount.toInt()),
-      // The expanded rail hides `.rail-admin-crown` and `.rail-dot`
-      // outright, so the badge is the only trailing element.
-      trailing: UnreadBadge(count: chrome.unreadCount),
+      unreadCount: chrome.unreadCount,
+      menuOpen: chrome.menuOpen,
       active: chrome.active,
       onTap: () {
-        chrome.onSelect?.call();
+        chrome.onSelect();
         context.go(AppRoutes.groupFor(group.groupId));
       },
-    );
-  }
-}
-
-/// One pending DM-offer row: the whole row accepts, the trailing X
-/// dismisses.
-///
-/// It is the one row that opens no conversation: [ref] is null, because an
-/// offer has no session behind it until it is accepted. It takes the accept
-/// and dismiss callbacks straight from the rail's actions instead.
-final class OfferRailEntry extends RailEntry {
-  const OfferRailEntry({
-    required this.pending,
-    required this.onAccept,
-    required this.onDismiss,
-  });
-
-  final PendingDmOffer pending;
-  final VoidCallback onAccept;
-  final VoidCallback onDismiss;
-
-  @override
-  ConversationRef? get ref => null;
-
-  @override
-  Widget buildRow(BuildContext context, RailRowChrome chrome) {
-    final l = AppLocalizations.of(context)!;
-    final fromDevice = pending.offer.fromDevice;
-    return RailItem(
-      kind: RailItemKind.dm,
-      leading: Avatar(
-          name: fromDevice,
-          plusIdentity: pending.offer.authenticated == true
-              ? pending.offer.fromFingerprint
-              : null),
-      title: fromDevice,
-      subtitle: pending.kind == ConversationKind.channel
-          ? '#${pending.host}'
-          : l.onboardGroupInvite,
-      semanticLabel: l.railOfferAccept(fromDevice),
-      // Offer badge icon.
-      trailing: Icon(
-        MoshIcons.chat,
-        size: 14,
-        color: Theme.of(context).colorScheme.primary,
-      ),
-      // Beside the accept target, not inside it: two sibling buttons.
-      action: IconButton(
-        icon: const Icon(MoshIcons.close, size: 16),
-        tooltip: l.railOfferDismiss,
-        visualDensity: VisualDensity.compact,
-        onPressed: onDismiss,
-      ),
-      onTap: onAccept,
     );
   }
 }

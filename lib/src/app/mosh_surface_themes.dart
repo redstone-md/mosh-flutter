@@ -25,8 +25,7 @@ ListTileThemeData _listTileTheme(MoshColors c, TextTheme text) =>
       minVerticalPadding: 6,
       contentPadding: const EdgeInsets.symmetric(horizontal: 12),
       shape: const RoundedRectangleBorder(
-        borderRadius: MoshShapes.conversationRow,
-      ),
+          borderRadius: BorderRadius.all(Radius.circular(MoshRadius.medium))),
       selectedColor: c.onSecondaryContainer,
       selectedTileColor: c.secondaryContainer,
       titleTextStyle: text.titleSmall,

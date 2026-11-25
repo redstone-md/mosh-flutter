@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 
-import 'package:mosh/src/features/sessions/rail_item.dart';
+import 'package:mosh/src/features/shared/invitation_row.dart';
 import 'package:mosh/src/features/sessions/sessions_screen.dart';
 import '../../support/scriptable_bridge.dart';
 import '../../support/scriptable_gateway.dart';
@@ -41,21 +41,15 @@ void main() {
         : pumpScreen(tester, const SessionsScreen(), overrides: overrides);
   }
 
-  testWidgets('empty list renders the welcome + start-cta button',
+  testWidgets('an empty list says what to do and keeps one way to start',
       (tester) async {
     // The test bridge starts with no sessions, so listSessions is empty.
     final (gateway, bridge) = _scriptedPair();
     await pumpSessions(tester, gateway, bridge);
 
-    expect(find.text('Welcome to Mosh.'), findsOneWidget);
-    // The rail button carries the same label; the CTA is the FilledButton.
-    expect(
-      find.ancestor(
-        of: find.text('Start a conversation'),
-        matching: find.bySubtype<FilledButton>(),
-      ),
-      findsOneWidget,
-    );
+    expect(find.text('No conversations yet'), findsOneWidget);
+    // The button above the list is the only one: the notice repeats none.
+    expect(find.text('Start a conversation'), findsOneWidget);
   });
 
   testWidgets(
@@ -123,11 +117,9 @@ void main() {
     final (gateway, bridge) = _channelOfferBridge();
     await pumpSessions(tester, gateway, bridge);
 
-    final accept = tester.getSemantics(find.text('alpha-peer'));
-    expect(
-      accept,
-      isSemantics(label: 'Accept chat invite from alpha-peer', isButton: true),
-    );
+    final accept = tester
+        .getSemantics(find.byTooltip('Accept chat invite from alpha-peer'));
+    expect(accept, isSemantics(isButton: true));
     final dismiss = tester.getSemantics(find.byTooltip('Dismiss invite'));
     for (var node = dismiss.parent; node != null; node = node.parent) {
       expect(node, isNot(same(accept)));
@@ -142,11 +134,13 @@ void main() {
         error: Exception('boom-listSessions'));
     await pumpSessions(tester, gateway, bridge);
 
-    expect(find.text('Unable to load conversations'), findsOneWidget);
+    expect(find.text('The chat list could not be loaded'), findsOneWidget);
     expect(find.text('Try again'), findsOneWidget);
     // A failure from outside the bridge has no worded kind: its raw
-    // exception text never reaches the rail.
+    // exception text never reaches the rail, which says what is safe.
     expect(find.textContaining('boom-listSessions'), findsNothing);
+    expect(find.text('Your chats are safe on this device. Try again.'),
+        findsOneWidget);
     final callsBefore = bridge.countOf(BridgeMethod.listSessions);
 
     await tester.tap(find.text('Try again'));
@@ -227,10 +221,10 @@ void main() {
     // and pushes DmScreen, which the test asserts via the DM screen composer.
     await pumpSessions(tester, gateway, bridge, useRouter: true);
 
-// Regression 40231a09: the shared row also hosts the dismiss action.
-    final offerRow = tester.widget<RailItem>(find.ancestor(
+// Regression 40231a09: the offer's row also hosts the dismiss action.
+    final offerRow = tester.widget<InvitationRow>(find.ancestor(
       of: find.byTooltip('Dismiss invite'),
-      matching: find.byType(RailItem),
+      matching: find.byType(InvitationRow),
     ));
     expect(offerRow.title, 'alpha-peer');
 
@@ -249,12 +243,12 @@ void main() {
     await tester.pumpAndSettle();
     expect(gateway.countOf(GatewayMethod.dismissDmOffer), 1);
 
-    // Accept: tapping the row calls acceptInvite + auto-dismiss + navigates
+    // Accept: the row's other button calls acceptInvite + auto-dismiss + navigates
     // to the DM screen the bridge inserted. Reset dismiss counter first so
     // the auto-dismiss after accept is the only call counted.
     final dismissBeforeAccept = gateway.countOf(GatewayMethod.dismissDmOffer);
     final sessionCallsBeforeAccept = bridge.countOf(BridgeMethod.listSessions);
-    await tester.tap(find.text('alpha-peer'));
+    await tester.tap(find.byTooltip('Accept chat invite from alpha-peer'));
     await tester.pumpAndSettle();
     expect(
         gateway.countOf(GatewayMethod.dismissDmOffer), dismissBeforeAccept + 1);
@@ -273,7 +267,7 @@ void main() {
     await pumpSessions(tester, gateway, bridge, useRouter: true);
 
     final sessionCallsBeforeAccept = bridge.countOf(BridgeMethod.listSessions);
-    await tester.tap(find.text('alpha-peer'));
+    await tester.tap(find.byTooltip('Accept chat invite from alpha-peer'));
     await tester.pumpAndSettle();
 
     expect(bridge.countOf(BridgeMethod.listSessions), sessionCallsBeforeAccept);
@@ -295,7 +289,7 @@ void main() {
     await pumpSessions(tester, gateway, bridge, useRouter: true);
     final l = AppLocalizations.of(tester.element(find.byType(SessionsScreen)))!;
 
-    await tester.tap(find.text('alpha-peer'));
+    await tester.tap(find.byTooltip('Accept chat invite from alpha-peer'));
     await tester.pumpAndSettle();
 
     expect(find.text('Write a message\u2026'), findsOneWidget);

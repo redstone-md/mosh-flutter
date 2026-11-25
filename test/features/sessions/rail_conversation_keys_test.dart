@@ -111,15 +111,17 @@ ProviderContainer _rail() => ProviderContainer(overrides: [
       unreadLifecycleProvider.overrideWithBuild((ref, notifier) => _unread),
     ]);
 
-/// The rail row titled [title]. Every row is a [RailItem] now, the offer
-/// row included, so the title is the only thing that tells them apart.
+/// The chat row titled [title].
 RailItem _row(WidgetTester tester, String title) => tester
     .widgetList<RailItem>(find.byType(RailItem))
     .firstWhere((item) => item.title == title);
 
-/// The unread count [title]'s row renders.
-int _unreadOf(WidgetTester tester, String title) =>
-    (_row(tester, title).trailing! as UnreadBadge).count;
+/// The unread count on the badge [title]'s row shows.
+int _unreadOf(WidgetTester tester, String title) => tester
+    .widget<UnreadBadge>(find.descendant(
+        of: find.widgetWithText(RailItem, title),
+        matching: find.byType(UnreadBadge)))
+    .count;
 
 void main() {
   testWidgets('every kind reads its unread count from its own key',

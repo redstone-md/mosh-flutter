@@ -27,9 +27,9 @@ export const COMPONENTS = [
   component('controls', 'Slider', ['Slider']),
   component('controls', 'Divider', ['Divider']),
 
-  component('rows', 'Chat row', ['RailItem', 'rail_item._RailText', 'CompactRailItem']),
-  component('rows', 'Chat list controls', ['SessionsListControls', 'RailNewButton', 'RailSettingsButton', 'CompactRailButton', 'CompactNewIcon', 'RailDivider']),
-  component('rows', 'Org section', ['OrgSection', 'org_section._Header', 'org_section._MemberRow', 'org_section._OfferRow', 'org_section._NewGroupForm']),
+  component('rows', 'Chat row', ['RailItem', 'rail_item._RailText', 'CompactRailItem', 'InvitationRow']),
+  component('rows', 'Chat list controls', ['SessionsListControls', 'SearchField', 'search_field._Keycap', 'RailNewButton', 'RailSettingsButton', 'RailDivider', 'RailNotice']),
+  component('rows', 'Org section', ['org_section._Header', 'org_section._MemberRow', 'org_section._RosterNotice', 'org_section._NewGroupForm']),
   component('rows', 'Message bubble', ['ConversationMessageRow', 'ConversationMessageText', 'ConversationMessageFooter', 'DeliveryTicks', 'FailedMessageRetry']),
   component('rows', 'Sender meta', ['conversation_sender_meta._PeerNickname', 'DeviceFingerprintChip']),
   component('rows', 'Feed divider', ['ConversationDateDivider', 'ConversationUnreadDivider']),
@@ -53,7 +53,7 @@ export const COMPONENTS = [
   component('surfaces', 'Details panel', ['ConversationDetailsPanel', 'conversation_details_panel._Section', 'conversation_details_panel._MemberRow', 'PanelHead', 'ConnectionStatusPanel', 'PeerStatusDrawer']),
   component('surfaces', 'Diagnostics rows', ['DiagnosticsGroup', 'ValueRow', 'DiagnosticsEmptyState', 'SummaryCard', 'Metric', 'event_log._EventRow']),
   component('surfaces', 'Wizard step', ['SetupHeading', 'SetupProgress', 'StepMark', 'StartStep', 'device_link_steps._Step']),
-  component('surfaces', 'Empty and error state', ['sessions_rail_list._EmptyState', 'sessions_screen._ErrorState', 'ConversationNotice']),
+  component('surfaces', 'Empty and error state', ['ConversationNotice']),
   component('surfaces', 'Media viewer', ['MediaViewer', 'media_viewer._MediaCaption', 'media_viewer._ImageStage', 'media_viewer_stages._AudioCard', 'media_viewer_stages._PlaybackPlaceholderCard', 'media_viewer_controls._PlaybackControls', 'MediaTimeLabel']),
 
   component('call', 'Call window', ['MainWindowCallFrame']),

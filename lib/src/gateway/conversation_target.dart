@@ -9,9 +9,7 @@ import 'package:mosh/src/rust/private_group_runtime.dart' show GroupSnapshot;
 ///
 /// This is the one kind enum in the app: the state layer, the rail and the
 /// shell all name a kind with it, and [ConversationRef] owns the key
-/// grammar the kinds render into. `RailItemKind`
-/// (features/sessions/rail_item.dart) carries the same three names but
-/// names how a row is tinted, not what a conversation is.
+/// grammar the kinds render into.
 enum ConversationKind { dm, channel, group }
 
 /// Which conversation: a [kind] plus the kind-local [id].

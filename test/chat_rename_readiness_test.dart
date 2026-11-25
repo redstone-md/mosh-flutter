@@ -57,7 +57,7 @@ void main() {
           Scaffold(
               body: ChatRowMenu(
                   entry: entry,
-                  child: const SizedBox(
+                  builder: (_, __) => const SizedBox(
                       width: 300, height: 70, child: Text('Chat row')))),
           overrides: [
             gatewayProvider.overrideWithValue(gateway),

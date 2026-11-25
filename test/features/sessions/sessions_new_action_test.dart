@@ -7,7 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:mosh/main.dart';
 import 'package:mosh/src/features/onboarding/new_session_panel.dart';
-import 'package:mosh/src/features/sessions/rail_item.dart';
+import 'package:mosh/src/features/sessions/rail_buttons.dart';
 import 'package:mosh/src/features/sessions/sessions_screen.dart';
 import '../../support/scriptable_bridge.dart';
 import 'package:mosh/src/routing/app_router.dart';

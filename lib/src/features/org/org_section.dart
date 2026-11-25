@@ -1,18 +1,20 @@
 import 'package:flutter/material.dart';
-import 'package:mosh/src/app/mosh_field.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_dimensions.dart';
 import 'package:mosh/src/app/mosh_icons.dart';
+import 'package:mosh/src/app/mosh_shapes.dart';
+import 'package:mosh/src/app/mosh_spinner.dart';
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 import 'package:mosh/src/features/shared/avatar.dart';
 import 'package:mosh/src/features/shared/focus_ring.dart';
+import 'package:mosh/src/features/shared/invitation_row.dart';
 import 'package:mosh/src/rust/org_runtime.dart';
 import 'package:mosh/src/util/format.dart' show shorten;
 
-/// Rows in the section share the rail row's corner radius.
-const BorderRadius _kRowRadius = BorderRadius.all(Radius.circular(12));
-
-/// The org-roster rail section.
+/// The Organisation card: a member of an organisation sees its people under
+/// the chats, who of them wants to talk, and a field to start a group with
+/// them. While [busy] a change is on its way and the controls wait.
 class OrgSection extends StatelessWidget {
   const OrgSection({
     super.key,
@@ -41,7 +43,6 @@ class OrgSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final selfIsAdmin = org.members.any((m) => m.isSelf && m.role == 'admin');
     return Semantics(
       label: l.orgSectionAria(org.orgName),
@@ -50,41 +51,23 @@ class OrgSection extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           _Header(org: org, busy: busy, onLeave: onLeave, l: l),
-          if (!org.inRoster)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    org.confirmationCode,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(l.orgPendingHint, style: theme.textTheme.bodySmall),
-                ],
-              ),
-            ),
+          if (!org.inRoster) _RosterNotice(code: org.confirmationCode, l: l),
           for (final offer in org.dmOffers)
-            _OfferRow.dm(
-              offer: offer,
-              orgPubkey: org.orgPubkey,
-              busy: busy,
-              onAccept: onAcceptDmOffer,
-              onDismiss: onDismissDmOffer,
-              l: l,
+            InvitationRow(
+              leading: Avatar(
+                  name: offer.fromName,
+                  radius: 20,
+                  plusIdentity: offer.fromPeerId),
+              title: offer.fromName,
+              detail: l.orgDmOffer,
+              acceptLabel: l.orgAcceptDmAria(offer.fromName),
+              declineLabel: l.orgDismissDmAria(offer.fromName),
+              onAccept: _unlessBusy(
+                  () => onAcceptDmOffer(org.orgPubkey, offer.offerId)),
+              onDecline: _unlessBusy(
+                  () => onDismissDmOffer(org.orgPubkey, offer.offerId)),
             ),
-          for (final offer in org.groupOffers)
-            _OfferRow.group(
-              offer: offer,
-              orgPubkey: org.orgPubkey,
-              busy: busy,
-              onAccept: onAcceptGroupOffer,
-              onDismiss: onDismissGroupOffer,
-              l: l,
-            ),
+          for (final offer in org.groupOffers) _groupOffer(offer),
           if (org.inRoster && selfIsAdmin)
             _NewGroupForm(org: org, busy: busy, onCreate: onCreateGroup, l: l),
           for (final member in org.members)
@@ -99,8 +82,29 @@ class OrgSection extends StatelessWidget {
       ),
     );
   }
+
+  /// While a change is on its way the section's controls wait.
+  VoidCallback? _unlessBusy(VoidCallback action) => busy ? null : action;
+
+  Widget _groupOffer(OrgGroupOfferView offer) {
+    final label =
+        (offer.groupLabel ?? '').isEmpty ? l.orgGroupOffer : offer.groupLabel!;
+    return InvitationRow(
+      leading: Avatar(name: label, radius: 20, sign: MoshIcons.group),
+      title: label,
+      detail: l.orgGroupOfferFrom(offer.fromName),
+      acceptLabel: l.orgAcceptGroupAria(offer.fromName),
+      declineLabel: l.orgDismissGroupAria(offer.fromName),
+      onAccept:
+          _unlessBusy(() => onAcceptGroupOffer(org.orgPubkey, offer.offerId)),
+      onDecline:
+          _unlessBusy(() => onDismissGroupOffer(org.orgPubkey, offer.offerId)),
+    );
+  }
 }
 
+/// The Organisation header card: the organisation's glyph and name, and the
+/// button that leaves it.
 class _Header extends StatelessWidget {
   const _Header({
     required this.org,
@@ -114,149 +118,77 @@ class _Header extends StatelessWidget {
   final AppLocalizations l;
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      child: Row(
-        children: [
-          const Icon(MoshIcons.organisation, size: 14),
-          const SizedBox(width: 6),
-          Expanded(
-            child: Text(
-              org.orgName,
-              style: Theme.of(
-                context,
-              ).textTheme.labelSmall?.copyWith(fontWeight: FontWeight.w700),
-            ),
-          ),
-          IconButton(
-            icon: const Icon(MoshIcons.close, size: 16),
-            tooltip: l.orgLeave,
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
-            onPressed: busy ? null : () => onLeave(org),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// One row shape for both org offer kinds: the leading identity surface,
-/// a two-line title/subtitle column, and a trailing dismiss button. Only
-/// the leading + column content differ per kind.
-class _OfferRow extends StatelessWidget {
-  _OfferRow.dm({
-    required this.orgPubkey,
-    required this.busy,
-    required this.onAccept,
-    required this.onDismiss,
-    required this.l,
-    required OrgDmOfferView offer,
-  })  : offerId = offer.offerId,
-        fromName = offer.fromName,
-        fromPeerId = offer.fromPeerId,
-        _kind = _OfferRowKind.dm,
-        _groupOffer = null;
-
-  _OfferRow.group({
-    required this.orgPubkey,
-    required this.busy,
-    required this.onAccept,
-    required this.onDismiss,
-    required this.l,
-    required OrgGroupOfferView offer,
-  })  : offerId = offer.offerId,
-        fromName = offer.fromName,
-        fromPeerId = null,
-        _kind = _OfferRowKind.group,
-        _groupOffer = offer;
-
-  final String orgPubkey;
-  final String offerId;
-  final String fromName;
-  final String? fromPeerId;
-  final bool busy;
-  final void Function(String, String) onAccept;
-  final void Function(String, String) onDismiss;
-  final AppLocalizations l;
-  final _OfferRowKind _kind;
-
-  /// The group offer (null for dm rows): the icon + label come from it.
-  final OrgGroupOfferView? _groupOffer;
-
-  @override
-  Widget build(BuildContext context) {
-    final styles = ListTileTheme.of(context);
-    final groupOffer = _groupOffer;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      child: Row(
-        children: [
-          Expanded(
-            child: InkWell(
-              borderRadius: _kRowRadius,
-              onTap: busy ? null : () => onAccept(orgPubkey, offerId),
-              child: FocusRing(
-                radius: _kRowRadius,
-                child: Row(
-                  children: [
-                    switch (_kind) {
-                      _OfferRowKind.dm => Avatar(
-                          name: fromName, radius: 12, plusIdentity: fromPeerId),
-                      _OfferRowKind.group =>
-                        const Icon(MoshIcons.group, size: 18),
-                    },
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            switch (_kind) {
-                              _OfferRowKind.dm => fromName,
-                              _OfferRowKind.group =>
-                                (groupOffer!.groupLabel ?? '').isEmpty
-                                    ? l.orgGroupOffer
-                                    : groupOffer.groupLabel!,
-                            },
-                            style: styles.titleTextStyle,
-                          ),
-                          Text(
-                            switch (_kind) {
-                              _OfferRowKind.dm => l.orgDmOffer,
-                              _OfferRowKind.group =>
-                                l.orgGroupOfferFrom(fromName),
-                            },
-                            style: styles.subtitleTextStyle,
-                          ),
-                        ],
-                      ),
-                    ),
-                    if (_kind == _OfferRowKind.dm)
-                      const Icon(MoshIcons.chat, size: 14),
-                  ],
-                ),
+    final ink = MoshColors.of(context).onSurfaceMuted;
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: MoshSpace.s12),
+      child: Padding(
+        padding: const EdgeInsetsDirectional.only(start: MoshSpace.s3),
+        child: Row(
+          spacing: MoshSpace.s2,
+          children: [
+            Icon(MoshIcons.organisation, size: MoshSpace.s4, color: ink),
+            Expanded(
+              child: Text(
+                org.orgName,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context)
+                    .textTheme
+                    .labelLarge!
+                    .copyWith(color: ink),
               ),
             ),
+            IconButton(
+              icon: const Icon(MoshIcons.close),
+              tooltip: l.orgLeave,
+              onPressed: busy ? null : () => onLeave(org),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// The Roster notice card: the section is waiting for the list of members.
+/// It also shows [code], which an admin needs to add this device and which
+/// is shown nowhere else.
+class _RosterNotice extends StatelessWidget {
+  const _RosterNotice({required this.code, required this.l});
+  final String code;
+  final AppLocalizations l;
+  @override
+  Widget build(BuildContext context) {
+    final text = Theme.of(context).textTheme;
+    final colors = MoshColors.of(context);
+    final quiet = text.bodySmall!.copyWith(color: colors.onSurfaceVariant);
+    return Padding(
+      padding: const EdgeInsets.all(MoshSpace.s3),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        spacing: MoshSpace.s3,
+        children: [
+          Row(
+            spacing: MoshSpace.s3,
+            children: [
+              IconTheme.merge(
+                  data: IconThemeData(color: colors.primary),
+                  child: const MoshSpinner()),
+              Expanded(child: Text(l.orgRosterWaiting, style: quiet)),
+            ],
           ),
-          IconButton(
-            icon: const Icon(MoshIcons.close, size: 16),
-            tooltip: switch (_kind) {
-              _OfferRowKind.dm => l.orgDismissDmAria(fromName),
-              _OfferRowKind.group => l.orgDismissGroupAria(fromName),
-            },
-            padding: EdgeInsets.zero,
-            constraints: const BoxConstraints(minWidth: 24, minHeight: 24),
-            onPressed: busy ? null : () => onDismiss(orgPubkey, offerId),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SelectableText(code, style: text.titleSmall),
+              Text(l.orgPendingHint, style: quiet),
+            ],
           ),
         ],
       ),
     );
   }
 }
-
-enum _OfferRowKind { dm, group }
 
 class _NewGroupForm extends StatefulWidget {
   const _NewGroupForm({
@@ -291,39 +223,51 @@ class _NewGroupFormState extends State<_NewGroupForm> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-      child: Row(
-        // The button stands beside the well, below the label.
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          Expanded(
-            child: MoshField(
-              enabled: !widget.busy,
-              label: widget.l.orgNewGroupLabel,
-              child: TextField(
-                controller: _controller,
-                enabled: !widget.busy,
-                // The theme draws the well's edge in every state, busy
-                // (disabled) included.
-                decoration: InputDecoration(
-                  hintText: widget.l.orgNewGroupPlaceholder,
+    final theme = Theme.of(context);
+    final text = theme.textTheme;
+    return ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: MoshSpace.s12),
+      child: Padding(
+        padding: const EdgeInsetsDirectional.only(
+            start: MoshSpace.s3, top: MoshSpace.s1, bottom: MoshSpace.s1),
+        child: Row(
+          spacing: MoshSpace.s1,
+          children: [
+            Expanded(
+              // The placeholder names the field for the eye, so it has no
+              // label above; a screen reader keeps the name once it is
+              // typed over.
+              child: Semantics(
+                label: widget.l.orgNewGroupLabel,
+                // A text field sets its value in bodyLarge, the card in
+                // bodyMedium.
+                child: Theme(
+                  data: theme.copyWith(
+                      textTheme: text.copyWith(bodyLarge: text.bodyMedium)),
+                  child: TextField(
+                    controller: _controller,
+                    enabled: !widget.busy,
+                    decoration:
+                        InputDecoration(hintText: widget.l.orgNewGroupLabel),
+                    onSubmitted: (_) => _submit(),
+                  ),
                 ),
-                onSubmitted: (_) => _submit(),
               ),
             ),
-          ),
-          IconButton(
-            icon: const Icon(MoshIcons.add, size: 16),
-            tooltip: widget.l.orgNewGroup,
-            onPressed: widget.busy ? null : _submit,
-          ),
-        ],
+            IconButton(
+              icon: const Icon(MoshIcons.add),
+              tooltip: widget.l.orgNewGroup,
+              onPressed: widget.busy ? null : _submit,
+            ),
+          ],
+        ),
       ),
     );
   }
 }
 
+/// The Member row card: a member's avatar, name and peer, with the mark of
+/// an admin. A tap opens a chat with anyone but ourselves.
 class _MemberRow extends StatelessWidget {
   const _MemberRow({
     required this.member,
@@ -339,49 +283,45 @@ class _MemberRow extends StatelessWidget {
   final AppLocalizations l;
   @override
   Widget build(BuildContext context) {
-    final styles = ListTileTheme.of(context);
+    final theme = Theme.of(context);
+    final colors = MoshColors.of(context);
     final name =
         member.isSelf ? '${member.name} (${l.orgYouBadge})' : member.name;
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      child: InkWell(
-        borderRadius: _kRowRadius,
-        onTap: (busy || member.isSelf) ? null : () => onMember(org, member),
-        child: FocusRing(
-          radius: _kRowRadius,
+    return InkWell(
+      borderRadius: MoshShapes.conversationRow,
+      onTap: (busy || member.isSelf) ? null : () => onMember(org, member),
+      child: FocusRing(
+        radius: MoshShapes.conversationRow,
+        child: Container(
+          constraints:
+              BoxConstraints(minHeight: MoshControl.height(theme.platform)),
+          padding: const EdgeInsets.symmetric(
+              vertical: MoshSpace.s1, horizontal: MoshSpace.s3),
           child: Row(
+            spacing: MoshSpace.s3,
             children: [
               Avatar(
                   name: member.name,
                   plusIdentity: member.mossPeerId,
                   ownPlus: member.isSelf),
-              const SizedBox(width: 8),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Text(
-                      name,
-                      style: styles.titleTextStyle,
-                    ),
-                    Text(
-                      shorten(member.mossPeerId, 6),
-                      style: styles.subtitleTextStyle,
-                    ),
+                    _line(name, theme.textTheme.labelLarge),
+                    _line(shorten(member.mossPeerId, 6),
+                        theme.textTheme.labelSmall),
                   ],
                 ),
               ),
               if (member.role == 'admin')
-                Padding(
-                  padding: const EdgeInsets.only(left: 4),
-                  // A static role marker, so text ink rather than the accent.
-                  child: Icon(
-                    MoshIcons.admin,
-                    size: 14,
-                    color: MoshColors.of(context).onSurfaceVariant,
-                    semanticLabel: l.orgAdminBadge,
-                  ),
+                // A static role marker, so text ink rather than the accent.
+                Icon(
+                  MoshIcons.admin,
+                  size: MoshSpace.s4,
+                  color: colors.onSurfaceVariant,
+                  semanticLabel: l.orgAdminBadge,
                 ),
             ],
           ),
@@ -389,4 +329,7 @@ class _MemberRow extends StatelessWidget {
       ),
     );
   }
+
+  Widget _line(String value, TextStyle? style) =>
+      Text(value, maxLines: 1, overflow: TextOverflow.ellipsis, style: style);
 }

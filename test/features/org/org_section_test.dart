@@ -50,11 +50,14 @@ OrgMemberView _member({
 Future<AppLocalizations> _l() =>
     AppLocalizations.delegate.load(const Locale('en'));
 
+/// [settle] is false for a section whose spinner never comes to rest.
 Future<void> _pump(
   WidgetTester tester, {
   required OrgSection section,
+  bool settle = true,
 }) =>
-    pumpScreen(tester, Scaffold(body: SingleChildScrollView(child: section)));
+    pumpScreen(tester, Scaffold(body: SingleChildScrollView(child: section)),
+        settle: settle);
 
 void main() {
   testWidgets(
@@ -84,7 +87,7 @@ void main() {
   );
 
   testWidgets(
-    'pending block shows the confirmation code + hint when not in roster',
+    'until the roster arrives the section waits and shows the confirmation code',
     (tester) async {
       final org = _org(inRoster: false, code: 'XYZ-999');
       await _pump(
@@ -101,10 +104,13 @@ void main() {
           onLeave: (_) {},
           l: await _l(),
         ),
+        settle: false,
       );
+      await tester.pump();
+      expect(find.text('Waiting for the list of members'), findsOneWidget);
       expect(find.text('XYZ-999'), findsOneWidget);
       expect(
-        find.text('Your confirmation code — give it to your admin'),
+        find.text('Give this confirmation code to your admin'),
         findsOneWidget,
       );
     },
@@ -146,15 +152,48 @@ void main() {
       );
       expect(find.text('Bob'), findsOneWidget);
       expect(find.text('wants to chat'), findsOneWidget);
-      // The accept row is a TextButton.icon; tap the text label.
-      await tester.tap(find.text('Bob'));
+      await tester.tap(find.byTooltip('Accept chat invite from Bob'));
       expect(acceptKey, 'pk');
       expect(acceptId, 'o1');
-      // dismiss X (the close icon within the offer row).
-      await tester.tap(find.byIcon(MoshIcons.close).at(1));
+      await tester.tap(find.byTooltip('Dismiss invite from Bob'));
       expect(dismissKey, 'pk');
     },
   );
+
+  testWidgets('while a change is on its way the section takes no answer',
+      (tester) async {
+    var calls = 0;
+    await _pump(
+      tester,
+      section: OrgSection(
+        org: _org(dmOffers: [
+          const OrgDmOfferView(
+            offerId: 'o1',
+            fromPeerId: 'p1',
+            fromName: 'Bob',
+            inviteUri: 'mosh://dm/x',
+          ),
+        ]),
+        busy: true,
+        onMember: (_, __) {},
+        onAcceptDmOffer: (_, __) => calls++,
+        onDismissDmOffer: (_, __) => calls++,
+        onAcceptGroupOffer: (_, __) {},
+        onDismissGroupOffer: (_, __) {},
+        onCreateGroup: (_, __) {},
+        onLeave: (_) => calls++,
+        l: await _l(),
+      ),
+    );
+    for (final name in [
+      'Accept chat invite from Bob',
+      'Dismiss invite from Bob',
+      'Leave organization',
+    ]) {
+      await tester.tap(find.byTooltip(name), warnIfMissed: false);
+    }
+    expect(calls, 0);
+  });
 
   testWidgets(
     'group offer row renders the label + inviter',
@@ -209,8 +248,10 @@ void main() {
         ),
       );
       expect(find.byIcon(MoshIcons.add), findsOneWidget);
-      // The field is named by a label, not only by its placeholder.
-      expect(find.text('Group name'), findsOneWidget);
+      // The field keeps a name for screen readers beside its placeholder.
+      final semantics = tester.ensureSemantics();
+      expect(find.bySemanticsLabel(RegExp('Group name')), findsOneWidget);
+      semantics.dispose();
     },
   );
 

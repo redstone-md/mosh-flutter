@@ -1,15 +1,19 @@
 import 'package:flutter/material.dart';
-import 'package:mosh/src/app/mosh_icons.dart';
+import 'package:mosh/src/app/mosh_dimensions.dart';
+import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 import 'package:mosh/src/state/chat_names_provider.dart';
 import 'package:mosh/src/features/conversation/chat_row_menu.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/org/org_section.dart';
+import 'package:mosh/src/features/sessions/dm_offer_row.dart';
 import 'package:mosh/src/features/sessions/org_actions.dart';
 import 'package:mosh/src/features/sessions/rail_compact.dart';
 import 'package:mosh/src/features/sessions/rail_entry.dart';
 import 'package:mosh/src/features/sessions/rail_item.dart';
+import 'package:mosh/src/features/sessions/rail_notice.dart';
+import 'package:mosh/src/features/shared/avatar.dart';
 import 'package:mosh/src/features/sessions/sessions_rail_actions.dart';
 import 'package:mosh/src/features/sessions/revoked_dm_badges.dart'
     show revokedDmBadgesProvider;
@@ -50,12 +54,9 @@ class SessionsRailList extends ConsumerWidget {
     final offers = ref.watch(pendingDmOffersProvider);
     final entries = _entries(ref);
     final compact = RailCompactScope.of(context);
-    if (status == null && offers.isEmpty && entries.isEmpty && orgs.isEmpty) {
-      // The strip's own New button is the empty state's only action.
-      if (compact) return const SizedBox.shrink();
-      return _EmptyState(onStart: () => openNewSessionAction(context, ref));
-    }
     final visible = recentRailEntries(entries, l, query: query, kind: kind);
+    final empty =
+        status == null && offers.isEmpty && entries.isEmpty && orgs.isEmpty;
     return RefreshIndicator(
       onRefresh: () async {
         await Future.wait([
@@ -68,23 +69,53 @@ class SessionsRailList extends ConsumerWidget {
           children: [
             if (status case final status?) status,
             ..._offers(context, ref, offers, l, compact: compact),
-            for (final entry in visible)
-              ChatRowMenu(
-                  entry: entry,
-                  child: entry.buildRow(context, _chrome(ref, entry))),
-            if (visible.isEmpty && entries.isNotEmpty && !compact)
-              Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Text(l.chatListEmpty)),
+            for (final entry in visible) _row(ref, entry),
+            // The collapsed list has no room for words: its New button is
+            // the empty list's only action.
+            if (!compact && empty)
+              RailNotice(
+                  title: l.chatListNoChatsTitle, detail: l.chatListNoChatsBody)
+            else if (!compact && visible.isEmpty && entries.isNotEmpty)
+              _noMatch(l),
             if (compact)
               for (final org in orgs) ...[
                 const RailDivider(),
-                CompactOrgButton(name: org.orgName),
+                CompactExpandItem(
+                    leading: Avatar(name: org.orgName, radius: 24),
+                    name: org.orgName),
               ]
             else
               ..._orgSections(context, ref, orgs, l),
           ]),
     );
+  }
+
+  /// The row of [entry] with what the rail knows about its conversation.
+  Widget _row(WidgetRef ref, RailEntry entry) {
+    final key = entry.ref.key;
+    final unreadCount = ref.watch(unreadLifecycleProvider)[key] ?? 0;
+    final active = key == ref.watch(activeConversationKeyProvider);
+    return ChatRowMenu(
+        entry: entry,
+        builder: (context, menuOpen) => entry.buildRow(context, (
+              unreadCount: unreadCount,
+              active: active,
+              menuOpen: menuOpen,
+              // The badge hides once the selected conversation is the active
+              // one; the core clears its count when the screen marks it viewed.
+              onSelect: () =>
+                  ref.read(activeConversationKeyProvider.notifier).set(key),
+            )));
+  }
+
+  /// Nothing passes the search, or with no search the filter by kind.
+  Widget _noMatch(AppLocalizations l) {
+    final search = query.trim();
+    return search.isEmpty
+        ? RailNotice(title: l.chatListEmpty)
+        : RailNotice(
+            title: l.chatListNoResults(search),
+            detail: l.chatListNoResultsBody);
   }
 
   List<RailEntry> _entries(WidgetRef ref) {
@@ -106,23 +137,6 @@ class SessionsRailList extends ConsumerWidget {
     ];
   }
 
-  RailRowChrome _chrome(WidgetRef ref, RailEntry entry) {
-    final conversation = entry.ref;
-    if (conversation == null) {
-      return (unreadCount: 0, active: false, onSelect: null);
-    }
-    final key = conversation.key;
-    final unread = ref.watch(unreadLifecycleProvider);
-    final active = ref.watch(activeConversationKeyProvider);
-    return (
-      unreadCount: unread[key] ?? 0,
-      active: key == active,
-      // The badge hides once the selected conversation is the active one;
-      // the core clears its count when the screen marks it viewed.
-      onSelect: () => ref.read(activeConversationKeyProvider.notifier).set(key),
-    );
-  }
-
   List<Widget> _offers(BuildContext context, WidgetRef ref,
       List<PendingDmOffer> offers, AppLocalizations l,
       {required bool compact}) {
@@ -130,15 +144,19 @@ class SessionsRailList extends ConsumerWidget {
     return [
       if (!compact)
         Padding(
-            padding: const EdgeInsets.symmetric(vertical: 8),
+            padding: const EdgeInsets.symmetric(
+                vertical: MoshSpace.s1, horizontal: MoshSpace.s3),
             child: Text(l.chatListInvitations,
-                style: Theme.of(context).textTheme.labelMedium)),
+                style: Theme.of(context)
+                    .textTheme
+                    .labelLarge!
+                    .copyWith(color: MoshColors.of(context).onSurfaceMuted))),
       for (final offer in offers)
-        OfferRailEntry(
+        DmOfferRow(
           pending: offer,
           onAccept: () => acceptOfferAction(context, ref, offer),
           onDismiss: () => dismissOfferAction(context, ref, offer),
-        ).buildRow(context, (unreadCount: 0, active: false, onSelect: null)),
+        ),
       const RailDivider(),
     ];
   }
@@ -169,48 +187,4 @@ List<Widget> _orgSections(BuildContext context, WidgetRef ref,
       ),
     ]
   ];
-}
-
-/// Empty state for the sessions list. Reuses the
-/// `chatNoSessionTitle` + `chatNoSessionBody` welcome, with the
-/// `shellNewSession` button, the same action and label as the rail's
-/// start button.
-class _EmptyState extends StatelessWidget {
-  const _EmptyState({required this.onStart});
-
-  final VoidCallback onStart;
-
-  @override
-  Widget build(BuildContext context) {
-    final l = AppLocalizations.of(context)!;
-    final theme = Theme.of(context);
-    return Center(
-      child: SingleChildScrollView(
-          child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              l.chatNoSessionTitle,
-              style: theme.textTheme.titleMedium,
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 8),
-            Text(
-              l.chatNoSessionBody,
-              textAlign: TextAlign.center,
-              style: theme.textTheme.bodyMedium,
-            ),
-            const SizedBox(height: 18),
-            FilledButton.icon(
-              onPressed: onStart,
-              icon: const Icon(MoshIcons.add),
-              label: Text(l.shellNewSession),
-            ),
-          ],
-        ),
-      )),
-    );
-  }
 }

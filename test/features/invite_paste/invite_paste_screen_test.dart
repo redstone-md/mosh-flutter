@@ -136,7 +136,10 @@ void main() {
     // join refreshes the orgs list and lands the user back on the sessions
     // rail (AppRoutes.sessions).
     await tester.tap(find.byType(FilledButton));
-    await tester.pumpAndSettle();
+    // The joined organisation waits for its roster with a spinner, so the
+    // list never settles: the route change gets its time instead.
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
     expect(find.byType(SessionsScreen), findsOneWidget);
     expect(find.byType(InvitePasteScreen), findsNothing);
     expect(bridge.countOf(BridgeMethod.listOrgs), 2);

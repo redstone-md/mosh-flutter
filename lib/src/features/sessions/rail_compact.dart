@@ -2,25 +2,22 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
-import 'package:mosh/src/app/mosh_icons.dart';
+import 'package:mosh/src/app/mosh_dimensions.dart';
 import 'package:mosh/src/app/mosh_shapes.dart';
-import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
+import 'package:mosh/src/app/mosh_theme.dart'
+    show MoshColors, moshTonalIconButtonStyle;
+import 'package:mosh/src/features/conversation/conversation_helpers.dart'
+    show UnreadBadge;
 import 'package:mosh/src/features/sessions/rail_item.dart';
 import 'package:mosh/src/features/sessions/sessions_list_controls.dart'
     show chatListSearchFocusProvider;
-import 'package:mosh/src/features/shared/avatar.dart';
-import 'package:mosh/src/features/shared/conversation_kind_style.dart';
 import 'package:mosh/src/features/shared/focus_ring.dart';
 import 'package:mosh/src/features/shared/resumed_ink.dart';
-import 'package:mosh/src/gateway/conversation_target.dart'
-    show ConversationKind;
 import 'package:mosh/src/state/rail_layout_provider.dart';
 
-/// Width of the collapsed chat list: one avatar column.
-const double kRailCompactWidth = 80;
-
-/// Side of a collapsed row's square tap target.
-const double _kCompactItem = 56;
+/// Width of the collapsed chat list: one column of [kRailItemHeight] rows
+/// inside the list's side padding.
+const double kRailCompactWidth = kRailItemHeight + 2 * kRailPadding;
 
 /// Whether the chat list below is collapsed to its avatar strip. Only the
 /// desktop shell collapses it; without a scope the list is expanded.
@@ -53,50 +50,55 @@ void expandChatList(WidgetRef ref, {bool focusSearch = false}) {
       (_) => ref.read(chatListSearchFocusProvider).requestFocus());
 }
 
-/// A collapsed rail row: the avatar with its unread badge on the corner,
-/// the name in a tooltip and the whole row for screen readers. A row with a
-/// second action, such as an invitation, expands the list instead of
-/// acting, so a click on an avatar never accepts anything.
-class CompactRailItem extends ConsumerWidget {
-  const CompactRailItem({super.key, required this.item});
+/// The Compact chat row card: the avatar in [leading] with the unread count
+/// on its corner, the name in [tooltip] and the whole row in [label] for
+/// screen readers. [hint] says what a tap does when it does not open a chat.
+class CompactRailItem extends StatelessWidget {
+  const CompactRailItem({
+    super.key,
+    required this.leading,
+    required this.tooltip,
+    required this.label,
+    required this.onTap,
+    this.hint,
+    this.active = false,
+    this.unreadCount = 0,
+  });
 
-  final RailItem item;
+  final Widget leading;
+  final String tooltip;
+  final String label;
+  final VoidCallback? onTap;
+  final String? hint;
+  final bool active;
+  final int unreadCount;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final colors = MoshColors.of(context);
-    final l = AppLocalizations.of(context);
-    final kind = item.kind.conversationKind;
-    final expands = item.action != null;
-    final onTap = expands ? () => expandChatList(ref) : item.onTap;
-    // A row that only expands the list must not keep its accepting name.
-    final label = (expands ? null : item.semanticLabel) ??
-        [if (l != null) kind.label(l), item.title, item.subtitle]
-            .where((part) => part.isNotEmpty)
-            .join('\n');
     const radius = MoshShapes.conversationRow;
     return Padding(
-      padding: const EdgeInsets.only(bottom: kRailListGap),
+      // The collapsed list is one column with the gap of its buttons.
+      padding: const EdgeInsets.only(bottom: kRailPadding),
       child: Tooltip(
-        message: item.title,
+        message: tooltip,
         excludeFromSemantics: true,
         child: Semantics(
           container: true,
           button: true,
-          selected: item.active,
+          selected: active,
           label: label,
-          hint: expands ? l?.chatListExpand : null,
+          hint: hint,
           onTap: onTap,
           child: Material(
-            color: item.active ? kind.tint(colors) : Colors.transparent,
+            color: active ? colors.secondaryContainer : Colors.transparent,
             borderRadius: radius,
+            clipBehavior: Clip.antiAlias,
             child: ResumedInk(
               builder: (focusNode) => InkWell(
                 focusNode: focusNode,
-                borderRadius: radius,
                 onTap: onTap,
-                child: FocusRing(
-                    radius: radius, child: _tile(colors, kind, radius)),
+                child: FocusRing(radius: radius, child: _tile()),
               ),
             ),
           ),
@@ -105,117 +107,83 @@ class CompactRailItem extends ConsumerWidget {
     );
   }
 
-  /// The avatar, the active ring and the unread badge on the corner.
-  Widget _tile(MoshColors colors, ConversationKind kind, BorderRadius radius) =>
-      Container(
-        width: _kCompactItem,
-        height: _kCompactItem,
-        decoration: BoxDecoration(
-          borderRadius: radius,
-          border: item.active
-              ? Border.all(color: kind.accent(colors).withValues(alpha: 0.4))
-              : null,
-        ),
+  /// The avatar and the unread badge on the corner.
+  Widget _tile() => SizedBox.square(
+        dimension: kRailItemHeight,
         child: Stack(
           alignment: Alignment.center,
-          clipBehavior: Clip.none,
           children: [
-            ExcludeSemantics(
-              child: IconTheme.merge(
-                data: IconThemeData(color: kind.accent(colors), size: 18),
-                child: item.leading,
-              ),
-            ),
-            if (item.trailing case final badge?)
-              PositionedDirectional(top: 2, end: 0, child: badge),
+            ExcludeSemantics(child: leading),
+            if (unreadCount > 0)
+              PositionedDirectional(
+                  top: MoshSpace.s1,
+                  end: MoshSpace.s1,
+                  child:
+                      ExcludeSemantics(child: UnreadBadge(count: unreadCount))),
           ],
         ),
       );
 }
 
-/// A square icon control of the collapsed list, named by its tooltip.
+/// A row of the collapsed list that only expands it: an invitation or an
+/// organisation, so a click on an avatar never accepts or changes anything.
+class CompactExpandItem extends ConsumerWidget {
+  const CompactExpandItem(
+      {super.key, required this.leading, required this.name, this.detail = ''});
+
+  final Widget leading;
+  final String name;
+  final String detail;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) => CompactRailItem(
+        leading: leading,
+        tooltip: name,
+        label: detail.isEmpty ? name : '$name\n$detail',
+        hint: AppLocalizations.of(context)?.chatListExpand,
+        onTap: () => expandChatList(ref),
+      );
+}
+
+/// A control of the collapsed list: the tonal Icon button at the phone's
+/// 48 px, named by its tooltip. [fill] and [ink] recolour the one that
+/// starts a conversation, and [ink] alone the one that reports a failure.
 class CompactRailButton extends StatelessWidget {
   const CompactRailButton({
     super.key,
     required this.icon,
     required this.label,
     required this.onTap,
-    this.filled = false,
+    this.fill,
+    this.ink,
   });
 
-  final Widget icon;
+  final IconData icon;
   final String label;
   final VoidCallback? onTap;
-
-  /// The creation action keeps its moss disc; other buttons stay quiet.
-  final bool filled;
+  final Color? fill;
+  final Color? ink;
 
   @override
   Widget build(BuildContext context) {
     final colors = MoshColors.of(context);
-    const radius = MoshShapes.control;
-    return Tooltip(
-      message: label,
-      excludeFromSemantics: true,
-      child: Semantics(
-        button: true,
-        label: label,
-        child: Material(
-          color: filled ? Colors.transparent : colors.surfaceContainerHigh,
-          borderRadius: radius,
-          child: ResumedInk(
-            builder: (focusNode) => InkWell(
-              focusNode: focusNode,
-              borderRadius: radius,
-              onTap: onTap,
-              hoverColor: filled
-                  ? colors.secondaryContainer
-                  : colors.surfaceContainerHighest,
-              child: FocusRing(
-                radius: radius,
-                child: SizedBox.square(
-                  dimension: _kCompactItem,
-                  child: Center(child: ExcludeSemantics(child: icon)),
-                ),
-              ),
-            ),
-          ),
-        ),
+    final content = ink ?? colors.onSurface;
+    final style = moshTonalIconButtonStyle(colors).copyWith(
+      fixedSize: const WidgetStatePropertyAll(Size.square(MoshSpace.s12)),
+      iconSize: const WidgetStatePropertyAll(MoshSpace.s6),
+      foregroundColor: WidgetStatePropertyAll(content),
+      backgroundColor: fill == null ? null : WidgetStatePropertyAll(fill),
+      overlayColor: MoshState.layer(content),
+    );
+    // A covering route freezes the press ink; a fresh button drops it.
+    return ResumedInk(
+      builder: (focusNode) => IconButton(
+        focusNode: focusNode,
+        style: style,
+        tooltip: label,
+        onPressed: onTap,
+        icon: Icon(icon),
       ),
     );
   }
-}
-
-/// The creation disc, as the expanded New button draws it.
-class CompactNewIcon extends StatelessWidget {
-  const CompactNewIcon({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = MoshColors.of(context);
-    return CircleAvatar(
-      radius: 16,
-      backgroundColor: colors.primary,
-      child: Icon(MoshIcons.add, size: 20, color: colors.onPrimary),
-    );
-  }
-}
-
-/// An organization in the collapsed list: its avatar, which expands the
-/// list to the full section.
-class CompactOrgButton extends ConsumerWidget {
-  const CompactOrgButton({super.key, required this.name});
-
-  final String name;
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) => Padding(
-        padding: const EdgeInsets.only(bottom: kRailListGap),
-        child: CompactRailButton(
-          icon: Avatar(name: name, radius: 20),
-          label: name,
-          filled: true,
-          onTap: () => expandChatList(ref),
-        ),
-      );
 }

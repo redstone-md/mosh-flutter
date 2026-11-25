@@ -1,10 +1,9 @@
 // IVO-16: the collapsed chat list is an avatar strip. Rows open their
 // chats, while anything that needs the full row (an invitation, an
 // organization, a failed load's details) expands the list first.
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/src/features/sessions/rail_compact.dart';
-import 'package:mosh/src/features/sessions/rail_item.dart';
+import 'package:mosh/src/features/sessions/sessions_list_controls.dart';
 import 'package:mosh/src/features/settings/settings_screen.dart';
 import 'package:mosh/src/rust/channel_runtime/types.dart';
 import 'package:mosh/src/rust/conversation/dm_offers.dart';
@@ -72,11 +71,9 @@ void main() {
     } finally {
       semantics.dispose();
     }
-    final offer = find.byWidgetPredicate(
-        (w) => w is CompactRailItem && w.item.action != null);
-    await tester.tap(offer);
+    await tester.tap(find.byTooltip('alpha-peer'));
     await tester.pumpAndSettle();
-    expect(find.byType(RailNewButton), findsOneWidget);
+    expect(find.byType(SessionsListControls), findsOneWidget);
     expect(find.text('alpha-peer'), findsOneWidget);
   });
 
@@ -87,8 +84,11 @@ void main() {
         seed: (bridge) => bridge.seedOrgs(
             [cannedOrgSnapshot(orgPubkey: 'org-1', orgName: 'Crew')]));
     await tester.tap(find.byTooltip('Crew'));
-    await tester.pumpAndSettle();
-    expect(find.byType(RailNewButton), findsOneWidget);
+    // The expanded section waits for its roster with a spinner, so the
+    // list never settles: two frames mount it.
+    await tester.pump();
+    await tester.pump();
+    expect(find.byType(SessionsListControls), findsOneWidget);
     expect(find.text('Crew'), findsOneWidget);
   });
 
@@ -99,15 +99,15 @@ void main() {
         seed: (bridge) =>
             (failing = bridge).failAlways(BridgeMethod.listSessions));
     failing.failNext(BridgeMethod.listSessions, times: 0);
-    await tester.tap(find.byTooltip('Unable to load conversations'));
+    await tester.tap(find.byTooltip('The chat list could not be loaded'));
     await tester.pumpAndSettle();
-    expect(find.byTooltip('Unable to load conversations'), findsNothing);
+    expect(find.byTooltip('The chat list could not be loaded'), findsNothing);
   });
 
   testWidgets('an empty strip leaves creation to its New button',
       (tester) async {
     await pumpRail(tester, channels: const [], store: _collapsed());
-    expect(find.byType(FilledButton), findsNothing);
+    expect(find.text('No conversations yet'), findsNothing);
     await tester.tap(find.byTooltip('Start a conversation'));
     await tester.pumpAndSettle();
     expect(find.byType(CompactRailItem), findsNothing);

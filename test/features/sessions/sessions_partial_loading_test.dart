@@ -44,11 +44,11 @@ void main() {
       expect(find.text('Crew'), findsOneWidget);
       expect(find.text('#general'), findsOneWidget);
       expect(find.text('Alice'), findsNothing);
-      expect(find.text('Welcome to Mosh.'), findsNothing);
+      expect(find.text('No conversations yet'), findsNothing);
       if (loading) {
         expect(find.byType(CircularProgressIndicator), findsOneWidget);
       } else {
-        expect(find.text('Unable to load conversations'), findsOneWidget);
+        expect(find.text('The chat list could not be loaded'), findsOneWidget);
       }
       await tester.tap(find.widgetWithText(ChoiceChip, 'Groups'));
       await tester.pump();

@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/src/features/sessions/rail_compact.dart';
 import 'package:mosh/src/features/sessions/rail_item.dart';
+import 'package:mosh/src/features/sessions/sessions_list_controls.dart';
 import 'package:mosh/src/routing/rail_pane.dart';
 import 'package:mosh/src/state/rail_layout_provider.dart';
 
@@ -126,7 +127,7 @@ void main() {
         store: MemoryRailLayoutStore(
             const RailLayout(width: 400, collapsed: true)));
     expect(_railWidth(tester), kRailCompactWidth);
-    expect(find.byType(RailNewButton), findsNothing);
+    expect(find.byType(SessionsListControls), findsNothing);
     expect(find.byTooltip('Start a conversation'), findsOneWidget);
   });
 
@@ -134,7 +135,7 @@ void main() {
     await pumpRail(tester,
         size: const Size(390, 844),
         store: MemoryRailLayoutStore(const RailLayout(collapsed: true)));
-    expect(find.byType(RailNewButton), findsOneWidget);
+    expect(find.byType(SessionsListControls), findsOneWidget);
     expect(find.byType(CompactRailItem), findsNothing);
   });
 
@@ -147,7 +148,13 @@ void main() {
     await tester.pumpAndSettle();
     final search = find.byKey(const ValueKey('chat-list-search'));
     expect(search, findsOneWidget);
-    expect(tester.widget<TextField>(search).focusNode!.hasPrimaryFocus, isTrue);
+    expect(
+        tester
+            .widget<TextField>(
+                find.descendant(of: search, matching: find.byType(TextField)))
+            .focusNode!
+            .hasPrimaryFocus,
+        isTrue);
   });
 
   testWidgets('collapsing keeps the search, its filter and the open chat',
@@ -160,11 +167,7 @@ void main() {
     await tester.pumpAndSettle();
     await _toggle(tester, 'Collapse chat list');
     expect(find.byType(CompactRailItem), findsOneWidget);
-    expect(
-        tester
-            .widget<CompactRailItem>(find.byType(CompactRailItem))
-            .item
-            .active,
+    expect(tester.widget<CompactRailItem>(find.byType(CompactRailItem)).active,
         isTrue);
     await _toggle(tester, 'Expand chat list');
     expect(find.text('rand'), findsOneWidget);

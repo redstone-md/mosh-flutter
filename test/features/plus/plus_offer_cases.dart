@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/features/plus/plus_provider.dart';
-import 'package:mosh/src/features/sessions/rail_entry.dart';
+import 'package:mosh/src/features/sessions/dm_offer_row.dart';
 import 'package:mosh/src/gateway/conversation_target.dart';
 import 'package:mosh/src/rust/conversation/dm_offers.dart';
 import 'package:mosh/src/rust/plus/types.dart';
@@ -22,7 +22,7 @@ void main() {
                   .add(const Duration(days: 1))
                   .millisecondsSinceEpoch))
         ]);
-      final entry = OfferRailEntry(
+      final row = DmOfferRow(
           pending: PendingDmOffer(
               kind: ConversationKind.channel,
               host: 'public',
@@ -35,18 +35,12 @@ void main() {
                   inviteUri: 'untrusted-invite')),
           onAccept: () {},
           onDismiss: () {});
-      await pumpScreen(
-          tester,
-          Scaffold(
-              body: Builder(
-                  builder: (context) => entry.buildRow(context,
-                      (unreadCount: 0, active: false, onSelect: null)))),
-          overrides: [
-            plusConfigProvider
-                .overrideWithValue(const PlusConfig(issuerKey: 'pin')),
-            plusCommandsProvider.overrideWithValue(native),
-            plusPollIntervalProvider.overrideWithValue(null),
-          ]);
+      await pumpScreen(tester, Scaffold(body: row), overrides: [
+        plusConfigProvider
+            .overrideWithValue(const PlusConfig(issuerKey: 'pin')),
+        plusCommandsProvider.overrideWithValue(native),
+        plusPollIntervalProvider.overrideWithValue(null),
+      ]);
       expect(find.text('Forged name'), findsOneWidget);
       expect(find.byIcon(MoshIcons.plusBadge),
           authenticated ? findsOneWidget : findsNothing);

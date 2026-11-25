@@ -29,8 +29,9 @@ remain checks on a real device.
   voice clips and shared files.
 - Color world: the theme's warm dark surfaces and off-white text, with the
   saffron primary, channel blue and a muted sand for groups.
-- Signature: conversation type has the same glyph and accent in the list,
-  filters, header and details, independently of runtime security indicators.
+- Signature: conversation type has the same glyph in the list, header and
+  details, independently of runtime security indicators. (Its accent colour
+  and the glyphs in the filters went with MOSH-134.)
 - Defaults corrected: inherited Material pill shapes, separately rounded
   cards inside messages, and identical green avatars for every type.
 - Depth and surfaces: existing dark surface steps and subtle edges; no new
@@ -48,8 +49,8 @@ these tokens instead of choosing their own corner radius.
 
 | Element | Radius | Relationship |
 | --- | ---: | --- |
-| Search, settings, filters, standard buttons | 8px | One shape across states |
-| Conversation rows | 12px | Stable in selected and unselected states |
+| Search, settings, filters, standard buttons | Pill | One shape across states; the Components cards since MOSH-133 and MOSH-134 |
+| Conversation rows | 16px | Stable in selected and unselected states |
 | Message outside corners | 16px | Text/voice use 4px joins on the sender side; file/media retain 16px |
 | Composer control group | 16px | 8px control corner plus 8px inset |
 | Media and file icon surfaces | 8px | 16px message corner minus a uniform 8px inset |
@@ -71,22 +72,21 @@ Avatars and voice play remain circles because they are identity and transport
 controls, rather than rectangular fields. Progress bars retain their small
 end caps. Modal geometry remains owned by the existing modal components.
 
-Search retains the theme's focused and disabled borders. Its resting edge is
-quieter, with the same 8px radius in every state.
+The chat list's search is a pill on its own plate with no resting edge; the
+focus ring takes the edge's place (MOSH-134).
 The composer input stays borderless when disabled as well as when enabled.
 
 ## List controls
 
-The creation row has a 48px minimum height, a 32px plus and a 14px/600 label.
-Its 40px leading slot aligns the plus with the search icon; both labels share
-a 52px leading inset. Search has a 40px minimum height and a quiet
-resting edge, retaining the theme's 8px corners and visible focus border.
-The shortcut is secondary 11px text.
+Since MOSH-134 the controls are drawn from the Chat list card: starting a
+conversation is the primary button, and the search is a pill as tall as a
+control (40px on desktop, 48px on a phone) with the shortcut in a keycap.
+[Chat list layout](chat-list-layout.md) has the current geometry.
 
 Type filters retain Material single-selection, keyboard focus and hover
-feedback. Their 32px surfaces are borderless when inactive; selection uses
-the existing type tint or a neutral fill for All, plus stronger text. Inactive
-glyphs keep their type hue with reduced saturation. Native targets are 40px
+feedback. Since MOSH-134 they are the Filter chip card: 32px pills that name
+the type in words, with a thin edge when inactive and one `secondaryContainer`
+fill when selected. Native targets are 40px
 on desktop and 48px on mobile. The targets' invisible insets are included in
 the 8px search/filter gap and 12px filter/list gap. Large text can grow the
 controls, and filters remain horizontally scrollable at narrow widths. A 2px
@@ -116,20 +116,21 @@ test-font artifact.
 
 ## Conversation type cues
 
-`ConversationKindStyle` owns the accent, tint, glyph and localized type label.
-`ConversationKindAvatar` composes the existing personal initials avatar with a
-small chat badge, or renders the group/channel glyph on a tinted circle.
+`ConversationKindStyle` owns the glyph and the localized type label.
+`ConversationKindAvatar` shows a person's initials, or the group/channel glyph,
+on the avatar plate picked from the name.
 
-| Type | Accent | Glyph |
-| --- | --- | --- |
-| Personal | Saffron (`primary`) | Chat bubble, with the contact's initials |
-| Group | Sand (`secondary`) | Participants |
-| Channel | Blue (`tertiary`) | `#` |
+| Type | Glyph |
+| --- | --- |
+| Personal | The contact's initials on the avatar |
+| Group | Participants |
+| Channel | `#` |
 
-Selected rows and filters use the matching tint. Text remains neutral. Glyphs,
-localized tooltip/type labels and channel-name prefixes communicate the type
-without relying on color. These accents do not imply a connection or encryption
-state; runtime protection indicators continue to read actual snapshots.
+Since MOSH-134 the type has no colour of its own: the open chat is the one
+`secondaryContainer` row for every type, and a lit filter is the same fill.
+The filters name the types in words. Glyphs, localized tooltip/type labels
+and channel-name prefixes communicate the type. Runtime protection indicators
+continue to read actual snapshots.
 
 ## Initial consistency verification
 

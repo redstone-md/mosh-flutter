@@ -9,7 +9,8 @@ function chatRow({ State, Device }) {
   const col = add(r, box('text', { dir: 'V', align: 'MIN' }), { fillW: true });
   const top = add(col, box('top', { dir: 'H', gap: 2 }), { fillW: true });
   add(top, text('Maya Chen', 'titleMedium', 'onSurface', { name: 'title', truncate: true }), { fillW: true });
-  add(top, text('8:34 AM', 'labelMedium', 'onSurfaceMuted', { name: 'time' }));
+  // On the fill of the open chat onSurfaceMuted falls under 4.5:1, so the time takes the fill's own ink like the message.
+  add(top, text('8:34 AM', 'labelMedium', on ? 'onSecondaryContainer' : 'onSurfaceMuted', { name: 'time' }));
   const bottom = add(col, box('bottom', { dir: 'H', gap: 2 }), { fillW: true });
   add(bottom, text('You: Here is the route I mapped out.', 'bodyMedium', on ? 'onSecondaryContainer' : 'onSurfaceVariant', { name: 'preview', truncate: true }), { fillW: true });
   add(bottom, inst('Unread badge')).name = 'unread';
