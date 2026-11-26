@@ -6,6 +6,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/src/app/mosh_select.dart';
 import 'package:mosh/src/features/voice_call/android_call_presentation.dart';
+import 'package:mosh/src/features/voice_call/call_window.dart'
+    show kCallControlsRest;
 import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/rust/native_call/types.dart' as native;
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
@@ -95,6 +97,22 @@ void main() {
     _media('active-two-way-video', 'Two-way video',
         callMedia(camera: true, remoteCamera: true, remoteFrames: true),
         note: _video),
+    for (final (id, state, muted) in const [
+      ('active-controls-hidden', 'Controls hidden', false),
+      ('active-controls-hidden-muted', 'Controls hidden and muted', true),
+    ])
+      FigmaScene(id, 'Calls / Active / $state', (tester, size) async {
+        await _active(tester, size,
+            media: callMedia(
+                camera: true,
+                remoteCamera: true,
+                remoteFrames: true,
+                microphone: !muted));
+        // The call left alone: everything over the video but your own
+        // camera leaves after three seconds.
+        await tester.pump(kCallControlsRest);
+        await settleCall(tester);
+      }, note: _video),
     _media('active-camera-failed', 'Camera unavailable',
         callMedia(cameraFailed: true)),
     FigmaScene('active-audio-failed', 'Calls / Active / Audio failed',

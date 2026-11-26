@@ -92,10 +92,18 @@ IconButtonThemeData _iconButtonTheme(MoshColors c, TargetPlatform platform) {
 
 /// The Tonal kind of the Icon button card: an action with a plate of its
 /// own, for the top of media and file cards.
-ButtonStyle moshTonalIconButtonStyle(MoshColors c) => ButtonStyle(
-      foregroundColor: MoshState.unlessDisabled(c.onSurface, _disabledInk(c)),
-      backgroundColor: MoshState.unlessDisabled(
-          c.surfaceContainerHighest, _disabledPlate(c)),
+ButtonStyle moshTonalIconButtonStyle(MoshColors c) =>
+    moshPlateIconButtonStyle(c,
+        plate: c.surfaceContainerHighest, ink: c.onSurface);
+
+/// An icon button on a [plate] of its own with its glyph in [ink]: the Tonal
+/// Icon button, and the Call button in each of its tones.
+ButtonStyle moshPlateIconButtonStyle(MoshColors c,
+        {required Color plate, required Color ink}) =>
+    ButtonStyle(
+      foregroundColor: MoshState.unlessDisabled(ink, _disabledInk(c)),
+      backgroundColor: MoshState.unlessDisabled(plate, _disabledPlate(c)),
+      overlayColor: MoshState.layer(ink),
     );
 
 /// The well of the Text field and Select cards. A text field's label stands

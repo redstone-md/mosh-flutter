@@ -7,6 +7,29 @@ user browses chats ([ADR 0052](../ADR/0052-desktop-calls-in-the-main-window.md))
 Without the native call engine the app shows a compact strip of call controls
 below it instead.
 
+## The open call
+
+The open call is the Call window card of the Components page: it takes the
+whole window on the lowest tone. A voice call puts the person in the middle,
+with the name and how the call is going. With video the stage takes that
+place and grows as far as the window lets it without being cut. It has the
+shape of the frame it shows and is 16:9 until one arrives, so a phone on its
+side gives a wide picture the whole height of the screen and a phone held
+upright gives an upright one nearly all of it; the name and the time move
+to a plate beside the minimize button. The buttons stand on a dock at the
+bottom, and a warning or an error sits just above them. A ringing call offers
+only Decline and Accept. On the desktop the window also has the full screen
+button.
+
+While the other side's video is showing, the dock, the name plate and the
+minimize and full screen buttons leave after three seconds without a pointer
+move, a touch or a key, and any of those brings them back; the touch that
+brings them back presses nothing. Your own camera stays in its corner, and a
+muted microphone keeps a mark in the top corner. The controls stay while the
+call is voice only, ringing or waiting for video, while a warning is shown,
+while the keyboard's focus is on a button, while the pointer is over the dock
+and whenever the system reports assistive navigation.
+
 Clicking the peer in
 either view opens the original DM. Messages, attachments, search and scrolling remain available during a call.
 Navigation to another DM, group, channel or Settings keeps the audio running.

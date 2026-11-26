@@ -115,10 +115,7 @@ void main() {
                 SizedBox(
                     width: width,
                     child: CallVideoStage(
-                        video: pictures,
-                        peer: 'Alice',
-                        inset: false,
-                        remoteCamera: true)),
+                        video: pictures, peer: 'Alice', remoteCamera: true)),
             ])),
         settle: false);
     await show([640]);

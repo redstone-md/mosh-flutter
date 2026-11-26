@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/app/mosh_theme.dart';
-import 'package:mosh/src/features/shared/modal_focus_trap.dart';
-import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/features/shared/mosh_notice.dart';
+import 'call_window_parts.dart';
 
-/// Shared presentation and keyboard behavior for all call phases.
+/// The strip of a minimized call: who it is with, how it is going and its
+/// buttons. The open call is the CallWindow.
 class CallModalCard extends StatelessWidget {
   const CallModalCard({
     super.key,
@@ -13,11 +13,8 @@ class CallModalCard extends StatelessWidget {
     required this.status,
     required this.actions,
     this.statusFontFeatures,
-    this.compact = false,
     this.onOpenConversation,
     this.notice,
-    this.stage,
-    this.onMinimize,
     this.singleLine = false,
   });
 
@@ -26,21 +23,12 @@ class CallModalCard extends StatelessWidget {
   final String status;
   final List<Widget> actions;
   final List<FontFeature>? statusFontFeatures;
-  final bool compact;
   final VoidCallback? onOpenConversation;
-  final String? notice;
-  final Widget? stage;
-
-  /// Collapses the expanded card back to the strip; Escape does the same.
-  final VoidCallback? onMinimize;
+  final CallNotice? notice;
   final bool singleLine;
 
   @override
   Widget build(BuildContext context) {
-    return compact ? _compact(context) : _standalone(context);
-  }
-
-  Widget _compact(BuildContext context) {
     final colors = MoshColors.of(context);
     return Material(
       color: Theme.of(context).colorScheme.surfaceContainer,
@@ -83,74 +71,10 @@ class CallModalCard extends StatelessWidget {
             if (notice != null) _notice(colors),
           ]));
 
-  Widget _standalone(BuildContext context) {
-    return ModalFocusTrap(
-      // Escape minimizes an expanded call; it never ends one.
-      onEscape: onMinimize,
-      autofocus: true,
-      child: Semantics(
-        label: label,
-        container: true,
-        child: Dialog(
-          insetPadding: const EdgeInsets.all(16),
-          backgroundColor: Theme.of(context).colorScheme.surfaceContainer,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(minWidth: 280),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _header(context),
-                  if (stage != null) Flexible(child: stage!),
-                  const SizedBox(height: 12),
-                  Text(status,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                          fontSize: 14,
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                          fontFeatures: statusFontFeatures)),
-                  if (notice != null)
-                    Padding(
-                        padding: const EdgeInsets.only(top: 8),
-                        child: _notice(MoshColors.of(context))),
-                  const SizedBox(height: 12),
-                  Wrap(
-                      spacing: 12,
-                      runSpacing: 8,
-                      alignment: WrapAlignment.center,
-                      children: actions),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _notice(MoshColors colors) =>
-      Text(notice!, style: TextStyle(color: colors.warning), softWrap: true);
-
-  Widget _header(BuildContext context) => onMinimize == null
-      ? _peer(context)
-      : Row(children: [
-          Expanded(child: _peer(context)),
-          IconButton(
-              tooltip: AppLocalizations.of(context)!.callMinimize,
-              onPressed: onMinimize,
-              icon: const Icon(MoshIcons.callMinimize))
-        ]);
-
-  Widget _peer(BuildContext context) => InkWell(
-        onTap: onOpenConversation,
-        child: Text(peer,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-                fontSize: 18,
-                color: Theme.of(context).colorScheme.onSurface,
-                fontWeight: FontWeight.w700)),
-      );
+  Widget _notice(MoshColors colors) => Text(notice!.text,
+      style: TextStyle(
+          color: notice!.tone == MoshNoticeTone.error
+              ? colors.error
+              : colors.warning),
+      softWrap: true);
 }

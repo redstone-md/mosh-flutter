@@ -82,7 +82,7 @@ void main() {
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 1));
     expect(find.text(l.callAudioFailed), findsOneWidget);
-    final mic = find.descendant(
+    final mic = find.ancestor(
         of: find.byTooltip(l.callActiveMute),
         matching: find.byType(IconButton));
     expect(tester.widget<IconButton>(mic).onPressed, isNull);

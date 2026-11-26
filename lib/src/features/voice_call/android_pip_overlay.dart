@@ -79,8 +79,7 @@ class _AndroidPipOverlayState extends ConsumerState<AndroidPipOverlay> {
                           peer: presentation.call?.peer ?? '',
                           remoteCamera:
                               presentation.call?.media?.remoteCamera == true,
-                          alwaysVisible: true,
-                          inset: false))),
+                          alwaysVisible: true))),
       ]);
     });
   }

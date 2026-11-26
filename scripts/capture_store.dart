@@ -8,7 +8,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/src/features/sessions/sessions_screen.dart';
-import 'package:mosh/src/features/voice_call/call_modal_card.dart';
+import 'package:mosh/src/features/voice_call/call_window.dart';
 import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/rust/api/diagnostics.dart' show NativeRuntimeStatus;
 import 'package:mosh/src/rust/persistence.dart' show PersistenceRuntimeStatus;
@@ -273,7 +273,7 @@ void _capture(_Listing listing, _Device device) {
     // Let the call surface finish expanding.
     await tester.pump(const Duration(seconds: 1));
     await tester.pump(const Duration(seconds: 1));
-    expect(find.byType(CallModalCard), findsOneWidget);
+    expect(find.byType(CallWindow), findsOneWidget);
     await _save(tester, listing, device, 3);
     // The owner outlives the tree; stopping it ends media polling.
     owner.dispose();
