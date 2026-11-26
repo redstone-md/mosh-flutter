@@ -81,4 +81,29 @@ void main() {
     expect(error, AttachmentPickError.previewUnavailable);
     expect(tester.takeException(), isNull);
   });
+
+  // Regression (CodeAnt PR #10): a file that grew past the limit after the
+  // picker sized it was dropped without a word.
+  testWidgets('a file that outgrew its picked size is reported too large',
+      (tester) async {
+    final previous = FilePickerPlatform.instance;
+    addTearDown(() => FilePickerPlatform.instance = previous);
+    FilePickerPlatform.instance = TestFilePicker(Uint8List(16), size: 4);
+    final errors = <AttachmentPickError>[];
+    await pumpScreen(
+        tester,
+        Scaffold(
+            body: AttachmentPicker(
+          disabled: false,
+          ariaLabel: 'Attach',
+          maxBytes: 8,
+          onPick: (_) => fail('an oversize file was attached'),
+          onError: errors.add,
+        )));
+
+    await tester.tap(find.byIcon(MoshIcons.attach));
+    await tester.pump();
+
+    expect(errors, [AttachmentPickError.tooLarge]);
+  });
 }

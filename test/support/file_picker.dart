@@ -4,8 +4,11 @@ import 'package:file_picker/file_picker.dart';
 
 /// Supplies native picker results without opening a desktop dialog.
 class TestFilePicker extends FilePickerPlatform {
-  TestFilePicker(this.bytes);
+  TestFilePicker(this.bytes, {this.size});
   final Uint8List bytes;
+
+  /// The size the picker reports before the read; the bytes' own by default.
+  final int? size;
 
   @override
   Future<FilePickerResult?> pickFiles({
@@ -24,6 +27,7 @@ class TestFilePicker extends FilePickerPlatform {
     AndroidSAFOptions? androidSafOptions,
   }) async =>
       FilePickerResult([
-        PlatformFile(name: 'screenshot.png', size: bytes.length, bytes: bytes)
+        PlatformFile(
+            name: 'screenshot.png', size: size ?? bytes.length, bytes: bytes)
       ]);
 }
