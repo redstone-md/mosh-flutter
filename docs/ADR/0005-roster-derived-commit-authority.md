@@ -29,9 +29,17 @@ set (UI-enforced, soft).
 - Revoking any member, including a group's only acting admin, is always
   possible while at least one other org admin exists.
 - Concurrent commits from two live admins can fork the MLS tree (gossip has
-  no total order). Accepted for v1: rare, and self-heals via
-  rejoin-via-roster when a dead branch hits decrypt failures. Deterministic
-  tie-break is the v2 upgrade.
+  no total order). Removals therefore have one designated committer: the
+  roster admin with the lowest peer-id among those holding a leaf, the
+  member being removed excluded. An admin of rank k commits only after k ×
+  15 s and only if the leaf is still in its tree, so it stands in for
+  offline admins without racing online ones.
+- A fork that still happens is detected when an admin's commit arrives for
+  an epoch already merged with other bytes (the commit log holds ours).
+  Both branches keep the commit with the lower SHA-256; a client that merged
+  the other reports `needs_rejoin` and stops acting as an admin. Admissions
+  are still committed by every admin that sees the KeyPackage and rely on
+  this detection alone.
 - A group whose last in-group admin is revoked becomes crypto-unmanageable;
   backstop is re-creating the group from the roster (one action).
 - `AdminHandoff` remains for non-org groups only.
