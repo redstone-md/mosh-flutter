@@ -226,7 +226,7 @@ String _readToken(Uri uri, String param, InviteParseErrorCode code) {
 
 /// Mirrors TS `readOptionalToken`: trim; null if empty or fails token validation.
 String? _readOptionalToken(Uri uri, String param) {
-  final raw = uri.queryParameters[param];
+  final raw = _firstQuery(uri, param);
   if (raw == null) {
     return null;
   }
@@ -239,11 +239,16 @@ String? _readOptionalToken(Uri uri, String param) {
       : null;
 }
 
+/// The first value of a query key, as TS `URLSearchParams.get` and the Rust
+/// parser read it; `Uri.queryParameters` would keep the last one.
+String? _firstQuery(Uri uri, String key) =>
+    uri.queryParametersAll[key]?.firstOrNull;
+
 /// Mirrors TS `name` handling: `searchParams.get('name')?.trim() || null`.
-/// Dart `Uri.queryParameters` URL-decodes but does NOT trim values, so we trim
-/// here to match TS exactly.
+/// Dart query values are URL-decoded but NOT trimmed, so we trim here to
+/// match TS exactly.
 String? _readLabel(Uri uri) {
-  final raw = uri.queryParameters[_nameParam];
+  final raw = _firstQuery(uri, _nameParam);
   if (raw == null) {
     return null;
   }

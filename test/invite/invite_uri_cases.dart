@@ -45,6 +45,14 @@ void main() {
       expect(parseMoshInvite(staticPeerInvite).peerHint, 'alice');
     });
 
+    // Regression (CodeAnt PR #12): a repeated key took its last value, while
+    // the web parser and the Rust core take the first.
+    test('a repeated key keeps its first value, like the other parsers', () {
+      final invite = parseMoshInvite('mosh://invite?mesh=7x9v&session=drift-41'
+          '&session=other-99#fp=91A4-D2C8-77B0');
+      expect(invite.sessionId, 'drift-41');
+    });
+
     // Mirrors the TS `invalidInvites` array via `it.each`. Six cases.
     test('rejects "not a url" as invalid_url', () {
       expectInviteParseError(
