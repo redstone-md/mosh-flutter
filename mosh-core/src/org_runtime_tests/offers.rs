@@ -127,3 +127,29 @@ fn dm_offers_are_roster_gated_targeted_and_accept_once() {
 
     let _ = std::fs::remove_file(&path);
 }
+
+#[test]
+fn a_refused_join_lets_the_shared_node_go() {
+    let _guard = MOSS_TEST_LOCK
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    drain_received_messages();
+    let (persistence, path) = temp_persistence("refused-join", [50u8; 32]);
+    let moss = Arc::new(MossFfiRuntime::load_default().expect("moss should load"));
+    let mut runtime = OrgRuntime::from_shared(moss, Some(persistence.clone()));
+    let fault = persistence.refuse_org_record_writes();
+    assert!(runtime
+        .join_org(JoinOrgRequest {
+            bundle_uri: org_bundle("orgmesh-refused"),
+            display_name: "Alice".into(),
+            listen_port: 42351,
+            static_peer: None,
+        })
+        .is_err());
+    drop(fault);
+    assert!(
+        runtime.shared_node.current().is_none(),
+        "a join that never happened kept the node up"
+    );
+    let _ = std::fs::remove_file(&path);
+}

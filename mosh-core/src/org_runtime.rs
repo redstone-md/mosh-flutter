@@ -230,9 +230,6 @@ impl OrgRuntime {
         }
         let node =
             self.open_org_room(&bundle.mesh_id, request.listen_port, &request.static_peer)?;
-        // Read AFTER node start: on a truly fresh install the keystore only
-        // receives the identity when the first node comes up.
-        let signer = self.signing_key()?;
         let record = PersistedOrgRecord {
             org_pubkey: bundle.org_pubkey.clone(),
             org_name: bundle.org_name.clone(),
@@ -244,7 +241,18 @@ impl OrgRuntime {
             resolved_offer_ids: Default::default(),
             pending_acceptances: Default::default(),
         };
-        let record = self.persist_record(record)?;
+        // Read AFTER node start: on a truly fresh install the keystore only
+        // receives the identity when the first node comes up.
+        let joined = self
+            .signing_key()
+            .and_then(|signer| Ok((self.persist_record(record)?, signer)));
+        let (record, signer) = match joined {
+            Ok(joined) => joined,
+            Err(error) => {
+                self.close_org_room(&node, &bundle.mesh_id, &bundle.org_pubkey);
+                return Err(error);
+            }
+        };
         let session = self.build_session(record, node, signer);
         session.publish_hello();
         let snapshot = session.snapshot();
@@ -260,8 +268,7 @@ impl OrgRuntime {
         // On a shared node dropping the session no longer ends its
         // subscription — the node lives on for the other orgs, so leaving has
         // to be said out loud or a left org keeps receiving roster gossip.
-        leave_org_room(&session);
-        self.shared_node.release();
+        self.close_org_room(&session.node, &session.mesh_id, org_pubkey);
         if let Some(p) = self.persistence.as_ref() {
             p.delete_org(org_pubkey)
                 .map_err(|e| OrgError::Persistence(e.to_string()))?;
@@ -317,6 +324,12 @@ impl OrgRuntime {
     /// Take a reference to the shared node and put this org's room on it.
     /// Rolls the reference back if the room work fails, so an org that never
     /// joined cannot pin the node up forever.
+    /// The inverse of [`Self::open_org_room`].
+    fn close_org_room(&self, node: &MossNode, mesh_id: &str, org_pubkey: &str) {
+        leave_org_room(node, mesh_id, org_pubkey);
+        self.shared_node.release();
+    }
+
     fn open_org_room(
         &self,
         mesh_id: &str,
