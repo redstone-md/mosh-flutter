@@ -4,6 +4,7 @@ import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/app/mosh_dimensions.dart';
 import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/app/mosh_spinner.dart';
+import 'package:mosh/src/features/onboarding/display_name_limit.dart';
 import 'package:mosh/src/features/shared/avatar.dart';
 import 'package:mosh/src/features/shared/inline_error.dart';
 
@@ -117,7 +118,7 @@ class _DisplayNameFormState extends State<DisplayNameForm> {
         child: TextFormField(
             controller: _name,
             enabled: !_busy,
-            maxLength: 64,
+            inputFormatters: const [DisplayNameLimit()],
             textCapitalization: TextCapitalization.words,
             textInputAction: TextInputAction.done,
             onFieldSubmitted: (_) => _save(),

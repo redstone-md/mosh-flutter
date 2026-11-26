@@ -10,6 +10,7 @@ import 'package:mosh/src/rust/device_link/types.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
 import 'package:mosh/src/state/session_providers.dart';
 
+import 'display_name_limit.dart';
 import 'first_run_profile.dart';
 
 /// Production enables the gate; isolated app tests retain their existing seams.
@@ -112,7 +113,7 @@ class FirstRunController extends AsyncNotifier<FirstRunProfile> {
 
   Future<void> saveName(String name, {bool advance = false}) async {
     final trimmed = name.trim();
-    if (trimmed.isEmpty || trimmed.length > 64) {
+    if (trimmed.isEmpty || trimmed.runes.length > kDisplayNameMaxRunes) {
       throw const FormatException('Invalid display name');
     }
     final profile = await future;
