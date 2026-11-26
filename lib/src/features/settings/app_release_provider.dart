@@ -170,9 +170,9 @@ Future<String> _readOverHttp(Uri url) async {
   }
 }
 
-/// True when [candidate] names a newer build than [installed]. Pre-release and
-/// build suffixes are ignored, and a build ahead of the feed is not a
-/// downgrade prompt.
+/// True when [candidate] names a newer build than [installed], in semver
+/// precedence: a stable build outranks its own pre-releases, build suffixes
+/// are ignored, and a build ahead of the feed is not a downgrade prompt.
 bool isNewerRelease(String candidate, String installed) {
   final published = _versionNumbers(candidate);
   final current = _versionNumbers(installed);
@@ -183,7 +183,36 @@ bool isNewerRelease(String candidate, String installed) {
     final right = part < current.length ? current[part] : 0;
     if (left != right) return left > right;
   }
-  return false;
+  return _comparePrerelease(_prerelease(candidate), _prerelease(installed)) > 0;
+}
+
+/// The pre-release identifiers of [version], empty for a stable build.
+List<String> _prerelease(String version) {
+  final core = version.split('+').first;
+  final dash = core.indexOf('-');
+  return dash < 0 ? const [] : core.substring(dash + 1).split('.');
+}
+
+/// Semver pre-release order: no identifiers (stable) ranks highest; otherwise
+/// identifiers compare left to right and a shorter list that ties ranks lower.
+int _comparePrerelease(List<String> left, List<String> right) {
+  if (left.isEmpty || right.isEmpty) {
+    return (left.isEmpty ? 1 : 0) - (right.isEmpty ? 1 : 0);
+  }
+  for (var i = 0; i < math.min(left.length, right.length); i++) {
+    final order = _compareIdentifier(left[i], right[i]);
+    if (order != 0) return order;
+  }
+  return left.length.compareTo(right.length);
+}
+
+/// Numeric identifiers compare as numbers and rank below alphanumeric ones.
+int _compareIdentifier(String left, String right) {
+  final (a, b) = (int.tryParse(left), int.tryParse(right));
+  if (a != null && b != null) return a.compareTo(b);
+  if (a != null) return -1;
+  if (b != null) return 1;
+  return left.compareTo(right);
 }
 
 /// Numeric parts of a version; anything unparseable counts as zero, so a
