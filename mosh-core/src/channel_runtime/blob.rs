@@ -8,6 +8,17 @@ impl ChannelSession {
             .map_err(|error| ChannelRuntimeError::Codec(error.to_string()))?;
         match envelope {
             ChannelBlobEnvelope::History { frame } => self.queue_history(frame),
+            // Chunk frames are deterministic, so a chunk served again, or a
+            // repeated request for a lost one, is byte-identical to the first.
+            // Both skip the replay set: serving and ingest are idempotent.
+            ChannelBlobEnvelope::Request {
+                from_fingerprint,
+                request,
+            } if from_fingerprint != self.device_fingerprint => self.serve_blob_request(&request),
+            ChannelBlobEnvelope::Chunk {
+                from_fingerprint,
+                frame,
+            } if from_fingerprint != self.device_fingerprint => Ok(self.transfer.ingest(&frame)?),
             _ if self.seen.seen_before(&self.blob_topic, &payload) => Ok(()),
             ChannelBlobEnvelope::MessageDeletion { frame } => self.receive_deletion_frame(frame),
             ChannelBlobEnvelope::PlusMetadata { frame } => self.receive_plus(&frame),
@@ -18,10 +29,6 @@ impl ChannelSession {
             } if from_fingerprint != self.device_fingerprint => {
                 self.accept_incoming_manifest(from_device, from_fingerprint, *manifest)
             }
-            ChannelBlobEnvelope::Request {
-                from_fingerprint,
-                request,
-            } if from_fingerprint != self.device_fingerprint => self.serve_blob_request(&request),
             ChannelBlobEnvelope::DmOffer { mut offer, origin } => {
                 offer.authenticated = match origin {
                     Some(proof) => {
@@ -34,10 +41,6 @@ impl ChannelSession {
                 self.dm_offers.receive(offer, &self.device_fingerprint);
                 Ok(())
             }
-            ChannelBlobEnvelope::Chunk {
-                from_fingerprint,
-                frame,
-            } if from_fingerprint != self.device_fingerprint => Ok(self.transfer.ingest(&frame)?),
             _ => Ok(()),
         }
     }

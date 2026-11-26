@@ -21,6 +21,12 @@ fn temp_store() -> Arc<AttachmentStore> {
     Arc::new(AttachmentStore::new(&path).expect("attachment store should init"))
 }
 
+#[path = "runtime_tests/fixture.rs"]
+mod fixture;
+
+#[path = "runtime_tests/blob_replay.rs"]
+mod blob_replay;
+
 #[path = "runtime_tests/lifecycle.rs"]
 mod lifecycle;
 
