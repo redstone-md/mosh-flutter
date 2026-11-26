@@ -117,6 +117,24 @@ impl MlsSessionCrypto {
         self.remove_leaves(&[leaving])
     }
 
+    /// Validate a self-removal proposal at the current epoch without touching
+    /// this state, and name the departing leaf by its signature key (hex).
+    /// A removal committed later, when the proposal's epoch may have passed,
+    /// targets that key with `remove_member_by_signer`.
+    pub(crate) fn self_removal_signer(
+        &self,
+        proposal_bytes: &[u8],
+    ) -> Result<String, MlsCryptoError> {
+        let mut probe = self.receive_candidate()?;
+        let leaving = probe.staged_self_removal(proposal_bytes)?;
+        let group = probe.group.as_ref().ok_or(MlsCryptoError::NotReady)?;
+        let signer = group
+            .members()
+            .find(|member| member.index == leaving)
+            .map(|member| hex::encode(member.signature_key));
+        signer.ok_or(MlsCryptoError::NotReady)
+    }
+
     /// Validate a self-removal proposal and return the leaf it retires.
     fn staged_self_removal(
         &mut self,

@@ -128,14 +128,12 @@ impl GroupSession {
         self.current_admin_fingerprint = next;
     }
 
-    /// Are we the member expected to commit `leaver`'s self-removal? Org
-    /// groups: any roster admin (ADR 0005). Plain groups: the admin — unless
-    /// the admin is the one leaving, in which case the successor commits, so
-    /// exactly one member acts and the resulting tree names that same member.
-    pub(super) fn should_commit_departure(&mut self, leaver: &str) -> bool {
-        if self.org_pubkey.is_some() {
-            return self.acting_admin();
-        }
+    /// Are we the member expected to commit `leaver`'s self-removal in a
+    /// plain group? The admin — unless the admin is the one leaving, in which
+    /// case the successor commits, so exactly one member acts and the
+    /// resulting tree names that same member. Org groups rank their admins
+    /// instead (`schedule_departure`).
+    pub(super) fn should_commit_departure(&self, leaver: &str) -> bool {
         if leaver != self.current_admin_fingerprint {
             return self.is_admin;
         }
@@ -285,10 +283,11 @@ impl GroupSession {
         }
     }
 
-    /// One pass per roster version change, driven by the drain loop (poll
-    /// cadence) and by rehydrate (`last_roster_version_seen` starts None).
-    /// Retries lag-buffered commits, then reconciles group membership.
-    pub(super) fn sync_roster_state(&mut self) {
+    /// Driven by the drain loop (poll cadence) with its clock. One pass per
+    /// roster version change, and on rehydrate (`last_roster_version_seen`
+    /// starts None), retries lag-buffered commits and reconciles group
+    /// membership; every pass commits the removals whose turn has come.
+    pub(super) fn sync_roster_state(&mut self, now: u64) {
         if self.org_pubkey.is_none() {
             return;
         }
@@ -298,13 +297,15 @@ impl GroupSession {
             self.retry_roster_lagged();
             self.reconcile_roster_membership();
         }
+        self.pump_removals(now);
     }
 
     /// Crypto layer of revocation (spec §6, ADR 0008), reconciliation-style:
     /// any leaf whose peer-id is absent from the current verified roster is
-    /// removed. Driven by durable state (persisted roster ∧ MLS tree), so a
-    /// removal converges no matter which drain absorbed the roster and
-    /// survives a restart — never by an in-memory removal event.
+    /// queued for removal by the designated admin (`org_commits`). Driven by
+    /// durable state (persisted roster ∧ MLS tree), so a removal converges
+    /// no matter which drain absorbed the roster and survives a restart —
+    /// never by an in-memory removal event.
     pub(super) fn reconcile_roster_membership(&mut self) {
         let Some(roster) = self.org_roster() else {
             return;
@@ -321,30 +322,7 @@ impl GroupSession {
             .filter(|identity| !roster.members.iter().any(|m| m.moss_peer_id == *identity))
             .collect();
         for peer_id in revoked {
-            let mut candidate = match self.crypto.receive_candidate() {
-                Ok(candidate) => candidate,
-                Err(_) => continue,
-            };
-            let commit_bytes = match candidate.remove_members_by_identity(&peer_id) {
-                Ok(bytes) => bytes,
-                Err(error) => {
-                    dlog::write(
-                        LogLevel::Error,
-                        kinds::KICK,
-                        &self.group_id,
-                        &format!("auto-kick of {peer_id} failed: {error}"),
-                    );
-                    continue;
-                }
-            };
-            if let Err(error) = self.publish_membership_change(candidate, commit_bytes) {
-                dlog::write(
-                    LogLevel::Error,
-                    kinds::KICK,
-                    &self.group_id,
-                    &format!("auto-kick commit publish failed: {error}"),
-                );
-            }
+            self.schedule_removal(super::org_commits::RemovalTarget::Identity(peer_id));
         }
     }
 

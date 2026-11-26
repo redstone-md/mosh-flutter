@@ -132,6 +132,8 @@ pub(super) struct GroupSession {
     /// Roster version at the last lag-retry, so a change triggers exactly
     /// one retry pass.
     pub(super) last_roster_version_seen: Option<u64>,
+    /// Org removals this admin commits when its turn comes (`org_commits`).
+    pub(super) pending_removals: super::org_commits::PendingRemovals,
     /// Fingerprint → wall-clock deadline of that member's typing hint. A
     /// refresh inside the window renews the entry; silence lets it lapse.
     pub(super) typing_members: HashMap<String, u64>,
@@ -205,6 +207,7 @@ impl GroupSession {
             incoming_org_control: None,
             roster_lag: Vec::new(),
             last_roster_version_seen: None,
+            pending_removals: Default::default(),
             typing_members: HashMap::new(),
             member_names: HashMap::new(),
             typing_gate: TypingGate::default(),

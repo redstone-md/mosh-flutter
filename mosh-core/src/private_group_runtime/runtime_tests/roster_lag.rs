@@ -115,7 +115,7 @@ fn a_flood_of_lagged_claims_cannot_evict_a_promoted_admins_commit() {
     }
 
     put_roster(2, "admin");
-    session.sync_roster_state();
+    session.sync_roster_state(now_ms());
     assert_eq!(
         session.crypto.member_count(),
         5,

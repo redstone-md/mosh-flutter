@@ -23,7 +23,8 @@ impl PrivateGroupRuntime {
             // Everyone leaves the same way: MLS forbids committing your own
             // removal, so a self-Remove proposal goes out and a member who
             // stays commits it. For an ordinary member that is the admin; for
-            // the admin it is the successor (`should_commit_departure`).
+            // the admin it is the successor (`should_commit_departure`); in an
+            // org group, the designated roster admin (`schedule_departure`).
             let name_state_proof_b64 = session.name_handoff_proof()?;
             let proposal_bytes = session.crypto.leave_proposal_bytes()?;
             let envelope = ControlEnvelope::SelfRemove {

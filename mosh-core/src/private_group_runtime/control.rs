@@ -252,6 +252,9 @@ impl GroupSession {
                 return Err(error);
             }
         }
+        if self.org_pubkey.is_some() {
+            return self.schedule_departure(proposal_b64);
+        }
         if !self.should_commit_departure(from_fingerprint) {
             return Ok(());
         }

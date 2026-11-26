@@ -122,7 +122,7 @@ fn org_commit_authority_follows_roster_with_lag_buffer() {
     put_roster(2, "admin");
     {
         let session = runtime.groups.get_mut(&created.group_id).unwrap();
-        session.sync_roster_state();
+        session.sync_roster_state(now_ms());
         assert!(session.roster_lag.is_empty());
         assert_eq!(
             session.crypto.member_count(),
@@ -201,7 +201,7 @@ fn roster_reconciliation_kicks_revoked_members_and_survives_restart() {
             .groups
             .get_mut(&created.group_id)
             .unwrap()
-            .sync_roster_state();
+            .sync_roster_state(now_ms());
     };
 
     // Not an admin in the current roster: reconciliation must not kick.
@@ -271,7 +271,7 @@ fn roster_reconciliation_kicks_revoked_members_and_survives_restart() {
         session.crypto.add_members(&[kp.as_slice()]).unwrap();
         assert_eq!(session.crypto.member_count(), 2);
         session.last_roster_version_seen = None;
-        session.sync_roster_state();
+        session.sync_roster_state(now_ms());
         assert_eq!(
             session.crypto.member_count(),
             1,
