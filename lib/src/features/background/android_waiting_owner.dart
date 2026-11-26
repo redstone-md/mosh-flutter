@@ -63,7 +63,13 @@ class AndroidWaitingOwner extends ChangeNotifier {
     if (setupCompleted &&
         platform.state?.setupComplete != true &&
         platform.state?.interactive == true) {
-      await platform.enable();
+      try {
+        await platform.enable();
+      } catch (error) {
+        // A refused service start must not leave background events unheard:
+        // attach anyway, so each turn retries the start and shows the failure.
+        failure = error;
+      }
     }
     _attached = true;
     _subscription ??= commands.changes().listen(
