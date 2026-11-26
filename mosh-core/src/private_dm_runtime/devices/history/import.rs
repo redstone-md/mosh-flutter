@@ -108,15 +108,14 @@ impl PrivateDmSession {
                 .messages
                 .iter()
                 .find(|message| message.message_id.as_ref() == Some(&record.message_id));
-            if let Some(existing) = existing {
-                if existing
+            if let Some(existing) = existing.filter(|message| {
+                message
                     .metadata
                     .as_ref()
                     .is_none_or(|m| m.deletion.is_none())
-                    && TextRecord::from_message(existing)
-                        .is_none_or(|old| !old.same_content(&record))
-                {
-                    return Err(invalid());
+            }) {
+                if !record.replaces(existing)? {
+                    continue;
                 }
             }
             let mut message = existing

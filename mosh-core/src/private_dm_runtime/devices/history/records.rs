@@ -14,19 +14,27 @@ pub(in crate::private_dm_runtime) struct TextRecord {
 }
 
 impl TextRecord {
-    /// Does `incoming` describe this same message? A tombstone matches the
-    /// live copy it erased: the body is gone, the identity is not. It carries
-    /// no deletion authority, so the live copy stays until the deletion
-    /// journal erases it (ADR 0040).
-    pub(super) fn same_content(&self, incoming: &Self) -> bool {
-        let origin = |record: &Self| record.metadata.as_ref().and_then(|m| m.origin.clone());
-        self.message_id == incoming.message_id
-            && self.sent_at_ms == incoming.sent_at_ms
-            && self.from_device == incoming.from_device
-            && (self.body == incoming.body || incoming.is_tombstone())
-            && (origin(self).is_none()
-                || origin(incoming).is_none()
-                || origin(self) == origin(incoming))
+    /// Should this record replace `local`, the live copy with its id?
+    /// `Ok(false)` keeps the local copy, an error refuses the batch.
+    ///
+    /// A tombstone matches the live copy it erased, of any kind: the body,
+    /// attachment or call event is gone, the identity is not. It carries no
+    /// deletion authority, so the live copy stays until the deletion journal
+    /// erases it (ADR 0040).
+    pub(super) fn replaces(&self, local: &ChatMessage) -> Result<bool> {
+        let local_origin = local.metadata.as_ref().and_then(|m| m.origin.as_ref());
+        let origin = self.metadata.as_ref().and_then(|m| m.origin.as_ref());
+        let same = local.message_id.as_ref() == Some(&self.message_id)
+            && local.sent_at_ms == Some(self.sent_at_ms)
+            && local.from_device == self.from_device
+            && (local_origin.is_none() || origin.is_none() || local_origin == origin);
+        if same && self.is_tombstone() {
+            return Ok(false);
+        }
+        if !same || Self::from_message(local).is_none_or(|old| old.body != self.body) {
+            return Err(invalid());
+        }
+        Ok(true)
     }
 
     fn is_tombstone(&self) -> bool {

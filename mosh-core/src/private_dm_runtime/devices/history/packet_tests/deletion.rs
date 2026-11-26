@@ -99,35 +99,45 @@ pub(super) fn a_tombstone_for_a_live_local_message_does_not_stall_the_import(f: 
         origin: Some(origin),
         ..Default::default()
     });
-    f.runtime
-        .session_mut(&f.session)
-        .unwrap()
-        .messages
-        .push(live.clone().into_message());
-    let mut tombstone = live;
-    tombstone.body.clear();
-    if let Some(metadata) = tombstone.metadata.as_mut() {
-        metadata.deletion = Some(crate::message_deletion::DeletionMarker {
-            scope: crate::message_deletion::DeleteScope::ForEveryone,
-            status: crate::message_deletion::DeletionStatus::Confirmed,
-            administrator: None,
-        });
-    }
+    // A call row exports as text once its tombstone has erased the event.
+    let mut call = record("call-row", "").into_message();
+    call.call_event = Some(crate::private_dm_runtime::CallEvent {
+        kind: "missed".into(),
+        duration_ms: 0,
+        call_id: "call-row".into(),
+    });
+    let messages = &mut f.runtime.session_mut(&f.session).unwrap().messages;
+    messages.push(live.clone().into_message());
+    messages.push(call);
     let packet = f.packet(
         &f.source,
-        DeviceMessage::HistoryBatch(f.batch(0, vec![tombstone, record("other", "second")])),
+        DeviceMessage::HistoryBatch(
+            f.batch(0, vec![tombstone(live), tombstone(record("call-row", ""))]),
+        ),
     );
     f.receive(&packet).unwrap();
     assert_eq!(f.history_sync(), Some(DmHistorySyncState::Complete));
     let snapshot = f.snapshot();
-    let overlap = snapshot
-        .messages
-        .iter()
-        .find(|m| m.message_id.as_deref() == Some("overlap"))
-        .unwrap();
-    assert_eq!(overlap.body, "live");
-    assert!(snapshot
-        .messages
-        .iter()
-        .any(|m| m.message_id.as_deref() == Some("other")));
+    let row = |id: &str| {
+        snapshot
+            .messages
+            .iter()
+            .find(|m| m.message_id.as_deref() == Some(id))
+            .unwrap()
+    };
+    assert_eq!(row("overlap").body, "live");
+    assert!(row("call-row").call_event.is_some());
+}
+
+fn tombstone(mut record: TextRecord) -> TextRecord {
+    record.body.clear();
+    record
+        .metadata
+        .get_or_insert_with(Default::default)
+        .deletion = Some(crate::message_deletion::DeletionMarker {
+        scope: crate::message_deletion::DeleteScope::ForEveryone,
+        status: crate::message_deletion::DeletionStatus::Confirmed,
+        administrator: None,
+    });
+    record
 }
