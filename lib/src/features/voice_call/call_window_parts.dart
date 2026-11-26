@@ -250,6 +250,8 @@ class CallFoot extends StatelessWidget {
                       tone: notice.tone,
                       icon: notice.icon,
                       detail: notice.text,
+                      // It appears mid-call, away from where the user looks.
+                      announced: true,
                       radius: MoshRadius.largeIncreased))),
         MouseRegion(
             onEnter: (_) => onDockHover(true),
