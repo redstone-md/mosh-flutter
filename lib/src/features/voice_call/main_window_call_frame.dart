@@ -1,16 +1,21 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'call_view_state.dart' show CallForm;
+import 'floating_call_view.dart';
 
-/// Places the call in the main window: centered when expanded, else a strip
-/// at the top or, with video, a mini view the user can drag. Only the mini
-/// view intercepts gestures; chats remain usable underneath.
+/// Places the call over the main window: centered when open, in the upper
+/// corner while it rings on the desktop, and with video a tile the user can
+/// drag. Only the card and the tile intercept gestures; chats remain usable
+/// underneath. The phone's strip is not laid over the window, and the plate
+/// is the title bar's.
 class MainWindowCallFrame extends StatefulWidget {
   const MainWindowCallFrame(
-      {super.key,
-      required this.expanded,
-      required this.video,
-      required this.child});
-  final bool expanded, video;
+      {super.key, required this.form, required this.child});
+
+  /// How far the card and the tile stand from the window's edges.
+  static const double edge = 12;
+
+  final CallForm form;
   final Widget child;
 
   @override
@@ -22,17 +27,22 @@ class _MainWindowCallFrameState extends State<MainWindowCallFrame> {
 
   @override
   Widget build(BuildContext context) {
-    if (widget.expanded) return Center(child: widget.child);
-    if (!widget.video) {
-      return Align(alignment: Alignment.topCenter, child: widget.child);
+    if (widget.form == CallForm.open) return Center(child: widget.child);
+    if (widget.form != CallForm.tile) {
+      return Align(
+          alignment: AlignmentDirectional.topEnd,
+          child: Padding(
+              padding: const EdgeInsets.all(MainWindowCallFrame.edge),
+              child: widget.child));
     }
     return LayoutBuilder(builder: (context, box) {
-      // A desktop-sized window has room for a larger mini view.
-      final width = math.min(box.maxWidth >= 720 ? 320.0 : 196.0, box.maxWidth);
-      final height = width * 9 / 16 + 48;
+      final width =
+          math.min(FloatingCallView.width(box.maxWidth), box.maxWidth);
+      final height = FloatingCallView.height(context, width);
       final maxX = math.max(0.0, box.maxWidth - width);
       final maxY = math.max(0.0, box.maxHeight - height);
-      final position = _position ?? Offset(maxX - 12, 12);
+      final position = _position ??
+          Offset(maxX - MainWindowCallFrame.edge, MainWindowCallFrame.edge);
       final clamped =
           Offset(position.dx.clamp(0, maxX), position.dy.clamp(0, maxY));
       return Stack(children: [

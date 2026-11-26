@@ -1,8 +1,8 @@
 # Calls
 
 On desktop a call shows in the main window, as on Android and iOS: an expanded
-view that covers the content and can go full screen, and a mini view while the
-user browses chats ([ADR 0052](../ADR/0052-desktop-calls-in-the-main-window.md)).
+view that covers the content and can go full screen, and a minimized one while
+the user browses chats ([ADR 0052](../ADR/0052-desktop-calls-in-the-main-window.md)).
 
 Without the native call engine the app shows a compact strip of call controls
 below it instead.
@@ -30,17 +30,44 @@ call is voice only, ringing or waiting for video, while a warning is shown,
 while the keyboard's focus is on a button, while the pointer is over the dock
 and whenever the system reports assistive navigation.
 
-Clicking the peer in
-either view opens the original DM. Messages, attachments, search and scrolling remain available during a call.
+## The minimized call
+
+A call that is not open stays in sight in the forms of the Minimized call
+card of the Components page; `callPresentationProvider` chooses the form and
+`MainWindowCallHost` and the title bar draw it.
+
+- **Desktop, voice:** a plate in the title bar beside the state pill
+  (`CallPlate`): the name, how the call is going, the microphone and the red
+  button. A press on the name opens the call; the buttons do their own work
+  and open nothing.
+- **Desktop, ringing:** a card in the upper corner of the window
+  (`IncomingCallCard`) with Decline and Accept, so the call is answered
+  without leaving the chat. An accepted call stays minimized and becomes the
+  plate, also while it waits for confirmation. A press on the person opens
+  the call.
+- **Phone:** a strip above the screen (`CallStrip`) with the same parts as
+  the plate. A call minimized while it rings offers Decline and Accept there.
+  The strip moves the screen down and covers none of it.
+- **Video:** a tile (`FloatingCallView`) the user can drag anywhere in the
+  window. A press on the picture opens the call, and the desktop's tile has
+  a button for it as well. A call that has shown video keeps the tile when
+  the cameras go off.
+
+A minimized call has one line beside the name: a warning or an error takes
+the place of the time, and a muted microphone is named after it.
+
+Clicking the peer in the open call opens the original DM. Messages,
+attachments, search and scrolling remain available during a call.
 Navigation to another DM, group, channel or Settings keeps the audio running.
 Opening the originating DM remains available while call controls are pending.
 
 Android ARM64 uses the same native audio/video protocol as desktop, with an
 in-app call view. The minimize button or Back hides the expanded controls without
-ending the call. Voice uses a compact strip; video uses a draggable mini-window.
-The mini-window accumulates every pointer movement between rendered frames and
+ending the call. Voice uses the strip; video uses the draggable tile.
+The tile accumulates every pointer movement between rendered frames and
 stays within the available viewport.
-Tap Restore to reopen controls. Both remain available across chat/settings routes.
+A press on the strip's name or the tile's picture reopens the call. Both remain
+available across chat/settings routes.
 Device dialogs receive Back first. Camera permission refusal preserves
 voice and reception. Android selects a communication output and paired microphone
 through AudioManager. See [native media](native-call-media.md) for packaging and
@@ -55,7 +82,7 @@ a delayed close cannot terminate a replacement. This adds no draw-over-apps
 permission or second audio/video engine. It does not implement incoming calls
 when Mosh is stopped, or guarantee calls after dismissing/locking its Activity.
 
-- Minimize and Escape in the expanded view keep the call in the mini view.
+- Minimize and Escape in the open call keep it running minimized.
 - The end button declines an incoming call, cancels an outgoing call or hangs
   up an active call. Remote termination removes the call view.
   Closing during acceptance waits for that same call's control operation, then
@@ -134,7 +161,7 @@ With a native call engine (desktop and Android) the host shows the call in the
 main window and keeps no second process, window or engine for it. The call's
 buttons act on the orchestrator of the displayed session, which checks every
 action against the current call ID.
-The mini view and the iOS strip stay inside system safe insets. While a call is shown,
+The minimized call and the iOS strip stay inside system safe insets. While a call is shown,
 the host consumes the keyboard inset for both the route and strip, removing it
 from the nested Scaffold so the composer does not reserve the inset twice.
 The wrapper stays mounted across call admission and termination to retain drafts.

@@ -1,6 +1,6 @@
 import 'package:mosh/src/features/background/android_waiting_owner.dart';
 import 'package:mosh/src/features/lock/android_app_access.dart';
-import 'call_media_view.dart';
+import 'call_view_wiring.dart';
 import 'package:mosh/src/state/native_call_owner_provider.dart';
 import 'dart:async';
 
@@ -90,25 +90,11 @@ class _VoiceCallHostState extends ConsumerState<VoiceCallHost> {
         : ref.watch(voiceCallOrchestratorProvider(selected.sessionId));
     final call = state == null
         ? null
-        : CallViewState.fromDialog(
-            selected!.sessionId,
-            state.dialog,
-            fallback: l.callPeerFallback,
+        : callViewOf(selected!.sessionId, state, l,
             peerOverride: _access?.covered == true &&
                     _waiting?.platform.state?.showNamesWhenLocked != true
                 ? 'Mosh'
-                : null,
-            muted: state.muted,
-            media: state.nativeMedia == null
-                ? null
-                : CallMediaView.fromSnapshot(state.nativeMedia!,
-                    cameraRequested: state.cameraRequested),
-            audioReady: state.audioReady,
-            audioFailed: state.audioFailed,
-            busy: state.busy,
-            occupancyConflict: state.occupancyConflict,
-            error: state.error?.cause.describe(l),
-          );
+                : null);
     final owner = _owner;
     final content = owner != null
         ? MainWindowCallHost(

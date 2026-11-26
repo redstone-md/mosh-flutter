@@ -7,58 +7,75 @@ import 'package:mosh/src/app/mosh_theme.dart';
 import 'call_button.dart';
 import 'call_view_state.dart';
 
-/// The buttons of [call], in the order of the Call window card. A ringing
-/// call offers only Decline and Accept. [large] is for a phone held upright.
-List<Widget> callControls(
-    CallViewState call, AppLocalizations l, void Function(CallViewAction) act,
-    {VoidCallback? expand,
-    VoidCallback? devices,
-    bool camera = true,
-    bool large = false}) {
-  final ringing = call.phase == CallViewPhase.incoming;
-  final media = !ringing && call.media != null;
-  return [
-    if (expand != null)
-      IconButton(
-          tooltip: l.callExpand,
-          onPressed: expand,
-          icon: const Icon(MoshIcons.callExpand)),
-    if (call.phase == CallViewPhase.active || media)
-      _microphone(call, l, act, large),
-    if (camera && media) _camera(call, l, act, large),
-    if (devices != null && media)
-      CallButton(
-          icon: MoshIcons.tune,
-          tooltip: l.callDevices,
-          large: large,
-          onPressed: call.busy ? null : devices),
-    _end(call, l, act, large),
-    if (ringing)
-      CallButton(
-          icon: MoshIcons.call,
-          tooltip: l.callIncomingAccept,
-          tone: CallTone.accept,
-          large: large,
-          onPressed: call.busy ? null : () => act(CallViewAction.accept)),
-  ];
+/// The buttons [call] offers, each by what it does. A ringing call offers
+/// only to end and to accept it; the camera and the devices need the call's
+/// media, and the devices a dialog to open ([devices]).
+class CallControls {
+  factory CallControls(
+      CallViewState call, AppLocalizations l, void Function(CallViewAction) act,
+      {VoidCallback? devices}) {
+    final ringing = call.phase == CallViewPhase.incoming;
+    final media = !ringing && call.media != null;
+    return CallControls._(
+      microphone: call.phase == CallViewPhase.active || media
+          ? _microphone(call, l, act)
+          : null,
+      camera: media ? _camera(call, l, act) : null,
+      devices: devices != null && media
+          ? CallControl(
+              icon: MoshIcons.tune,
+              tooltip: l.callDevices,
+              onPressed: call.busy ? null : devices)
+          : null,
+      end: _end(call, l, act),
+      accept: ringing
+          ? CallControl(
+              icon: MoshIcons.call,
+              tooltip: l.callIncomingAccept,
+              tone: CallTone.accept,
+              onPressed: call.busy ? null : () => act(CallViewAction.accept))
+          : null,
+    );
+  }
+
+  const CallControls._(
+      {required this.end,
+      this.microphone,
+      this.camera,
+      this.devices,
+      this.accept});
+
+  final CallControl? microphone, camera, devices, accept;
+
+  /// Declines a ringing call, cancels an outgoing one or hangs up.
+  final CallControl end;
+
+  /// The open call's dock, in the order of the Call window card.
+  List<CallControl> get dock =>
+      _present([microphone, camera, devices, end, accept]);
+
+  /// What a minimized call has room for.
+  List<CallControl> get minimized => _present([microphone, end, accept]);
+
+  static List<CallControl> _present(List<CallControl?> controls) =>
+      controls.nonNulls.toList();
 }
 
-Widget _microphone(CallViewState call, AppLocalizations l,
-        void Function(CallViewAction) act, bool large) =>
-    CallButton(
+CallControl _microphone(CallViewState call, AppLocalizations l,
+        void Function(CallViewAction) act) =>
+    CallControl(
         icon: call.muted ? MoshIcons.micOff : MoshIcons.mic,
         tooltip: call.muted ? l.callActiveUnmute : l.callActiveMute,
         tone: call.muted ? CallTone.lit : CallTone.neutral,
-        large: large,
         toggled: !call.muted,
         onPressed: call.busy || (call.media == null && !call.audioReady)
             ? null
             : () => act(CallViewAction.mute));
 
-Widget _camera(CallViewState call, AppLocalizations l,
-    void Function(CallViewAction) act, bool large) {
+CallControl _camera(
+    CallViewState call, AppLocalizations l, void Function(CallViewAction) act) {
   final media = call.media!;
-  return CallButton(
+  return CallControl(
       icon: media.cameraRequested ? MoshIcons.video : MoshIcons.videoOff,
       tooltip: media.cameraStarting
           ? l.callCameraStarting
@@ -66,14 +83,13 @@ Widget _camera(CallViewState call, AppLocalizations l,
               ? l.callCameraOff
               : l.callCameraOn,
       tone: media.cameraRequested ? CallTone.lit : CallTone.neutral,
-      large: large,
       toggled: media.cameraRequested,
       onPressed: call.busy ? null : () => act(CallViewAction.camera));
 }
 
-Widget _end(CallViewState call, AppLocalizations l,
-        void Function(CallViewAction) act, bool large) =>
-    CallButton(
+CallControl _end(CallViewState call, AppLocalizations l,
+        void Function(CallViewAction) act) =>
+    CallControl(
         icon: MoshIcons.callEnd,
         tooltip: switch (call.phase) {
           CallViewPhase.incoming when !call.busy => l.callIncomingDecline,
@@ -81,7 +97,6 @@ Widget _end(CallViewState call, AppLocalizations l,
           _ => l.callOutgoingCancel,
         },
         tone: CallTone.end,
-        large: large,
         onPressed: () => act(call.phase == CallViewPhase.incoming && !call.busy
             ? CallViewAction.decline
             : CallViewAction.end));
@@ -90,9 +105,9 @@ Widget _end(CallViewState call, AppLocalizations l,
 /// ever lies on the video itself and the red one reads the same over any
 /// picture.
 class CallDock extends StatelessWidget {
-  const CallDock({super.key, required this.buttons, this.large = false});
+  const CallDock({super.key, required this.controls, this.large = false});
 
-  final List<Widget> buttons;
+  final List<CallControl> controls;
   final bool large;
 
   @override
@@ -107,7 +122,10 @@ class CallDock extends StatelessWidget {
         child: Row(
             mainAxisSize: MainAxisSize.min,
             spacing: large ? MoshSpace.s4 : MoshSpace.s3,
-            children: buttons),
+            children: [
+              for (final control in controls)
+                CallButton(control: control, large: large)
+            ]),
       ),
     );
   }

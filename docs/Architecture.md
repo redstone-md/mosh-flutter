@@ -395,8 +395,10 @@ rebind or release the call's native media. The ringtone keeps its own factory
 provider.
 
 A call shows in the main window on every platform, above the routes: an
-expanded view that can go full screen and a mini view while the user browses
-chats. Its video is two Flutter textures that Rust fills directly
+expanded view that can go full screen and a minimized one while the user
+browses chats: a plate in the desktop's title bar, a strip above the phone's
+screen, a tile with video. `callPresentationProvider` holds which, because the
+call host is under the router and the title bar above it. Its video is two Flutter textures that Rust fills directly
 ([ADR 0052](ADR/0052-desktop-calls-in-the-main-window.md)); there is no second
 process, window or engine for a call. Call actions carry both session and call
 IDs, and the orchestrator's state remains authoritative. Without the native

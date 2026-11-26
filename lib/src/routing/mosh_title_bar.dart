@@ -8,6 +8,10 @@ import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/features/conversation/dm_state.dart';
 import 'package:mosh/src/features/diagnostics/state_label.dart';
 import 'package:mosh/src/features/shared/focus_ring.dart';
+import 'package:mosh/src/features/voice_call/call_plate.dart' show TitleBarCall;
+import 'package:mosh/src/features/voice_call/call_view_state.dart'
+    show CallForm;
+import 'package:mosh/src/state/call_presentation_provider.dart';
 import 'package:mosh/src/platform/desktop_chrome_scope.dart';
 import 'package:mosh/src/gateway/conversation_target.dart'
     show ConversationKind;
@@ -20,11 +24,17 @@ import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 /// Below this width at normal text scale, Peer status shows only its icon.
 const double _kCompactWidth = 640;
 
+/// The same while a minimized call's plate stands beside it.
+const double _kCompactWidthWithCall = 960;
+
 /// Widest the live state pill grows before its label ellipsizes.
 const double _kStatePillMaxWidth = 240;
 
-/// The Window title bar card: the app's mark, the chat list toggle and the
-/// state of the selected conversation, on the panel level so it reads as part
+/// How much of the bar a minimized call's plate may take.
+const double _kCallPlateShare = 0.4;
+
+/// The Window title bar card: the app's mark, the chat list toggle, a
+/// minimized call and the state of the selected conversation, on the panel level so it reads as part
 /// of the window's frame. The desktop window frame adds the window buttons
 /// and the drag area; a phone has no title bar.
 class MoshTitleBar extends ConsumerWidget {
@@ -63,7 +73,8 @@ class MoshTitleBar extends ConsumerWidget {
   final VoidCallback? onToggleChatList;
   final bool integrated;
 
-  /// False during setup, whose bar is the mark alone.
+  /// False during setup, whose bar is the mark alone: it has no name and,
+  /// with no chats yet, no call.
   final bool showName;
 
   /// What the window puts before the bar's own content: the buttons of a
@@ -82,12 +93,13 @@ class MoshTitleBar extends ConsumerWidget {
     }
     final active =
         onOpenPeerStatus == null ? null : ref.watch(activeConversationProvider);
+    final call =
+        showName && ref.watch(callPresentationProvider) == CallForm.plate;
     return Material(
       color: MoshColors.of(context).surfaceContainerLow,
       child: ConstrainedBox(
         constraints: const BoxConstraints(minHeight: height),
         child: LayoutBuilder(builder: (context, constraints) {
-          final scale = MediaQuery.textScalerOf(context).scale(14) / 14;
           return Row(children: [
             leading,
             SizedBox(width: showChatList ? MoshSpace.s1 : MoshSpace.s3),
@@ -97,18 +109,9 @@ class MoshTitleBar extends ConsumerWidget {
             ],
             Expanded(
                 child: _branding(context,
-                    showName: showName && constraints.maxWidth >= 480 * scale)),
-            if (active != null)
-              Padding(
-                  padding: const EdgeInsets.only(left: MoshSpace.s2),
-                  child: ConstrainedBox(
-                    constraints:
-                        const BoxConstraints(maxWidth: _kStatePillMaxWidth),
-                    child: _StatePillSlot(
-                        activeKey: active,
-                        compact: constraints.maxWidth < _kCompactWidth * scale,
-                        onTap: onOpenPeerStatus!),
-                  )),
+                    showName: showName &&
+                        constraints.maxWidth >= 480 * _textScale(context))),
+            ..._callAndState(context, active, constraints.maxWidth, call: call),
             if (trailing case final buttons?) ...[
               const SizedBox(width: MoshSpace.s2),
               buttons,
@@ -119,6 +122,35 @@ class MoshTitleBar extends ConsumerWidget {
       ),
     );
   }
+
+  static double _textScale(BuildContext context) =>
+      MediaQuery.textScalerOf(context).scale(14) / 14;
+
+  /// A minimized call's plate and the state pill, at the right of a bar
+  /// [width] wide and outside the room the window is dragged by. Where the
+  /// bar is short of room for both, the pill is its dot.
+  List<Widget> _callAndState(
+          BuildContext context, ActiveConversation? active, double width,
+          {required bool call}) =>
+      [
+        if (call)
+          ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: width * _kCallPlateShare),
+              child: const TitleBarCall()),
+        if (active != null)
+          Padding(
+              padding: const EdgeInsets.only(left: MoshSpace.s2),
+              child: ConstrainedBox(
+                constraints:
+                    const BoxConstraints(maxWidth: _kStatePillMaxWidth),
+                child: _StatePillSlot(
+                    activeKey: active,
+                    compact: width <
+                        (call ? _kCompactWidthWithCall : _kCompactWidth) *
+                            _textScale(context),
+                    onTap: onOpenPeerStatus!),
+              )),
+      ];
 
   /// The mark and the name. They fill the bar between its controls, so the
   /// window is dragged by them and by the empty bar beside them.

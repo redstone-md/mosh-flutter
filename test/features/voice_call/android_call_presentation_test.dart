@@ -9,6 +9,8 @@ import 'package:mosh/src/features/voice_call/floating_call_view.dart';
 import 'package:mosh/src/app/mosh_select.dart';
 import 'package:mosh/src/app/mosh_theme.dart';
 import 'package:mosh/src/features/voice_call/call_view.dart';
+import 'package:mosh/src/features/voice_call/call_view_state.dart';
+import 'package:mosh/src/features/voice_call/call_video_stage.dart';
 import 'package:mosh/src/features/voice_call/voice_call_host.dart';
 import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/rust/native_call/types.dart' as native;
@@ -81,7 +83,8 @@ void main() {
           () => Future<void>.delayed(const Duration(milliseconds: 20)));
       await tester.pump();
       expect(find.byType(VoiceCallHost), findsOneWidget);
-      expect(tester.widget<CallView>(find.byType(CallView)).compact, false);
+      expect(
+          tester.widget<CallView>(find.byType(CallView)).form, CallForm.open);
       expect(find.byType(Texture), video ? findsWidgets : findsNothing);
       expect(bridge.lastCall(BridgeMethod.nativeCallShowVideoAt)?.args,
           video ? _full : isNull,
@@ -95,11 +98,13 @@ void main() {
       await tester.binding.handlePopRoute();
       await tester.pumpAndSettle();
       expect(find.byType(MoshSelect<String?>), findsNothing);
-      expect(tester.widget<CallView>(find.byType(CallView)).compact, false);
+      expect(
+          tester.widget<CallView>(find.byType(CallView)).form, CallForm.open);
 
       await tester.binding.handlePopRoute();
       await tester.pumpAndSettle();
-      expect(tester.widget<CallView>(find.byType(CallView)).compact, true);
+      expect(tester.widget<CallView>(find.byType(CallView)).form,
+          video ? CallForm.tile : CallForm.strip);
       expect(
           find.byType(FloatingCallView), video ? findsOneWidget : findsNothing);
       if (video) {
@@ -117,9 +122,11 @@ void main() {
       await tester.pumpAndSettle();
       expect(
           find.byType(FloatingCallView), video ? findsOneWidget : findsNothing);
-      await tester.tap(find.byTooltip('Expand call'));
+      await tester.tap(
+          video ? find.byType(CallVideoStage) : find.byTooltip('Expand call'));
       await tester.pumpAndSettle();
-      expect(tester.widget<CallView>(find.byType(CallView)).compact, false);
+      expect(
+          tester.widget<CallView>(find.byType(CallView)).form, CallForm.open);
       await tester.tap(find.byTooltip('Minimize call'));
       await tester.pumpAndSettle();
       expect(
@@ -128,7 +135,7 @@ void main() {
       expect(
           configurations.last.arguments, {'call': 'dm/call', 'video': video});
       if (video) {
-        await tester.tap(find.byTooltip('Expand call'));
+        await tester.tap(find.byType(CallVideoStage));
         await tester.pumpAndSettle();
         await tester.tap(find.byTooltip('Call devices'));
         await tester.pumpAndSettle();

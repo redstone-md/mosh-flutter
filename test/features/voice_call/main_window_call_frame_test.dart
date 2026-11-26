@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mosh/src/features/voice_call/call_view_state.dart';
 import 'package:mosh/src/features/voice_call/main_window_call_frame.dart';
 import '../../support/pump.dart';
 
@@ -16,8 +17,7 @@ void main() {
           tester,
           const Scaffold(
               body: MainWindowCallFrame(
-                  expanded: false,
-                  video: true,
+                  form: CallForm.tile,
                   child: ColoredBox(key: video, color: Colors.black))));
       final gesture =
           await tester.startGesture(tester.getCenter(find.byKey(video)));

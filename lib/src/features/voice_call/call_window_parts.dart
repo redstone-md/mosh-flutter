@@ -10,6 +10,7 @@ import 'package:mosh/src/platform/desktop_window_controller.dart';
 import 'call_button.dart';
 import 'call_controls.dart';
 import 'call_notice.dart';
+import 'call_who_line.dart';
 
 /// The three shapes the Call window card is drawn in.
 enum CallWindowForm {
@@ -119,26 +120,9 @@ class CallWhoPlate extends StatelessWidget {
           // Centred on the plate; the row alone would hang from its top.
           child: Center(
               widthFactor: 1,
-              child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.baseline,
-                  textBaseline: TextBaseline.alphabetic,
-                  spacing: MoshSpace.s2,
-                  children: [
-                    Flexible(
-                        child: Text(peer,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: theme.textTheme.labelLarge
-                                ?.copyWith(color: colors.onSurface))),
-                    Flexible(
-                        child: Text(status,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: theme.textTheme.labelMedium?.copyWith(
-                                color: colors.onSurfaceVariant,
-                                fontFeatures: statusFontFeatures))),
-                  ])),
+              child: CallWhoLine(
+                  peer: peer,
+                  line: CallLine(status, fontFeatures: statusFontFeatures))),
         ),
       ),
     ));
@@ -221,14 +205,14 @@ class CallFoot extends StatelessWidget {
   const CallFoot(
       {super.key,
       required this.form,
-      required this.buttons,
+      required this.controls,
       required this.onDockHover,
       this.notice});
 
   final CallWindowForm form;
 
-  /// The call's buttons, larger on a phone held upright.
-  final List<Widget> Function({required bool large}) buttons;
+  /// The call's buttons, drawn larger on a phone held upright.
+  final List<CallControl> controls;
   final CallNotice? notice;
 
   /// Whether the pointer came over the dock or left it.
@@ -259,8 +243,7 @@ class CallFoot extends StatelessWidget {
             // A window narrower than the dock scales it down.
             child: FittedBox(
                 fit: BoxFit.scaleDown,
-                child: CallDock(
-                    large: upright, buttons: buttons(large: upright)))),
+                child: CallDock(large: upright, controls: controls))),
       ]),
     );
   }

@@ -1,6 +1,6 @@
 import 'package:mosh/src/features/background/android_waiting_owner.dart';
 import 'package:mosh/src/platform/ios_system_calls.dart';
-import 'call_media_view.dart';
+import 'call_view_wiring.dart';
 import 'call_notification_details.dart';
 import 'dart:async';
 import 'dart:io' show Platform;
@@ -18,7 +18,6 @@ import 'package:mosh/src/features/voice_call/call_view.dart';
 import 'package:mosh/src/features/voice_call/call_view_state.dart';
 import 'package:mosh/src/features/voice_call/call_window_parts.dart'
     show CallFullScreen;
-import 'package:mosh/src/features/voice_call/call_decline.dart';
 import 'package:mosh/src/state/voice_call_start_provider.dart';
 import 'package:mosh/src/state/notifications_provider.dart';
 import 'package:mosh/src/state/voice_call_orchestrator_provider.dart';
@@ -32,11 +31,10 @@ class VoiceCallLayer extends ConsumerStatefulWidget {
     required this.l,
     this.onVoiceCallError,
     this.onOpenConversation,
-    this.onExpand,
-    this.compact = true,
+    this.onOpen,
+    this.form = CallForm.strip,
     this.video,
     this.onMinimize,
-    this.floating = false,
     this.peerOverride,
     this.fullScreen,
   });
@@ -46,11 +44,14 @@ class VoiceCallLayer extends ConsumerStatefulWidget {
   final AppLocalizations l;
   final void Function(String? message)? onVoiceCallError;
   final VoidCallback? onOpenConversation;
-  final VoidCallback? onExpand;
-  final bool compact;
+  final VoidCallback? onOpen;
+
+  /// Where the call is drawn. The title bar draws the plate itself, so in
+  /// that form the layer keeps the call's notification and errors and shows
+  /// nothing.
+  final CallForm form;
   final ValueListenable<CallVideoPictures>? video;
   final VoidCallback? onMinimize;
-  final bool floating;
   final CallFullScreen? fullScreen;
 
   @override
@@ -90,31 +91,18 @@ class _VoiceCallLayerState extends ConsumerState<VoiceCallLayer> {
       _notifiedCall = null;
       _clearNotification();
     }
-    final call = CallViewState.fromDialog(
-      widget.sessionId,
-      dialog,
-      fallback: widget.l.callPeerFallback,
-      peerOverride: widget.peerOverride,
-      muted: state.muted,
-      media: state.nativeMedia == null
-          ? null
-          : CallMediaView.fromSnapshot(state.nativeMedia!,
-              cameraRequested: state.cameraRequested),
-      audioReady: state.audioReady,
-      audioFailed: state.audioFailed,
-      busy: state.busy,
-      occupancyConflict: state.occupancyConflict,
-      error: state.error?.cause.describe(widget.l),
-    );
-    if (call == null) return const SizedBox.shrink();
+    final call = callViewOf(widget.sessionId, state, widget.l,
+        peerOverride: widget.peerOverride);
+    if (call == null || widget.form == CallForm.plate) {
+      return const SizedBox.shrink();
+    }
     return CallView(
         call: call,
-        compact: widget.compact,
+        form: widget.form,
         video: widget.video,
         onDeviceSelected: _act,
-        onExpand: widget.onExpand,
+        onOpen: widget.onOpen,
         onMinimize: widget.onMinimize,
-        floating: widget.floating,
         fullScreen: widget.fullScreen,
         onAction: (action) => _act(call.command(action)));
   }
@@ -133,37 +121,8 @@ class _VoiceCallLayerState extends ConsumerState<VoiceCallLayer> {
         .clearError();
   }
 
-  void _act(CallViewCommand command) {
-    final state = ref.read(voiceCallOrchestratorProvider(widget.sessionId));
-    if ((state.busy && !command.action.availableWhileBusy) ||
-        !command.matchesCall(widget.sessionId, state.dialog.callId,
-            supersededCallId: state.dialog.supersededCallId)) {
-      return;
-    }
-    final notifier =
-        ref.read(voiceCallOrchestratorProvider(widget.sessionId).notifier);
-    final id = command.callId;
-    switch (command.action) {
-      case CallViewAction.accept:
-        unawaited(notifier.acceptCall(id));
-      case CallViewAction.decline:
-        unawaited(notifier.declineCall(id, kCallDeclineReasonUser));
-      case CallViewAction.end:
-        unawaited(notifier.endCall(id, kCallDeclineReasonHangup));
-      case CallViewAction.mute:
-        notifier.toggleMute();
-      case CallViewAction.camera:
-        unawaited(notifier.toggleCamera());
-      case CallViewAction.selectInput:
-        unawaited(notifier.selectInput(command.deviceId));
-      case CallViewAction.selectOutput:
-        unawaited(notifier.selectOutput(command.deviceId));
-      case CallViewAction.selectCamera:
-        unawaited(notifier.selectCamera(command.deviceId));
-      case CallViewAction.openConversation:
-        widget.onOpenConversation?.call();
-    }
-  }
+  void _act(CallViewCommand command) => runCallCommand(ref, command,
+      onOpenConversation: widget.onOpenConversation);
 
   Future<void> _notify(IncomingCallDialog dialog) async {
     if (ref.read(androidWaitingOwnerProvider)?.attached == true ||
