@@ -66,6 +66,12 @@ class _ChatDropZoneState extends State<ChatDropZone> {
     final xfile = detail.files.first;
     final Uint8List bytes;
     try {
+      // Reject before reading, as the paperclip does: a dropped multi-gigabyte
+      // video must not be loaded into RAM only to be refused.
+      if (await xfile.length() > widget.maxBytes) {
+        widget.onError(AttachmentPickError.tooLarge);
+        return;
+      }
       bytes = await xfile.readAsBytes();
     } on Exception {
       return; // unreadable file -- drop silently ignored

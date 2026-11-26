@@ -11,7 +11,7 @@
 //      a real dropped file ingests through `onAttach`.
 import 'dart:async' show Completer;
 import 'dart:convert' show base64Decode;
-import 'dart:io' show Directory, File, Platform;
+import 'dart:io' show Directory, File, IOOverrides, Platform;
 import 'dart:typed_data' show ByteData, Uint8List;
 
 import 'package:flutter/material.dart';
@@ -21,7 +21,8 @@ import 'package:image/image.dart' as img;
 
 import 'package:mosh/src/features/shared/attachment_picker.dart'
     show AttachmentPickError, PickedAttachment, ingestAttachment;
-import 'package:mosh/src/features/shared/chat_drop_zone.dart' show ChatDropZone;
+import 'package:mosh/src/features/shared/chat_drop_zone.dart'
+    show ChatDropZone, kAttachmentMaxBytes;
 import '../../support/pump.dart';
 
 Uint8List _png(int w, int h, int rgb) {
@@ -51,6 +52,44 @@ String _tempPath(String name) {
   // `Platform.pathSeparator`) yields just `name` -- mirrors how a real OS
   // drop delivers a backslash-separated path on Windows.
   return '${Directory.systemTemp.path}${Platform.pathSeparator}$name';
+}
+
+/// A dropped file far over the attach ceiling that counts every read.
+class _HugeFile implements File {
+  _HugeFile(this.path);
+
+  @override
+  final String path;
+  int reads = 0;
+
+  @override
+  Future<int> length() async => kAttachmentMaxBytes * 100;
+
+  @override
+  Future<Uint8List> readAsBytes() async {
+    reads++;
+    return Uint8List(4);
+  }
+
+  @override
+  Stream<List<int>> openRead([int? start, int? end]) {
+    reads++;
+    return Stream.value(Uint8List(4));
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+/// Hands the drop its [file] for that one path.
+final class _HugeFileOverrides extends IOOverrides {
+  _HugeFileOverrides(this.file);
+
+  final _HugeFile file;
+
+  @override
+  File createFile(String path) =>
+      path == file.path ? file : super.createFile(path);
 }
 
 void main() {
@@ -239,6 +278,33 @@ void main() {
       await tester.pump();
       expect(error, AttachmentPickError.previewUnavailable);
       expect(tester.takeException(), isNull);
+    });
+
+    // Regression (CodeAnt PR #10): a dropped file was read whole before the
+    // size check, so a multi-gigabyte video went into RAM.
+    testWidgets('an oversize drop is refused before it is read',
+        (tester) async {
+      final huge = _HugeFile(_tempPath('mosh-drop-huge.bin'));
+      final previous = IOOverrides.current;
+      IOOverrides.global = _HugeFileOverrides(huge);
+      addTearDown(() => IOOverrides.global = previous);
+      final errors = <AttachmentPickError>[];
+      var attached = 0;
+      await pumpZone(
+        tester,
+        disabled: false,
+        onAttach: (_) => attached++,
+        onError: errors.add,
+      );
+      await _invokePlatformMethod(const MethodCall('entered', [400.0, 300.0]));
+      await tester.pump();
+      // The fake file answers in microtasks, so the fake clock suffices.
+      await _invokePlatformMethod(MethodCall('performOperation', [huge.path]));
+      await tester.pump();
+
+      expect(attached, 0);
+      expect(errors, [AttachmentPickError.tooLarge]);
+      expect(huge.reads, 0);
     });
 
     testWidgets('disabled: no overlay while dragging (no-op)', (tester) async {
