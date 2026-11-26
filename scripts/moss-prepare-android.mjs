@@ -15,6 +15,7 @@ import path from "node:path";
 import process from "node:process";
 import os from "node:os";
 import { prepareOpenMls } from "./openmls-prepare.mjs";
+import { ndkHostTag } from "./support/android-ndk.mjs";
 
 await prepareOpenMls();
 
@@ -27,19 +28,6 @@ const MOSS_DIR = path.resolve("moss");
 // API level. The clang wrapper is named <triple><api>-clang.
 const NDK_API_LEVEL = "24";
 const NDK_TRIPLE = "aarch64-linux-android";
-
-function ndkHostTag() {
-  switch (process.platform) {
-    case "win32":
-      return "windows-x86_64";
-    case "linux":
-      return "linux-x86_64";
-    case "darwin":
-      return "darwin-x86_64";
-    default:
-      throw new Error(`Unsupported NDK host platform: ${process.platform}`);
-  }
-}
 
 function resolveNdkRoot() {
   const root = process.env.ANDROID_NDK_HOME ?? process.env.ANDROID_NDK_ROOT;

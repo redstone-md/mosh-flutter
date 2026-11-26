@@ -8,6 +8,7 @@ import { copyFile, mkdir, rm } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { prepareLibwebrtc, prepareLiveKitWebrtc } from './livekit-webrtc-prepare.mjs';
+import { ndkToolchain } from './support/android-ndk.mjs';
 import { nativeProtoc } from './support/native-protoc.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -16,13 +17,13 @@ if (!ndk) throw new Error('ANDROID_NDK_HOME is required');
 const archive = process.env.MOSH_LIBWEBRTC_ARCHIVE;
 if (!archive) throw new Error('MOSH_LIBWEBRTC_ARCHIVE is required: build the APK through Gradle');
 const target = 'aarch64-linux-android';
-const tool = path.join(ndk, 'toolchains/llvm/prebuilt/linux-x86_64/bin');
+const tools = ndkToolchain(ndk, { triple: target, api: 26 });
 const targetRoot = path.join(root, '.dart_tool/native-media/target');
 const env = { ...process.env, PROTOC: await nativeProtoc(root),
-  CC_aarch64_linux_android: path.join(tool, 'aarch64-linux-android26-clang'),
-  CXX_aarch64_linux_android: path.join(tool, 'aarch64-linux-android26-clang++'),
-  AR_aarch64_linux_android: path.join(tool, 'llvm-ar'),
-  CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER: path.join(tool, 'aarch64-linux-android26-clang'),
+  CC_aarch64_linux_android: tools.cc,
+  CXX_aarch64_linux_android: tools.cxx,
+  AR_aarch64_linux_android: tools.ar,
+  CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER: tools.cc,
   CARGO_TARGET_AARCH64_LINUX_ANDROID_RUSTFLAGS: '-C link-arg=-Wl,-z,max-page-size=16384',
   CMAKE_TOOLCHAIN_FILE_aarch64_linux_android: path.join(root, 'scripts/support/android-media-toolchain.cmake'),
   CMAKE_GENERATOR_aarch64_linux_android: 'Ninja',
