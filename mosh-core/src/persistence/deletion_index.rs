@@ -4,17 +4,19 @@ use crate::message_deletion::DeletionRecord;
 const READY: &str = "\0ready-v1";
 
 impl Persistence {
+    /// Builds the deletion index once. The encrypted READY marker doubles as
+    /// the open-time key check: a foreign DEK fails to decrypt it.
     pub(super) fn initialize_deletion_index(
         &self,
         tx: &redb::WriteTransaction,
     ) -> Result<(), PersistenceError> {
         let ready = {
             let table = tx.open_table(MESSAGE_DELETION_TARGETS).map_err(db_error)?;
-            let ready = table.get(READY).map_err(db_error)?.is_some();
-            ready
+            let ready = table.get(READY).map_err(db_error)?;
+            ready.map(|marker| decrypt_blob(&self.dek, marker.value()))
         };
-        if ready {
-            return Ok(());
+        if let Some(marker) = ready {
+            return marker.map(drop);
         }
         let rows = tx.open_table(MESSAGE_DELETIONS).map_err(db_error)?;
         for row in rows.iter().map_err(db_error)? {
