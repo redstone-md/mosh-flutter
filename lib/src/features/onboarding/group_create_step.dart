@@ -87,16 +87,18 @@ class _GroupCreateStepState extends ConsumerState<GroupCreateStep> {
       await ref
           .read(conversationListProvider(ConversationKind.group).notifier)
           .refresh();
-      await Clipboard.setData(ClipboardData(text: created.inviteUri));
       if (!mounted) return;
-      setState(() {
-        _created = created;
-        _copied = true;
-      });
+      setState(() => _created = created);
+      // The group exists now: a busy clipboard only leaves it uncopied, and
+      // the result's Copy button is still there.
+      await Clipboard.setData(ClipboardData(text: created.inviteUri));
+      if (mounted) setState(() => _copied = true);
     } catch (e) {
       // The inline error is the one source of truth (no SnackBar), and its
       // wording comes from the bridge kind when the seam threw one.
-      if (mounted) setState(() => _error = ConversationActionError.of(e));
+      if (mounted && _created == null) {
+        setState(() => _error = ConversationActionError.of(e));
+      }
     } finally {
       if (mounted) setState(() => _busy = false);
     }

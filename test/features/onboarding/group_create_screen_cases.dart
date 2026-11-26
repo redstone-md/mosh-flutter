@@ -130,6 +130,30 @@ void main() {
     expect(throwing.countOf(BridgeMethod.listGroups), listed);
   });
 
+  // Regression (CodeAnt PR #8): a busy clipboard after the group was made
+  // showed an error over the created group, and Create again made another.
+  testWidgets('a refused auto-copy still shows the group just created',
+      (tester) async {
+    final bridge = ScriptableBridge();
+    await pumpGroupStep(tester, bridge: bridge);
+    tester.binding.defaultBinaryMessenger
+        .setMockMethodCallHandler(SystemChannels.platform, (call) async {
+      if (call.method == 'Clipboard.setData') {
+        throw PlatformException(code: 'clipboard busy');
+      }
+      return null;
+    });
+    addTearDown(() => tester.binding.defaultBinaryMessenger
+        .setMockMethodCallHandler(SystemChannels.platform, null));
+
+    await createNamed(tester, 'friends');
+
+    expect(find.byType(InviteResult), findsOneWidget);
+    expect(find.text('mosh://group/fake-group-friends'), findsOneWidget);
+    expect(find.widgetWithText(OutlinedButton, 'Copied'), findsNothing);
+    expect(bridge.countOf(BridgeMethod.createGroup), 1);
+  });
+
   testWidgets('Open group lands on the group just created', (tester) async {
     final gateway = ScriptableGateway();
     final bridge = ScriptableBridge(conversations: gateway.conversations);
