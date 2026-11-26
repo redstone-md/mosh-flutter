@@ -15,6 +15,7 @@ internal class MoshCallAudio(context: Context) {
     private var active = false
     private var previousMode = AudioManager.MODE_NORMAL
     private var previousSpeaker = false
+    private var sco = false
     private val focus = AudioFocusRequest.Builder(AudioManager.AUDIOFOCUS_GAIN_TRANSIENT)
         .setAudioAttributes(AudioAttributes.Builder()
             .setUsage(AudioAttributes.USAGE_VOICE_COMMUNICATION)
@@ -51,10 +52,20 @@ internal class MoshCallAudio(context: Context) {
     private fun routes(): List<AudioDeviceInfo> = if (Build.VERSION.SDK_INT >= 31) {
         manager.availableCommunicationDevices
     } else {
-        manager.getDevices(AudioManager.GET_DEVICES_OUTPUTS).filter {
-            it.type == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER ||
-                it.type == AudioDeviceInfo.TYPE_BUILTIN_EARPIECE
+        MoshCallAudioPolicy.legacyOutputs(manager.getDevices(AudioManager.GET_DEVICES_OUTPUTS).asList()) { it.type }
+    }
+
+    // Android 8-11 reaches a Bluetooth headset through an SCO link the app
+    // requests; it connects asynchronously, so a pick means it was asked for.
+    @Suppress("DEPRECATION")
+    private fun routeLegacy(route: MoshCallAudioPolicy.LegacyRoute) {
+        val bluetooth = route == MoshCallAudioPolicy.LegacyRoute.BLUETOOTH
+        if (bluetooth != sco) {
+            if (bluetooth) manager.startBluetoothSco() else manager.stopBluetoothSco()
+            manager.isBluetoothScoOn = bluetooth
+            sco = bluetooth
         }
+        manager.isSpeakerphoneOn = route == MoshCallAudioPolicy.LegacyRoute.SPEAKER
     }
 
     @Synchronized
@@ -72,16 +83,8 @@ internal class MoshCallAudio(context: Context) {
         val ok = when {
             Build.VERSION.SDK_INT >= 31 && device != null -> manager.setCommunicationDevice(device)
             Build.VERSION.SDK_INT >= 31 -> { manager.clearCommunicationDevice(); id == null }
-            device != null -> {
-                @Suppress("DEPRECATION")
-                manager.isSpeakerphoneOn = device.type == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER
-                true
-            }
-            else -> {
-                @Suppress("DEPRECATION")
-                manager.isSpeakerphoneOn = false
-                id == null
-            }
+            device != null -> { routeLegacy(MoshCallAudioPolicy.legacyRoute(device.type)); true }
+            else -> { routeLegacy(MoshCallAudioPolicy.LegacyRoute.HANDSET); id == null }
         }
         val input = value.optString("input").takeUnless { it.isBlank() || it == "null" }
         return JSONObject().put("input_ok", MoshCallAudioPolicy.acceptsInput(microphonePresent(), input))
@@ -93,6 +96,7 @@ internal class MoshCallAudio(context: Context) {
         if (!active) return
         if (Build.VERSION.SDK_INT >= 31) manager.clearCommunicationDevice()
         else {
+            routeLegacy(MoshCallAudioPolicy.LegacyRoute.HANDSET)
             @Suppress("DEPRECATION")
             manager.isSpeakerphoneOn = previousSpeaker
         }
