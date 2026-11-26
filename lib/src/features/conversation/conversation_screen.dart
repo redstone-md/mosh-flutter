@@ -56,6 +56,10 @@ class ConversationScreen extends ConsumerStatefulWidget {
 class _ConversationScreenState extends ConsumerState<ConversationScreen> {
   final TextEditingController _composer = TextEditingController();
   int _composerRevision = 0;
+
+  /// Unsent drafts of the conversations this reused screen has shown, by
+  /// conversation key, so a draft stays with the chat it was typed in.
+  final Map<String, TextEditingValue> _drafts = {};
   String _search = '';
   ConversationFilter _filter = ConversationFilter.all;
   bool _mobileSearchOpen = false;
@@ -127,10 +131,15 @@ class _ConversationScreenState extends ConsumerState<ConversationScreen> {
   @override
   void didUpdateWidget(covariant ConversationScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // The router can reuse this screen for another conversation. Close the
-    // mobile search panel so the new one does not inherit it, and point the
-    // unread lifecycle at the conversation now on screen.
+    // The router can reuse this screen for another conversation. Swap in that
+    // conversation's draft, close the mobile search panel so the new one does
+    // not inherit it, and point the unread lifecycle at it.
     if (widget.target != oldWidget.target) {
+      if (_composer.text.isNotEmpty) {
+        _drafts[oldWidget.target.key] = _composer.value;
+      }
+      _composer.value =
+          _drafts.remove(widget.target.key) ?? TextEditingValue.empty;
       _composerRevision++;
       _mobileSearchOpen = false;
       _showPeerStatus = null;
