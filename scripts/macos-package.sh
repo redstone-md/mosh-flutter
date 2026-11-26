@@ -16,10 +16,14 @@ APP="$ROOT/build/macos/Build/Products/Release/mosh.app"
 VERSION="$(sed -n 's/^version:[[:space:]]*\([^+[:space:]]*\).*/\1/p' "$ROOT/pubspec.yaml")"
 DIST="$ROOT/build/macos-dist"
 UNIVERSAL="${MOSH_MACOS_UNIVERSAL:-true}"
+# A host-only build (moss-prepare.mjs with MOSH_MACOS_UNIVERSAL=false) carries
+# just the host's slice; a universal one carries both.
 if [ "$UNIVERSAL" = "false" ]; then
   ARCH_SUFFIX="$(uname -m)"
+  REQUIRED_ARCHS="$ARCH_SUFFIX"
 else
   ARCH_SUFFIX="universal"
+  REQUIRED_ARCHS="arm64 x86_64"
 fi
 DMG="$DIST/Mosh_${VERSION}_${ARCH_SUFFIX}.dmg"
 BACKGROUND="$ROOT/macos/packaging/dmg-background.png"
@@ -43,23 +47,13 @@ CAMERA_HELPER="$APP/Contents/Helpers/mosh-camera-capture"
 # dylib in the bundle (mosh_core from cargokit, libmoss from the copy phase).
 while IFS= read -r -d '' binary; do
   archs="$(lipo -archs "$binary" 2>/dev/null || true)"
-  case "$archs" in
-    *arm64* | *x86_64*) ;;
-    *) fail "unexpected or missing archs '$archs' for $binary" ;;
-  esac
-  case "$archs" in
-    *arm64*) ;;
-    *) fail "no arm64 slice in $binary" ;;
-  esac
-  if [ "$UNIVERSAL" != "false" ]; then
+  for arch in $REQUIRED_ARCHS; do
     case "$archs" in
-      *x86_64*) ;;
-      *) fail "no x86_64 slice in $binary" ;;
+      *"$arch"*) ;;
+      *) fail "no $arch slice in $binary (archs: '$archs')" ;;
     esac
-    echo "universal ok: ${binary#"$APP"/} ($archs)"
-  else
-    echo "arch check ok: ${binary#"$APP"/} ($archs)"
-  fi
+  done
+  echo "$ARCH_SUFFIX ok: ${binary#"$APP"/} ($archs)"
 done < <(find "$APP/Contents/MacOS" "$APP/Contents/Frameworks" "$APP/Contents/Helpers" -maxdepth 1 \( -name '*.dylib' -o -path "$APP/Contents/MacOS/mosh" -o -path "$CAMERA_HELPER" \) -print0)
 
 # --- Signing --------------------------------------------------------------------

@@ -10,8 +10,10 @@ import test from "node:test";
 // compilation, codesign verification and notarization run in the macOS CI
 // lane. `notaryStatus` asks for notarization, hands the script an App Store
 // Connect key (unless `notaryKey` is false) and makes the stubbed notary
-// service answer with that status.
-async function packageFixture({ helperArchs = "arm64 x86_64", notaryStatus, notaryKey = true } = {}) {
+// service answer with that status. `hostArch` set packages a host-only build
+// on a Mac of that arch, every binary carrying just `archs`.
+async function packageFixture({ helperArchs, archs = "arm64 x86_64", hostArch, notaryStatus,
+  notaryKey = true } = {}) {
   const root = await mkdtemp(path.join(os.tmpdir(), "mosh-macos-package-"));
   try {
     const app = path.join(root, "build/macos/Build/Products/Release/mosh.app");
@@ -35,7 +37,8 @@ async function packageFixture({ helperArchs = "arm64 x86_64", notaryStatus, nota
     const bin = path.join(root, "bin");
     await mkdir(bin);
     const commands = {
-      lipo: 'case "$2" in *mosh-camera-capture) echo "$MOSH_TEST_HELPER_ARCHS" ;; *) echo "arm64 x86_64" ;; esac',
+      lipo: 'case "$2" in *mosh-camera-capture) echo "$MOSH_TEST_HELPER_ARCHS" ;; *) echo "$MOSH_TEST_ARCHS" ;; esac',
+      uname: 'echo "$MOSH_TEST_HOST_ARCH"',
       codesign: 'printf "%s\\n" "$*" >> "$MOSH_TEST_SIGN_LOG"\ncase "$1" in -dvv) echo "Authority=Developer ID Application: Fixture (FIXTURE123)" >&2 ;; esac',
       "create-dmg": 'for arg in "$@"; do previous=${last:-}; last=$arg; done\ntouch "$previous"',
       xcrun: [
@@ -63,10 +66,11 @@ async function packageFixture({ helperArchs = "arm64 x86_64", notaryStatus, nota
     const result = spawnSync("bash", [path.join(root, "scripts/macos-package.sh")], {
       encoding: "utf8",
       env: { ...process.env, PATH: `${bin}${path.delimiter}${process.env.PATH}`,
-        MOSH_SIGN_IDENTITY: "fixture-identity", MOSH_MACOS_UNIVERSAL: "true",
-        MOSH_TEST_HELPER_ARCHS: helperArchs, MOSH_TEST_SIGN_LOG: signLog, ...notary },
+        MOSH_SIGN_IDENTITY: "fixture-identity", MOSH_MACOS_UNIVERSAL: String(!hostArch),
+        MOSH_TEST_HOST_ARCH: hostArch ?? "arm64", MOSH_TEST_ARCHS: archs,
+        MOSH_TEST_HELPER_ARCHS: helperArchs ?? archs, MOSH_TEST_SIGN_LOG: signLog, ...notary },
     });
-    const dmg = path.join(root, "build/macos-dist/Mosh_1.0.0_universal.dmg");
+    const dmg = path.join(root, `build/macos-dist/Mosh_1.0.0_${hostArch ?? "universal"}.dmg`);
     return { ...result, signing: await readFile(signLog, "utf8").catch(() => ""),
       dmg: await readFile(dmg).catch(() => null),
       checksum: await readFile(`${dmg}.sha256`, "utf8").catch(() => null) };
@@ -77,6 +81,18 @@ async function packageFixture({ helperArchs = "arm64 x86_64", notaryStatus, nota
 
 test("universal packaging rejects a camera helper missing its x86_64 slice", async () => {
   const result = await packageFixture({ helperArchs: "arm64" });
+  assert.equal(result.status, 1, result.stdout + result.stderr);
+  assert.match(result.stderr, /no x86_64 slice.*mosh-camera-capture/);
+});
+
+test("an Intel host-only build packages without an arm64 slice", async () => {
+  const result = await packageFixture({ archs: "x86_64", hostArch: "x86_64" });
+  assert.equal(result.status, 0, result.stdout + result.stderr);
+  assert.ok(result.dmg, "the host-only DMG must be produced");
+});
+
+test("a host-only build rejects a binary missing the host's slice", async () => {
+  const result = await packageFixture({ archs: "x86_64", helperArchs: "arm64", hostArch: "x86_64" });
   assert.equal(result.status, 1, result.stdout + result.stderr);
   assert.match(result.stderr, /no x86_64 slice.*mosh-camera-capture/);
 });
