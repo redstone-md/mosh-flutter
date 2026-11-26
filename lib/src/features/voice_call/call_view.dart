@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'call_controls.dart';
 import 'call_notice.dart';
-import 'call_button.dart' show CallTone;
 import 'call_plate.dart';
 import 'call_strip.dart';
 import 'call_who_line.dart';
@@ -101,17 +100,18 @@ class _CallViewState extends State<CallView> {
         onOpenConversation: openConversation,
         onMinimize: widget.onMinimize,
         fullScreen: widget.fullScreen,
-        controls: callControls(call, l, widget.onAction,
-            devices: widget.onDeviceSelected == null
-                ? null
-                : () => unawaited(_devices())));
+        controls: CallControls(call, l, widget.onAction,
+                devices: widget.onDeviceSelected == null
+                    ? null
+                    : () => unawaited(_devices()))
+            .dock);
   }
 
   /// The call beside the chats, in the shape of [CallView.form].
   Widget _minimized(AppLocalizations l, String label,
       List<FontFeature>? figures, VoidCallback openConversation) {
     final call = widget.call;
-    final controls = callControls(call, l, widget.onAction, camera: false);
+    final controls = CallControls(call, l, widget.onAction);
     final video = widget.video;
     if (widget.form == CallForm.tile && video != null) {
       return FloatingCallView(
@@ -119,14 +119,15 @@ class _CallViewState extends State<CallView> {
           remoteCamera: call.media?.remoteCamera == true,
           video: video,
           onOpen: widget.onOpen,
-          end: controls.firstWhere((c) => c.tone == CallTone.end));
+          end: controls.end);
     }
     if (widget.form == CallForm.card) {
       return IncomingCallCard(
           label: label,
           peer: call.peer,
           status: _status(l),
-          controls: controls,
+          decline: controls.end,
+          accept: controls.accept,
           onOpen: widget.onOpen);
     }
     final line = _line(l, figures);
@@ -135,13 +136,13 @@ class _CallViewState extends State<CallView> {
             label: label,
             peer: call.peer,
             line: line,
-            controls: controls,
+            controls: controls.minimized,
             onOpen: widget.onOpen)
         : CallStrip(
             label: label,
             peer: call.peer,
             line: line,
-            controls: controls,
+            controls: controls.minimized,
             onOpen: widget.onOpen ?? openConversation,
             openTooltip: widget.onOpen == null ? null : l.callExpand);
   }

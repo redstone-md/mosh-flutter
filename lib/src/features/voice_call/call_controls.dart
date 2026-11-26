@@ -7,30 +7,58 @@ import 'package:mosh/src/app/mosh_theme.dart';
 import 'call_button.dart';
 import 'call_view_state.dart';
 
-/// The buttons of [call], in the order of the Call window card. A ringing
-/// call offers only Decline and Accept. A minimized call has no room for
-/// the [camera] and passes no [devices].
-List<CallControl> callControls(
-    CallViewState call, AppLocalizations l, void Function(CallViewAction) act,
-    {VoidCallback? devices, bool camera = true}) {
-  final ringing = call.phase == CallViewPhase.incoming;
-  final media = !ringing && call.media != null;
-  return [
-    if (call.phase == CallViewPhase.active || media) _microphone(call, l, act),
-    if (camera && media) _camera(call, l, act),
-    if (devices != null && media)
-      CallControl(
-          icon: MoshIcons.tune,
-          tooltip: l.callDevices,
-          onPressed: call.busy ? null : devices),
-    _end(call, l, act),
-    if (ringing)
-      CallControl(
-          icon: MoshIcons.call,
-          tooltip: l.callIncomingAccept,
-          tone: CallTone.accept,
-          onPressed: call.busy ? null : () => act(CallViewAction.accept)),
-  ];
+/// The buttons [call] offers, each by what it does. A ringing call offers
+/// only to end and to accept it; the camera and the devices need the call's
+/// media, and the devices a dialog to open ([devices]).
+class CallControls {
+  factory CallControls(
+      CallViewState call, AppLocalizations l, void Function(CallViewAction) act,
+      {VoidCallback? devices}) {
+    final ringing = call.phase == CallViewPhase.incoming;
+    final media = !ringing && call.media != null;
+    return CallControls._(
+      microphone: call.phase == CallViewPhase.active || media
+          ? _microphone(call, l, act)
+          : null,
+      camera: media ? _camera(call, l, act) : null,
+      devices: devices != null && media
+          ? CallControl(
+              icon: MoshIcons.tune,
+              tooltip: l.callDevices,
+              onPressed: call.busy ? null : devices)
+          : null,
+      end: _end(call, l, act),
+      accept: ringing
+          ? CallControl(
+              icon: MoshIcons.call,
+              tooltip: l.callIncomingAccept,
+              tone: CallTone.accept,
+              onPressed: call.busy ? null : () => act(CallViewAction.accept))
+          : null,
+    );
+  }
+
+  const CallControls._(
+      {required this.end,
+      this.microphone,
+      this.camera,
+      this.devices,
+      this.accept});
+
+  final CallControl? microphone, camera, devices, accept;
+
+  /// Declines a ringing call, cancels an outgoing one or hangs up.
+  final CallControl end;
+
+  /// The open call's dock, in the order of the Call window card.
+  List<CallControl> get dock =>
+      _present([microphone, camera, devices, end, accept]);
+
+  /// What a minimized call has room for.
+  List<CallControl> get minimized => _present([microphone, end, accept]);
+
+  static List<CallControl> _present(List<CallControl?> controls) =>
+      controls.nonNulls.toList();
 }
 
 CallControl _microphone(CallViewState call, AppLocalizations l,

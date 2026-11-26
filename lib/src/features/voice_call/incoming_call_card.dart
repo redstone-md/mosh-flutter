@@ -16,20 +16,24 @@ class IncomingCallCard extends StatelessWidget {
       required this.label,
       required this.peer,
       required this.status,
-      required this.controls,
+      required this.decline,
+      required this.accept,
       required this.onOpen});
 
   static const double width = 320;
 
   final String label, peer, status;
 
-  /// The red button and, while the call can be answered, the accepting one.
-  final List<CallControl> controls;
+  final CallControl decline;
+
+  /// Null once the call has been answered.
+  final CallControl? accept;
   final VoidCallback? onOpen;
 
   @override
   Widget build(BuildContext context) {
     final colors = MoshColors.of(context);
+    final l = AppLocalizations.of(context)!;
     return Semantics(
       label: label,
       container: true,
@@ -47,8 +51,11 @@ class IncomingCallCard extends StatelessWidget {
                 children: [
                   _who(context, colors),
                   Row(spacing: MoshSpace.s2, children: [
-                    for (final control in controls)
-                      Expanded(child: _answer(context, control)),
+                    Expanded(
+                        child: _answer(decline, l.callDecline,
+                            style: moshDangerButtonStyle(context))),
+                    if (accept case final accept?)
+                      Expanded(child: _answer(accept, l.callAccept)),
                   ]),
                 ]),
           ),
@@ -88,15 +95,11 @@ class IncomingCallCard extends StatelessWidget {
     );
   }
 
-  /// A Button with the control's glyph and a word for it; the one that ends
-  /// the call is the destructive Button.
-  Widget _answer(BuildContext context, CallControl control) {
-    final l = AppLocalizations.of(context)!;
-    final accept = control.tone == CallTone.accept;
-    return FilledButton.icon(
-        onPressed: control.onPressed,
-        style: accept ? null : moshDangerButtonStyle(context),
-        icon: Icon(control.icon),
-        label: Text(accept ? l.callAccept : l.callDecline));
-  }
+  /// A Button with the control's glyph and a word for what it does.
+  Widget _answer(CallControl control, String label, {ButtonStyle? style}) =>
+      FilledButton.icon(
+          onPressed: control.onPressed,
+          style: style,
+          icon: Icon(control.icon),
+          label: Text(label));
 }
