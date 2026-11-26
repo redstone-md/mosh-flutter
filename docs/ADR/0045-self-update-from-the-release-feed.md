@@ -68,9 +68,10 @@ The feed is the release list rather than GitHub's "latest release" shorthand,
 because that shorthand means "the most recent non-prerelease" and the release
 workflow publishes `-rc` tags as pre-releases: About would stay silent about one
 until the stable build arrived. Rows are compared by version rather than by the
-date they were published, and the comparison ignores pre-release and build
-suffixes, so the highest published version wins and an installed build is never
-told it is older than it is.
+date they were published, with semver precedence: a stable version outranks its
+own release candidates and build suffixes are ignored. The highest published
+version wins, an installed `1.2.3-rc.1` is offered the stable `1.2.3`, and an
+installed build is never told it is older than it is.
 
 Only a build from the GitHub release feed updates itself (2026-10-28,
 [IVO-152](https://linear.app/ivoxygen/issue/IVO-152)). A store build — Microsoft
