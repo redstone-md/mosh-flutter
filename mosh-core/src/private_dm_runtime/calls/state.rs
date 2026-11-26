@@ -33,7 +33,8 @@ pub(crate) const INCOMING_RING_MS: u64 = 30_000;
 pub(crate) const OUTGOING_RING_MS: u64 = 45_000;
 
 impl CallPhase {
-    /// How long this side rings, counted from the first offer; none once active.
+    /// How long this side rings, counted from the first offer (from the
+    /// answer while accepting); none once active.
     pub fn ring_budget_ms(self) -> Option<u64> {
         match self {
             CallPhase::Outgoing => Some(OUTGOING_RING_MS),
@@ -58,7 +59,8 @@ pub struct CallState {
     /// The replaced outgoing call, so an already displayed cancel remains valid.
     pub merged_call_id: Option<String>,
     /// Local ring deadline starts with the caller's first offer or the callee's
-    /// first authenticated receipt. Retransmits never extend that deadline.
+    /// first authenticated receipt, and again at the callee's answer.
+    /// Retransmits never extend that deadline.
     pub offer_first_ms: u64,
     pub offer_last_ms: u64,
     pub(crate) native_controls: std::collections::VecDeque<crate::native_call::types::Signal>,
@@ -117,6 +119,24 @@ impl CallState {
             native_camera_sequence: 0,
             refused_by_other_engine: false,
         }
+    }
+
+    /// The callee answered. Waiting for the caller's selection gets a fresh
+    /// budget instead of what was left of the ring; a repeated answer does
+    /// not extend it again.
+    pub fn accept(&mut self, now_ms: u64) {
+        if self.phase == CallPhase::Ringing {
+            self.offer_first_ms = now_ms;
+        }
+        self.phase = CallPhase::Accepting;
+        self.mark_offer_sent(now_ms);
+    }
+
+    /// When this side stops ringing; `None` once the call is active.
+    pub(crate) fn ring_deadline_ms(&self) -> Option<u64> {
+        self.phase
+            .ring_budget_ms()
+            .map(|budget| self.offer_first_ms.saturating_add(budget))
     }
 
     pub fn become_active(&mut self, now_ms: u64) {
