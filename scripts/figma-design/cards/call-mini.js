@@ -1,5 +1,4 @@
-// The call while the chats are in use: what replaces CallModalCard's compact
-// strip, and FloatingCallView (the video tile that MainWindowCallFrame lets
+// The call while the chats are in use: what replaces CallStrip, and FloatingCallView (the video tile that MainWindowCallFrame lets
 // the user drag), with the screens they lie over.
 card('Minimized call', 'A call that is not open stays in sight without moving the screen. On the desktop it is a plate in the title bar: who the call is with, how long it has run, the microphone and the red button. A press on the name opens the call again; the two buttons do their own work and open nothing. A call rings in a card in the upper corner, so it can be answered without leaving the chat. The phone has no title bar, so the call is a strip above the conversation with the same parts. A call with video folds to a tile instead, which shows the picture, can be moved to any corner and opens the call when pressed.');
 

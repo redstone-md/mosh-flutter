@@ -9,6 +9,7 @@ import 'package:mosh/src/features/shared/mosh_notice.dart';
 import 'package:mosh/src/platform/desktop_window_controller.dart';
 import 'call_button.dart';
 import 'call_controls.dart';
+import 'call_notice.dart';
 
 /// The three shapes the Call window card is drawn in.
 enum CallWindowForm {
@@ -36,21 +37,6 @@ class CallFullScreen {
   const CallFullScreen({required this.window, required this.onToggle});
   final DesktopWindowController window;
   final VoidCallback onToggle;
-}
-
-/// What a call says above its buttons: a warning the call goes on with, or
-/// the error that stopped a part of it.
-class CallNotice {
-  const CallNotice.warning(this.text)
-      : tone = MoshNoticeTone.warning,
-        icon = MoshIcons.warning;
-  const CallNotice.error(this.text)
-      : tone = MoshNoticeTone.error,
-        icon = MoshIcons.error;
-
-  final MoshNoticeTone tone;
-  final IconData icon;
-  final String text;
 }
 
 /// The row along the top of the open call: the way out of it, who the call
@@ -240,7 +226,9 @@ class CallFoot extends StatelessWidget {
       this.notice});
 
   final CallWindowForm form;
-  final List<Widget> buttons;
+
+  /// The call's buttons, larger on a phone held upright.
+  final List<Widget> Function({required bool large}) buttons;
   final CallNotice? notice;
 
   /// Whether the pointer came over the dock or left it.
@@ -269,7 +257,8 @@ class CallFoot extends StatelessWidget {
             // A window narrower than the dock scales it down.
             child: FittedBox(
                 fit: BoxFit.scaleDown,
-                child: CallDock(large: upright, buttons: buttons))),
+                child: CallDock(
+                    large: upright, buttons: buttons(large: upright)))),
       ]),
     );
   }

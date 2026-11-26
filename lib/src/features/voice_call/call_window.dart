@@ -6,11 +6,10 @@ import 'package:flutter/services.dart';
 import 'package:mosh/src/app/mosh_dimensions.dart';
 import 'package:mosh/src/app/mosh_theme.dart';
 import 'package:mosh/src/features/shared/modal_focus_trap.dart';
+import 'call_notice.dart';
 import 'call_video_stage.dart';
 import 'call_video_textures.dart';
 import 'call_window_parts.dart';
-
-export 'call_window_parts.dart' show CallFullScreen, CallNotice;
 
 /// How long the buttons of a call stay over its video without a pointer
 /// move, a touch or a key.
@@ -170,19 +169,17 @@ class _CallWindowState extends State<CallWindow> {
         child: SizedBox.expand(
           child: Material(
             color: colors.surfaceContainerLowest,
-            child: SafeArea(
-              child: Listener(
-                behavior: HitTestBehavior.translucent,
-                onPointerDown: _pointer,
-                onPointerMove: _pointer,
-                onPointerHover: _pointer,
-                child: video == null
-                    ? _layers(context, const CallVideoPictures())
-                    : ValueListenableBuilder(
-                        valueListenable: video,
-                        builder: (context, pictures, _) =>
-                            _layers(context, pictures)),
-              ),
+            child: Listener(
+              behavior: HitTestBehavior.translucent,
+              onPointerDown: _pointer,
+              onPointerMove: _pointer,
+              onPointerHover: _pointer,
+              child: video == null
+                  ? _layers(context, const CallVideoPictures())
+                  : ValueListenableBuilder(
+                      valueListenable: video,
+                      builder: (context, pictures, _) =>
+                          _layers(context, pictures)),
             ),
           ),
         ),
@@ -204,7 +201,6 @@ class _CallWindowState extends State<CallWindow> {
             child: CallVideoStage(
                 video: video,
                 peer: widget.peer,
-                followsFrame: true,
                 remoteCamera: widget.remoteCamera)),
       // Always in its place, so muting does not move the controls after it.
       AnimatedOpacity(
@@ -262,7 +258,7 @@ class _CallWindowState extends State<CallWindow> {
           form: form,
           notice: widget.notice,
           onDockHover: _dock,
-          buttons: widget.buttons(large: form == CallWindowForm.upright)),
+          buttons: widget.buttons),
     ]);
   }
 }

@@ -9,7 +9,7 @@ below it instead.
 
 ## The open call
 
-The open call is the Call window card of the Components page: it takes the
+The open call (`CallWindow`) is the Call window card of the Components page: it takes the
 whole window on the lowest tone. A voice call puts the person in the middle,
 with the name and how the call is going. With video the stage takes that
 place and grows as far as the window lets it without being cut. It has the

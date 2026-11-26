@@ -56,8 +56,8 @@ export const COMPONENTS = [
   component('surfaces', 'Empty and error state', ['ConversationNotice']),
   component('surfaces', 'Media viewer', ['MediaViewer', 'media_viewer._ViewerBar', 'media_viewer._ImageStage', 'media_viewer_stages._AudioCard', 'media_viewer_stages._Unavailable', 'media_viewer_controls._PlaybackControls', 'MediaTimeLabel']),
 
-  component('call', 'Call window', ['MainWindowCallFrame']),
-  component('call', 'Call card', ['CallModalCard']),
+  component('call', 'Call window', ['MainWindowCallFrame', 'CallTopRow', 'CallWho', 'CallWhoPlate', 'CallDock', 'CallMutedMark']),
+  component('call', 'Call card', ['CallStrip']),
   component('call', 'Call video stage', ['CallVideoStage']),
   component('call', 'Call button', ['CallButton']),
   component('call', 'Floating call', ['FloatingCallView']),

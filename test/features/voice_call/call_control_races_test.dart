@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/features/voice_call/call_view.dart';
-import 'package:mosh/src/features/voice_call/call_modal_card.dart';
+import 'package:mosh/src/features/voice_call/call_strip.dart';
 import 'package:mosh/src/features/voice_call/call_view_state.dart';
 import 'package:mosh/src/features/voice_call/voice_call_host.dart';
 import 'package:mosh/src/gateway/conversation_target.dart';
@@ -135,7 +135,7 @@ void main() {
     await frames(tester);
     expect(_shown(tester).call.busy, isTrue);
     await tester.tap(find.descendant(
-        of: find.byType(CallModalCard),
+        of: find.byType(CallStrip),
         matching: find.text(_shown(tester).call.peer)));
     await frames(tester);
     expect(f.opened, 1);

@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:mosh/src/app/mosh_theme.dart';
 import 'package:mosh/src/features/shared/mosh_notice.dart';
-import 'call_window_parts.dart';
+import 'call_notice.dart';
 
 /// The strip of a minimized call: who it is with, how it is going and its
 /// buttons. The open call is the CallWindow.
-class CallModalCard extends StatelessWidget {
-  const CallModalCard({
+class CallStrip extends StatelessWidget {
+  const CallStrip({
     super.key,
     required this.label,
     required this.peer,

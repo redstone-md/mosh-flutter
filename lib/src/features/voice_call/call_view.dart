@@ -4,7 +4,9 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'call_controls.dart';
-import 'package:mosh/src/features/voice_call/call_modal_card.dart';
+import 'call_notice.dart';
+import 'call_strip.dart';
+import 'call_window_parts.dart' show CallFullScreen;
 import 'package:mosh/src/features/voice_call/call_clock.dart'
     show formatCallClock;
 import 'package:mosh/src/features/voice_call/call_view_state.dart';
@@ -85,7 +87,7 @@ class _CallViewState extends State<CallView> {
     final figures = active ? const [FontFeature.tabularFigures()] : null;
     void openConversation() => widget.onAction(CallViewAction.openConversation);
     if (widget.compact) {
-      return CallModalCard(
+      return CallStrip(
           singleLine: widget.onMinimize != null,
           label: label,
           peer: call.peer,

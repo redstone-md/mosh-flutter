@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mosh/src/features/voice_call/call_modal_card.dart';
+import 'package:mosh/src/features/voice_call/call_strip.dart';
 import 'package:mosh/src/features/voice_call/voice_call_host.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
@@ -45,7 +45,7 @@ void main() {
         final availableBottom = 600 - keyboardHeight;
         final composerRect = tester.getRect(find.byKey(composer));
         if (withCall) {
-          final strip = tester.getRect(find.byType(CallModalCard));
+          final strip = tester.getRect(find.byType(CallStrip));
           expect(strip.bottom, closeTo(availableBottom, 0.1));
           expect(composerRect.bottom, closeTo(strip.top, 0.1),
               reason: 'The nested Scaffold must not subtract the IME twice');

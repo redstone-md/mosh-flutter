@@ -10,8 +10,10 @@ import 'package:mosh/src/rust/native_call/types.dart' as native;
 import 'call_video_textures.dart';
 import 'call_video_surfaces.dart';
 
-/// The Call video stage card: a stage on the lowest tone, 16:9 unless it
-/// follows its frame, as large as what holds it lets it be. It shows the other side's video with your own
+/// The Call video stage card: a stage on the lowest tone, as large as what
+/// holds it lets it be. It has the shape of the picture that fills it, so a
+/// frame from a phone held upright is not shrunk into a wide stage, and is
+/// 16:9 until a picture arrives. It shows the other side's video with your own
 /// camera in its corner, your camera alone, or who the video is awaited from.
 /// Presentation only. Pixel changes never animate; stage presence may fade.
 class CallVideoStage extends StatelessWidget {
@@ -20,18 +22,11 @@ class CallVideoStage extends StatelessWidget {
       required this.video,
       required this.peer,
       this.alwaysVisible = false,
-      this.followsFrame = false,
       this.remoteCamera = false});
   final ValueListenable<CallVideoPictures> video;
   final String peer;
   final bool remoteCamera;
   final bool alwaysVisible;
-
-  /// Whether the stage takes the shape of the picture that fills it, so a
-  /// frame from a phone held upright is as large as the window lets it be.
-  /// Without a picture, and where the stage has a box of its own (the
-  /// floating view, picture in picture), it is 16:9.
-  final bool followsFrame;
 
   /// Whether a stage over [pictures] has anything to show.
   static bool shows(CallVideoPictures pictures, {required bool remoteCamera}) =>
@@ -58,8 +53,7 @@ class CallVideoStage extends StatelessWidget {
     final filling = pictures.remote ?? (remoteStage ? null : pictures.local);
     return AspectRatio(
       key: const ValueKey(true),
-      aspectRatio:
-          followsFrame && filling != null ? filling.aspectRatio : 16 / 9,
+      aspectRatio: filling?.aspectRatio ?? 16 / 9,
       child: LayoutBuilder(
           builder: (context, box) => CallVideoSurfaceReport(
               _surfaces(context, box.biggest, remoteStage),

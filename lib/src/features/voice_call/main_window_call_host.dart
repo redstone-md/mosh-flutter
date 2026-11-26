@@ -108,18 +108,11 @@ class _MainWindowCallHostState extends ConsumerState<MainWindowCallHost> {
       AndroidAppLockGate(
           interactive: !covered,
           child: ExcludeFocus(excluding: covered, child: widget.child)),
-      // Under the open call, so the chats do not show while it mounts or
-      // leaves.
+      // The tone of the open call, under the system's bars as well.
       if (covered)
         ColoredBox(color: MoshColors.of(context).surfaceContainerLowest),
       if (session != null)
-        // The open call paints the whole window and keeps clear of the
-        // system's bars itself.
         SafeArea(
-            left: !covered,
-            top: !covered,
-            right: !covered,
-            bottom: !covered,
             child: MainWindowCallFrame(
                 key: ValueKey(_shownCall),
                 expanded: _expanded,

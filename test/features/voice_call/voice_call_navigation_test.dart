@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:mosh/src/features/voice_call/call_modal_card.dart';
+import 'package:mosh/src/features/voice_call/call_strip.dart';
 import 'package:mosh/src/features/voice_call/voice_call_host.dart';
 import 'package:mosh/src/gateway/conversation_target.dart';
 import 'package:mosh/src/routing/app_router.dart';
@@ -49,7 +49,7 @@ void main() {
         ],
         settle: false);
     await _frames(tester);
-    final rect = tester.getRect(find.byType(CallModalCard));
+    final rect = tester.getRect(find.byType(CallStrip));
     expect(rect.left, greaterThanOrEqualTo(18));
     expect(rect.right, lessThanOrEqualTo(800 - 16));
     expect(rect.bottom, lessThanOrEqualTo(600 - 34));
