@@ -11,14 +11,20 @@ final orgsProvider = AsyncNotifierProvider<OrgsNotifier, List<OrgSnapshot>>(
 );
 
 class OrgsNotifier extends AsyncNotifier<List<OrgSnapshot>> {
+  int _refreshes = 0;
+
   @override
   Future<List<OrgSnapshot>> build() async =>
       _poll(ref.watch(bridgeFacadeProvider));
 
-  /// Re-run after a mutation (join/leave/inviteMembersToGroup). Riverpod
-  /// invalidation is already race-safe via guard.
+  /// Re-run after a mutation (join/leave/inviteMembersToGroup). Only the
+  /// latest refresh lands, so an older one finishing late cannot restore a
+  /// stale list.
   Future<void> refresh() async {
-    state = await AsyncValue.guard(() => _poll(ref.read(bridgeFacadeProvider)));
+    final refresh = ++_refreshes;
+    final next =
+        await AsyncValue.guard(() => _poll(ref.read(bridgeFacadeProvider)));
+    if (refresh == _refreshes) state = next;
   }
 
   Future<List<OrgSnapshot>> _poll(BridgeFacade bridge) async {
