@@ -7,29 +7,31 @@
 // the call connected (Android grants the permission mid-call).
 // Linux only (PulseAudio); CI runs it for the libwebrtc engine.
 import { spawnSync } from "node:child_process";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const engine = path.resolve(process.argv[2] ?? "");
 const seconds = 15;
-const pulse = "/tmp/mosh-pa";
+// Per run, so two checks on one machine do not share sockets.
+const pulse = await mkdtemp(path.join(os.tmpdir(), "mosh-pa-"));
 
 const bench = path.join(root, "mosh-probe/media-bench");
 const outputs = [];
-await mkdir(pulse, { recursive: true });
 try {
   // Inside the try: if b's server fails to start, a's is still stopped.
   for (const side of ["a", "b"]) await startPulse(side);
   run("cargo", ["build", "--locked", "--release", "--manifest-path", path.join(bench, "Cargo.toml")]);
   for (const scenario of [[], ["--late-microphone"]]) {
     outputs.push(run(path.join(bench, "target/release/mosh-media-bench"),
-      ["run", "--moss", "--engine", engine, "--seconds", String(seconds), ...scenario]));
+      ["run", "--moss", "--engine", engine, "--seconds", String(seconds), ...scenario],
+      { MOSH_BENCH_PULSE: pulse }));
   }
 } finally {
-  // Their sockets are fixed paths: a server left running blocks the next check.
   for (const side of ["a", "b"]) spawnSync("pulseaudio", ["-k"], { env: pulseEnv(side) });
+  await rm(pulse, { recursive: true, force: true });
 }
 for (const output of outputs) {
   const result = JSON.parse(output.trim().split("\n").at(-1));
