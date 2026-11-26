@@ -61,7 +61,7 @@ export const COMPONENTS = [
   component('call', 'Call strip', ['CallStrip']),
   component('call', 'Incoming call card', ['IncomingCallCard']),
   component('call', 'Call video stage', ['CallVideoStage']),
-  component('call', 'Call button', ['CallButton', 'CallMiniButton', 'call_button._CallIconButton']),
+  component('call', 'Call button', ['call_button._CallIconButton']),
   component('call', 'Floating call', ['FloatingCallView']),
 ];
 

@@ -6,11 +6,15 @@ import 'package:mosh/src/features/voice_call/call_strip.dart';
 import 'package:mosh/src/features/voice_call/call_view.dart';
 import 'package:mosh/src/features/voice_call/call_view_state.dart';
 import 'package:mosh/src/features/voice_call/voice_call_host.dart';
+import 'package:mosh/src/platform/desktop_window_controller.dart';
+import 'package:mosh/src/routing/app_router.dart';
+import 'package:mosh/src/routing/mosh_title_bar.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
 import 'package:mosh/src/state/native_call_owner_provider.dart';
 
 import '../../support/message_builders.dart';
+import '../routing/shell_harness.dart';
 import '../../support/native_call_fixture.dart';
 import '../../support/pump.dart';
 import '../../support/scriptable_bridge.dart';
@@ -137,6 +141,48 @@ void main() {
         'call');
     await tester.pumpWidget(const SizedBox.shrink());
   });
+
+  for (final width in [600.0, 700.0, 1000.0]) {
+    testWidgets(
+        'the title bar has room for the plate of a long name and the '
+        'state pill at $width px', (tester) async {
+      final gateway = ScriptableGateway()
+        ..seedSessions([
+          TestSnapshots.dm(
+              sessionId: 'origin',
+              peerDisplayName: 'Maximiliana Featherstonehaugh-Cholmondeley',
+              outgoingCall: const OutgoingCall(callId: 'call'))
+        ]);
+      final bridge = ScriptableBridge(conversations: gateway.conversations);
+      final window = DesktopWindowController(platform: TargetPlatform.linux);
+      addTearDown(window.dispose);
+      mockCallVideoPlugin(tester);
+      await pumpShellApp(tester,
+          gateway: gateway,
+          bridge: bridge,
+          physical: Size(width, 700),
+          location: AppRoutes.dmFor('origin'),
+          overrides: [
+            nativeCallOwnerProvider.overrideWith((ref) {
+              final owner = NativeCallOwner(bridge, () async => true);
+              ref.onDispose(owner.dispose);
+              return owner;
+            }),
+            desktopWindowControllerProvider.overrideWithValue(window),
+          ]);
+
+      await tester.tap(find.byTooltip('Minimize call'));
+      await tester.pumpAndSettle();
+
+      final bar = find.byType(MoshTitleBar);
+      expect(find.descendant(of: bar, matching: find.byTooltip('Cancel call')),
+          findsOneWidget);
+      expect(find.descendant(of: bar, matching: find.byType(StatePill)),
+          findsOneWidget);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox.shrink());
+    });
+  }
 
   testWidgets('the plate says a muted call is muted beside its time',
       (tester) async {

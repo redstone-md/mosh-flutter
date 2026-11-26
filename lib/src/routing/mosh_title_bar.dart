@@ -24,6 +24,9 @@ import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 /// Below this width at normal text scale, Peer status shows only its icon.
 const double _kCompactWidth = 640;
 
+/// The same while a minimized call's plate stands beside it.
+const double _kCompactWidthWithCall = 960;
+
 /// Widest the live state pill grows before its label ellipsizes.
 const double _kStatePillMaxWidth = 240;
 
@@ -90,8 +93,6 @@ class MoshTitleBar extends ConsumerWidget {
     }
     final active =
         onOpenPeerStatus == null ? null : ref.watch(activeConversationProvider);
-    // The plate takes the room the state pill's label would: beside a call
-    // the pill is its dot.
     final call =
         showName && ref.watch(callPresentationProvider) == CallForm.plate;
     return Material(
@@ -99,7 +100,6 @@ class MoshTitleBar extends ConsumerWidget {
       child: ConstrainedBox(
         constraints: const BoxConstraints(minHeight: height),
         child: LayoutBuilder(builder: (context, constraints) {
-          final scale = MediaQuery.textScalerOf(context).scale(14) / 14;
           return Row(children: [
             leading,
             SizedBox(width: showChatList ? MoshSpace.s1 : MoshSpace.s3),
@@ -109,25 +109,9 @@ class MoshTitleBar extends ConsumerWidget {
             ],
             Expanded(
                 child: _branding(context,
-                    showName: showName && constraints.maxWidth >= 480 * scale)),
-            // Beside the state pill, outside the room the window is dragged by.
-            if (call)
-              ConstrainedBox(
-                  constraints: BoxConstraints(
-                      maxWidth: constraints.maxWidth * _kCallPlateShare),
-                  child: const TitleBarCall()),
-            if (active != null)
-              Padding(
-                  padding: const EdgeInsets.only(left: MoshSpace.s2),
-                  child: ConstrainedBox(
-                    constraints:
-                        const BoxConstraints(maxWidth: _kStatePillMaxWidth),
-                    child: _StatePillSlot(
-                        activeKey: active,
-                        compact: call ||
-                            constraints.maxWidth < _kCompactWidth * scale,
-                        onTap: onOpenPeerStatus!),
-                  )),
+                    showName: showName &&
+                        constraints.maxWidth >= 480 * _textScale(context))),
+            ..._callAndState(context, active, constraints.maxWidth, call: call),
             if (trailing case final buttons?) ...[
               const SizedBox(width: MoshSpace.s2),
               buttons,
@@ -138,6 +122,35 @@ class MoshTitleBar extends ConsumerWidget {
       ),
     );
   }
+
+  static double _textScale(BuildContext context) =>
+      MediaQuery.textScalerOf(context).scale(14) / 14;
+
+  /// A minimized call's plate and the state pill, at the right of a bar
+  /// [width] wide and outside the room the window is dragged by. Where the
+  /// bar is short of room for both, the pill is its dot.
+  List<Widget> _callAndState(
+          BuildContext context, ActiveConversation? active, double width,
+          {required bool call}) =>
+      [
+        if (call)
+          ConstrainedBox(
+              constraints: BoxConstraints(maxWidth: width * _kCallPlateShare),
+              child: const TitleBarCall()),
+        if (active != null)
+          Padding(
+              padding: const EdgeInsets.only(left: MoshSpace.s2),
+              child: ConstrainedBox(
+                constraints:
+                    const BoxConstraints(maxWidth: _kStatePillMaxWidth),
+                child: _StatePillSlot(
+                    activeKey: active,
+                    compact: width <
+                        (call ? _kCompactWidthWithCall : _kCompactWidth) *
+                            _textScale(context),
+                    onTap: onOpenPeerStatus!),
+              )),
+      ];
 
   /// The mark and the name. They fill the bar between its controls, so the
   /// window is dragged by them and by the empty bar beside them.
