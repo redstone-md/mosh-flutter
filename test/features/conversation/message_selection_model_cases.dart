@@ -139,6 +139,17 @@ void main() {
     expect(selection.selectedIds, ['a']);
   });
 
+  // Regression (CodeAnt PR #7): a drag still under way changed the
+  // selection while its deletion ran.
+  test('busy freezes a drag that was already under way', () {
+    final selection = _selection()
+      ..beginDrag('a')
+      ..dragTo('b')
+      ..busy = true
+      ..dragTo('d');
+    expect(selection.selectedIds, ['a', 'b']);
+  });
+
   test('changes notify listeners once per change', () {
     var notified = 0;
     final selection = _selection()..addListener(() => notified++);
