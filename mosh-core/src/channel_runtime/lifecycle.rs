@@ -135,29 +135,28 @@ impl ChannelRuntime {
         };
 
         self.channels.insert(normalized.clone(), session);
-        self.commit_join(&normalized)?;
-        // The first poll starts the channel's history sync. The join already
-        // stands, so a refused drain is reported by the next poll instead.
-        self.poll(&normalized).or_else(|error| {
-            dlog::write(
-                LogLevel::Warn,
-                kinds::PERSIST,
-                &normalized,
-                &error.to_string(),
-            );
-            self.snapshot(&normalized)
-        })
+        self.commit_join(&normalized)
     }
 
     /// Saves the joined channel's own record before the join answers, so an
     /// unrelated refused write cannot refuse it. A refused save closes the
     /// channel again and leaves no write that could restore it later.
-    fn commit_join(&mut self, normalized: &str) -> Result<(), ChannelRuntimeError> {
-        let Err(error) = self.channels.persist_record(normalized, true) else {
-            return Ok(());
-        };
-        self.close(normalized);
-        Err(error.into())
+    fn commit_join(&mut self, normalized: &str) -> Result<ChannelSnapshot, ChannelRuntimeError> {
+        if let Err(error) = self.channels.persist_record(normalized, true) {
+            self.close(normalized);
+            return Err(error.into());
+        }
+        // The first poll starts the channel's history sync. The join already
+        // stands, so a refused drain is reported by the next poll instead.
+        self.poll(normalized).or_else(|error| {
+            dlog::write(
+                LogLevel::Warn,
+                kinds::PERSIST,
+                normalized,
+                &error.to_string(),
+            );
+            self.snapshot(normalized)
+        })
     }
 
     /// Takes a channel out of the runtime and off the shared node, forgetting
