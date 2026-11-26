@@ -113,15 +113,28 @@ impl Connection {
     /// Applies the switches and, for a new pick, the audio devices. Whether
     /// the picked input is usable.
     pub fn choices(&mut self, choices: &Choices) -> Result<bool, String> {
-        self.engine.ask(
-            json!({"action":"choices", "microphone":choices.microphone && choices.microphone_allowed,"video":choices.camera}),
-        )?;
+        self.switches(choices)?;
         let engine = &mut self.engine;
         self.selection.apply(choices, || {
-            let selected = engine
-                .ask(json!({"action":"select","input":choices.input,"output":choices.output}))?;
+            let selected = select(engine, choices)?;
             Ok(["input_ok", "output_ok"].map(|ok| selected[ok].as_bool().unwrap_or(false)))
         })
+    }
+
+    /// Applies the switches and the engine's fallback for a picked device
+    /// that disappeared, which the next new pick replaces.
+    fn fall_back(&mut self, choices: &Choices) -> Result<(), String> {
+        self.switches(choices)?;
+        let engine = &mut self.engine;
+        self.selection
+            .fall_back(|| select(engine, choices).map(drop))
+    }
+
+    /// Tells the engine the microphone and camera switches.
+    fn switches(&mut self, choices: &Choices) -> Result<(), String> {
+        self.engine
+            .ask(json!({"action":"choices", "microphone":choices.microphone && choices.microphone_allowed,"video":choices.camera}))
+            .map(drop)
     }
 
     pub fn pump(
@@ -140,6 +153,9 @@ impl Connection {
             state,
         )?;
         state.stalls.statistics.since(measuring);
+        if self.reporter.take_devices_lost() {
+            self.fall_back(&state.choices)?;
+        }
         if self.reporter.take_ice_failure() && self.context.caller {
             self.restart_ice(state)?;
         }
@@ -254,4 +270,9 @@ impl Connection {
 
 fn parse_local(value: Value) -> Result<Description, String> {
     serde_json::from_value(value).map_err(|error| error.to_string())
+}
+
+/// Asks the engine to select the audio devices of `choices`.
+fn select(engine: &mut Engine, choices: &Choices) -> Result<Value, String> {
+    engine.ask(json!({"action":"select","input":choices.input,"output":choices.output}))
 }

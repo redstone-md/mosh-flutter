@@ -22,6 +22,8 @@ pub(super) struct Reporter {
     /// ICE has failed since the owner last asked.
     ice_failure_pending: bool,
     budget: u64,
+    /// A picked device left the inventory since the owner last asked.
+    devices_lost: bool,
     connected_once: bool,
     diagnostics: super::diagnostics::Monitor,
 }
@@ -36,6 +38,7 @@ impl Reporter {
             ice_failed_last: false,
             ice_failure_pending: false,
             budget: 0,
+            devices_lost: false,
             connected_once: false,
             diagnostics: Default::default(),
         }
@@ -54,28 +57,18 @@ impl Reporter {
             serde_json::from_value(devices["inputs"].clone()).unwrap_or_default();
         state.snapshot.outputs =
             serde_json::from_value(devices["outputs"].clone()).unwrap_or_default();
-        let missing = state.snapshot.inputs.is_empty()
-            || state
-                .choices
-                .input
-                .as_ref()
-                .is_some_and(|id| !state.snapshot.inputs.iter().any(|d| &d.id == id));
-        if missing && state.choices.microphone {
-            state.choices.microphone = false;
-            engine.ask(json!({"action":"choices","microphone":state.choices.microphone && state.choices.microphone_allowed,"video":state.choices.camera}))?;
-            engine.ask(json!({"action":"select","input":state.choices.input,"output":state.choices.output}))?;
-        }
-        if state
-            .choices
-            .output
-            .as_ref()
-            .is_some_and(|id| !state.snapshot.outputs.iter().any(|d| &d.id == id))
-        {
-            state.choices.output = None;
-            engine.ask(json!({"action":"choices","microphone":state.choices.microphone && state.choices.microphone_allowed,"video":state.choices.camera}))?;
-            engine.ask(json!({"action":"select","input":state.choices.input,"output":state.choices.output}))?;
-        }
+        self.devices_lost |= super::devices::drop_missing(
+            &mut state.choices,
+            &state.snapshot.inputs,
+            &state.snapshot.outputs,
+        );
         Ok(())
+    }
+
+    /// Whether a picked device left the inventory since the last ask, so the
+    /// engine has to fall back. Each loss is told once.
+    pub fn take_devices_lost(&mut self) -> bool {
+        std::mem::take(&mut self.devices_lost)
     }
 
     /// Whether ICE has failed since the last ask. Each failure is told

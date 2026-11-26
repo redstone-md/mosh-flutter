@@ -47,6 +47,35 @@ impl Selection {
         }
         Ok(input_ok)
     }
+
+    /// Selects the engine's fallback through `select` after a picked device
+    /// disappeared ([`drop_missing`]). The engine no longer runs the pick, so
+    /// the next [`Selection::apply`] selects it again.
+    pub fn fall_back(&mut self, select: impl FnOnce() -> Result<(), String>) -> Result<(), String> {
+        self.picked = None;
+        select()
+    }
+}
+
+/// Drops the picks that left the engine's inventory: a missing input turns
+/// the microphone off, a missing output falls back to the default. Whether
+/// the engine has to fall back.
+pub(super) fn drop_missing(choices: &mut Choices, inputs: &[Device], outputs: &[Device]) -> bool {
+    let absent = |devices: &[Device], id: &String| !devices.iter().any(|d| &d.id == id);
+    let input_missing =
+        inputs.is_empty() || choices.input.as_ref().is_some_and(|id| absent(inputs, id));
+    let microphone_lost = input_missing && choices.microphone;
+    if microphone_lost {
+        choices.microphone = false;
+    }
+    let output_lost = choices
+        .output
+        .as_ref()
+        .is_some_and(|id| absent(outputs, id));
+    if output_lost {
+        choices.output = None;
+    }
+    microphone_lost || output_lost
 }
 
 #[cfg(test)]
@@ -93,6 +122,37 @@ mod tests {
         choices.output = Some("speaker".into());
         assert!(apply(&choices).unwrap());
         assert_eq!(selected, 2);
+    }
+
+    #[test]
+    fn a_returning_input_is_selected_again_after_the_engine_fell_back() {
+        let mic = Device {
+            id: "mic".into(),
+            name: "Mic".into(),
+            stable: true,
+        };
+        let mut selection = Selection::default();
+        let mut choices = Choices {
+            microphone: true,
+            input: Some("mic".into()),
+            ..Default::default()
+        };
+        let mut selects = 0;
+        let mut pick = |selection: &mut Selection, choices: &Choices| {
+            selection.apply(choices, || {
+                selects += 1;
+                Ok([true; 2])
+            })
+        };
+        assert!(pick(&mut selection, &choices).unwrap());
+        assert!(drop_missing(&mut choices, &[], &[]));
+        assert!(!choices.microphone);
+        selection.fall_back(|| Ok(())).unwrap();
+        // The microphone is plugged back in and switched on again.
+        choices.microphone = true;
+        assert!(!drop_missing(&mut choices, &[mic], &[]));
+        assert!(pick(&mut selection, &choices).unwrap());
+        assert_eq!(selects, 2, "the engine stayed on its fallback input");
     }
 
     #[test]
