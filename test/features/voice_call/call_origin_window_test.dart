@@ -4,7 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/main.dart';
 import 'package:mosh/src/features/onboarding/first_run_provider.dart';
-import 'package:mosh/src/features/voice_call/call_modal_card.dart';
+import 'package:mosh/src/features/voice_call/call_strip.dart';
 import 'package:mosh/src/routing/app_router.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
@@ -53,7 +53,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 50));
       await tester.pump(const Duration(milliseconds: 50));
       await tester.tap(find.descendant(
-          of: find.byType(CallModalCard), matching: find.text('Alice')));
+          of: find.byType(CallStrip), matching: find.text('Alice')));
       await tester.pump();
       expect(minimized, isFalse);
       expect(calls, [if (initiallyMinimized) 'restore', 'show', 'focus']);

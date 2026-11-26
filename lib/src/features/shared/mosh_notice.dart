@@ -62,6 +62,7 @@ class MoshNotice extends StatelessWidget {
     this.onAction,
     this.busy = false,
     this.inline = false,
+    this.radius,
     bool? announced,
   })  : announced = announced ?? tone == MoshNoticeTone.error,
         assert(title != null || detail != null),
@@ -83,6 +84,10 @@ class MoshNotice extends StatelessWidget {
   final bool busy;
   final bool inline;
 
+  /// Corners other than the banner's or the inline note's: the notice of a
+  /// call matches the dock under it.
+  final double? radius;
+
   /// Whether a screen reader is told when the notice appears. An error
   /// always is; a note that takes a form's place asks for it.
   final bool announced;
@@ -102,7 +107,7 @@ class MoshNotice extends StatelessWidget {
         decoration: tone._surface(
             colors,
             BorderRadius.all(Radius.circular(
-                inline ? MoshRadius.medium : MoshRadius.large))),
+                radius ?? (inline ? MoshRadius.medium : MoshRadius.large)))),
         child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Padding(
             padding: const EdgeInsetsDirectional.only(

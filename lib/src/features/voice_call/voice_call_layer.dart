@@ -16,6 +16,8 @@ import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/voice_call/call_dialog.dart';
 import 'package:mosh/src/features/voice_call/call_view.dart';
 import 'package:mosh/src/features/voice_call/call_view_state.dart';
+import 'package:mosh/src/features/voice_call/call_window_parts.dart'
+    show CallFullScreen;
 import 'package:mosh/src/features/voice_call/call_decline.dart';
 import 'package:mosh/src/state/voice_call_start_provider.dart';
 import 'package:mosh/src/state/notifications_provider.dart';
@@ -36,6 +38,7 @@ class VoiceCallLayer extends ConsumerStatefulWidget {
     this.onMinimize,
     this.floating = false,
     this.peerOverride,
+    this.fullScreen,
   });
 
   final String sessionId;
@@ -48,6 +51,7 @@ class VoiceCallLayer extends ConsumerStatefulWidget {
   final ValueListenable<CallVideoPictures>? video;
   final VoidCallback? onMinimize;
   final bool floating;
+  final CallFullScreen? fullScreen;
 
   @override
   ConsumerState<VoiceCallLayer> createState() => _VoiceCallLayerState();
@@ -111,6 +115,7 @@ class _VoiceCallLayerState extends ConsumerState<VoiceCallLayer> {
         onExpand: widget.onExpand,
         onMinimize: widget.onMinimize,
         floating: widget.floating,
+        fullScreen: widget.fullScreen,
         onAction: (action) => _act(call.command(action)));
   }
 

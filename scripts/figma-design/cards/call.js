@@ -1,6 +1,5 @@
-// The call opened to the whole window or screen: CallModalCard as it stands
-// alone, with the backdrop and the full-screen button that MainWindowCallHost
-// draws around it today. The redesign makes them one component.
+// The call opened to the whole window or screen: CallWindow, with the
+// backdrop and the full-screen button as parts of it.
 card('Call window', 'An open call takes the whole window, on the lowest tone, like the media viewer. A voice call puts the person in the middle: who it is and how the call is going. With video the picture takes that place and grows as far as the window lets it without being cut, so a phone turned on its side gives it the whole height of the screen; the name and the time move to a plate in the corner. The buttons stay on their dock at the bottom for as long as they are shown, and a warning sits just above them, where the button it is about is. While the other side’s video is showing, everything laid over it but your own camera leaves after three seconds without a pointer move, a touch or a key, and any of those brings it back. It stays while the call is voice only, ringing or waiting for video, while a warning is shown, while the keyboard’s focus is on a button and while the pointer is over the dock. A muted microphone keeps a mark in the corner when the rest is gone, so being unheard is never hidden.');
 
 const VIEW = { Desktop: [720, 460], Phone: [390, 640], 'Phone on its side': [844, 390] };

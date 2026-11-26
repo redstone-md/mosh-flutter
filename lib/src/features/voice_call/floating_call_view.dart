@@ -37,8 +37,7 @@ class FloatingCallView extends StatelessWidget {
                         video: video,
                         peer: call.peer,
                         remoteCamera: call.media?.remoteCamera == true,
-                        alwaysVisible: true,
-                        inset: false)))),
+                        alwaysVisible: true)))),
         Row(children: [
           IconButton(
               tooltip: l.callExpand,

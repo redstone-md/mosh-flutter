@@ -3,7 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mosh/l10n/app_localizations.dart';
-import 'package:mosh/src/app/mosh_icons.dart';
+import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 import 'package:mosh/src/features/lock/android_app_lock_gate.dart';
 import 'package:mosh/src/platform/desktop_window_controller.dart';
 import 'package:mosh/src/state/native_call_owner_provider.dart';
@@ -11,6 +11,7 @@ import 'android_call_presentation.dart';
 import 'call_video_textures.dart';
 import 'call_video_surfaces.dart';
 import 'call_view_state.dart';
+import 'call_window_parts.dart' show CallFullScreen;
 import 'main_window_call_frame.dart';
 import 'voice_call_layer.dart';
 
@@ -107,23 +108,16 @@ class _MainWindowCallHostState extends ConsumerState<MainWindowCallHost> {
       AndroidAppLockGate(
           interactive: !covered,
           child: ExcludeFocus(excluding: covered, child: widget.child)),
-      if (covered) const Material(),
+      // The tone of the open call, under the system's bars as well.
+      if (covered)
+        ColoredBox(color: MoshColors.of(context).surfaceContainerLowest),
       if (session != null)
         SafeArea(
-            child: Column(children: [
-          if (covered && window != null)
-            Material(
-                type: MaterialType.transparency,
-                child: Align(
-                    alignment: Alignment.topRight,
-                    child: _fullScreenButton(window))),
-          Expanded(
-              child: MainWindowCallFrame(
-                  key: ValueKey(_shownCall),
-                  expanded: _expanded,
-                  video: _videoCall,
-                  child: _controls(session))),
-        ])),
+            child: MainWindowCallFrame(
+                key: ValueKey(_shownCall),
+                expanded: _expanded,
+                video: _videoCall,
+                child: _controls(session, window))),
     ]);
     // Android's PiP overlay collects the video surfaces above the whole app.
     return _presentation != null
@@ -134,21 +128,8 @@ class _MainWindowCallHostState extends ConsumerState<MainWindowCallHost> {
             child: content);
   }
 
-  Widget _fullScreenButton(DesktopWindowController window) => ListenableBuilder(
-      listenable: window,
-      builder: (context, _) {
-        final l = AppLocalizations.of(context)!;
-        return IconButton(
-            tooltip: window.fullScreen
-                ? l.nativeMenuExitFullScreen
-                : l.nativeMenuEnterFullScreen,
-            onPressed: () => _toggleFullScreen(window),
-            icon: Icon(window.fullScreen
-                ? MoshIcons.fullscreenExit
-                : MoshIcons.fullscreen));
-      });
-
-  Widget _controls(String session) => BackButtonListener(
+  Widget _controls(String session, DesktopWindowController? window) =>
+      BackButtonListener(
         onBackButtonPressed: () async {
           if (!_expanded ||
               Navigator.of(context, rootNavigator: true).canPop()) {
@@ -165,6 +146,10 @@ class _MainWindowCallHostState extends ConsumerState<MainWindowCallHost> {
             compact: !_expanded,
             floating: !_expanded && _videoCall,
             video: widget.video,
+            fullScreen: window == null
+                ? null
+                : CallFullScreen(
+                    window: window, onToggle: () => _toggleFullScreen(window)),
             onMinimize: _minimize,
             onExpand: _expanded ? null : () => setState(() => _expanded = true),
             onOpenConversation: () {

@@ -1,27 +1,36 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:mosh/src/app/mosh_dimensions.dart';
 import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/app/mosh_theme.dart';
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/features/shared/avatar.dart';
 import 'package:mosh/src/rust/native_call/types.dart' as native;
 
 import 'call_video_textures.dart';
 import 'call_video_surfaces.dart';
 
+/// The Call video stage card: a stage on the lowest tone, as large as what
+/// holds it lets it be. It has the shape of the picture that fills it, so a
+/// frame from a phone held upright is not shrunk into a wide stage, and is
+/// 16:9 until a picture arrives. It shows the other side's video with your own
+/// camera in its corner, your camera alone, or who the video is awaited from.
 /// Presentation only. Pixel changes never animate; stage presence may fade.
 class CallVideoStage extends StatelessWidget {
   const CallVideoStage(
       {super.key,
       required this.video,
       required this.peer,
-      this.inset = true,
       this.alwaysVisible = false,
       this.remoteCamera = false});
   final ValueListenable<CallVideoPictures> video;
   final String peer;
   final bool remoteCamera;
-  final bool inset;
   final bool alwaysVisible;
+
+  /// Whether a stage over [pictures] has anything to show.
+  static bool shows(CallVideoPictures pictures, {required bool remoteCamera}) =>
+      remoteCamera || pictures.remote != null || pictures.local != null;
 
   @override
   Widget build(BuildContext context) =>
@@ -33,10 +42,7 @@ class CallVideoStage extends StatelessWidget {
               : const Duration(milliseconds: 150),
           switchInCurve: Curves.easeInOut,
           switchOutCurve: Curves.easeInOut,
-          child: !alwaysVisible &&
-                  !remoteCamera &&
-                  pictures.remote == null &&
-                  pictures.local == null
+          child: !alwaysVisible && !shows(pictures, remoteCamera: remoteCamera)
               ? const SizedBox.shrink(key: ValueKey(false))
               : _stage(context, pictures),
         ),
@@ -44,21 +50,20 @@ class CallVideoStage extends StatelessWidget {
 
   Widget _stage(BuildContext context, CallVideoPictures pictures) {
     final remoteStage = remoteCamera || pictures.remote != null;
-    return Padding(
+    final filling = pictures.remote ?? (remoteStage ? null : pictures.local);
+    return AspectRatio(
       key: const ValueKey(true),
-      padding: EdgeInsets.only(top: inset ? 12 : 0),
-      child: AspectRatio(
-          aspectRatio: 16 / 9,
-          child: LayoutBuilder(
-              builder: (context, box) => CallVideoSurfaceReport(
-                  _surfaces(context, box.biggest, remoteStage),
-                  child: RepaintBoundary(
-                      child: ColoredBox(
-                          color: MoshColors.of(context).surfaceContainerLowest,
-                          child: Stack(
-                              fit: StackFit.expand,
-                              children: _layers(context, pictures,
-                                  remoteStage: remoteStage))))))),
+      aspectRatio: filling?.aspectRatio ?? 16 / 9,
+      child: LayoutBuilder(
+          builder: (context, box) => CallVideoSurfaceReport(
+              _surfaces(context, box.biggest, remoteStage),
+              child: RepaintBoundary(
+                  child: ColoredBox(
+                      color: MoshColors.of(context).surfaceContainerLowest,
+                      child: Stack(
+                          fit: StackFit.expand,
+                          children: _layers(context, pictures,
+                              remoteStage: remoteStage)))))),
     );
   }
 
@@ -71,16 +76,33 @@ class CallVideoStage extends StatelessWidget {
       if (remote != null)
         _picture(remote, l.callRemoteVideo(peer), mirrored: false)
       else if (remoteStage)
-        Center(child: Text(l.callWaitingForVideo))
+        _waiting(context, l.callWaitingForVideo)
       else if (preview != null)
         _picture(preview, l.callLocalPreview, mirrored: true)
       else
         Center(
             child: Semantics(
                 label: peer, child: const Icon(MoshIcons.person, size: 32))),
-      if (remoteStage && preview != null) _preview(preview, l.callLocalPreview),
+      if (remoteStage && preview != null)
+        _preview(context, preview, l.callLocalPreview),
     ];
   }
+
+  /// Who the video is awaited from; a stage too small for it scales it down.
+  Widget _waiting(BuildContext context, String status) => Center(
+      child: FittedBox(
+          fit: BoxFit.scaleDown,
+          child: Padding(
+              padding: const EdgeInsets.all(MoshSpace.s2),
+              child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  spacing: MoshSpace.s3,
+                  children: [
+                    ExcludeSemantics(child: Avatar(name: peer, radius: 32)),
+                    Text(status,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: MoshColors.of(context).onSurfaceVariant)),
+                  ]))));
 
   /// The preview is a quarter-width inset over remote video, inside its
   /// padding, else the whole stage.
@@ -98,7 +120,9 @@ class CallVideoStage extends StatelessWidget {
         remote: surface(stage));
   }
 
-  Widget _preview(CallVideoPicture picture, String label) => Align(
+  Widget _preview(
+          BuildContext context, CallVideoPicture picture, String label) =>
+      Align(
         alignment: Alignment.bottomRight,
         child: Padding(
             padding: _previewPadding,
@@ -106,12 +130,24 @@ class CallVideoStage extends StatelessWidget {
                 widthFactor: _previewShare,
                 child: AspectRatio(
                     aspectRatio: picture.aspectRatio,
-                    child: _picture(picture, label, mirrored: true)))),
+                    child: DecoratedBox(
+                        position: DecorationPosition.foreground,
+                        decoration: BoxDecoration(
+                            borderRadius: _previewCorners,
+                            border: Border.all(
+                                color: MoshColors.of(context).outlineVariant)),
+                        child: ClipRRect(
+                            borderRadius: _previewCorners,
+                            child:
+                                _picture(picture, label, mirrored: true)))))),
       );
 
   Widget _picture(CallVideoPicture picture, String label,
           {required bool mirrored}) =>
       Semantics(
+          // A node of its own: alone on the stage it would merge into the
+          // window's.
+          container: true,
           label: label,
           image: true,
           child: Transform.flip(
@@ -124,4 +160,5 @@ class CallVideoStage extends StatelessWidget {
 }
 
 const _previewShare = .25;
-const _previewPadding = EdgeInsets.all(8);
+const _previewPadding = EdgeInsets.all(MoshSpace.s2);
+const _previewCorners = BorderRadius.all(Radius.circular(MoshRadius.small));

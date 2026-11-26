@@ -2,15 +2,16 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import 'package:flutter/material.dart';
-import 'package:mosh/src/app/mosh_theme.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'call_controls.dart';
-import 'package:mosh/src/features/voice_call/call_modal_card.dart';
+import 'call_notice.dart';
+import 'call_strip.dart';
+import 'call_window_parts.dart' show CallFullScreen;
 import 'package:mosh/src/features/voice_call/call_clock.dart'
     show formatCallClock;
 import 'package:mosh/src/features/voice_call/call_view_state.dart';
 import 'call_video_textures.dart';
-import 'call_video_stage.dart';
+import 'call_window.dart';
 import 'call_devices_dialog.dart';
 import 'floating_call_view.dart';
 
@@ -27,6 +28,7 @@ class CallView extends StatefulWidget {
     this.now = _now,
     this.video,
     this.onDeviceSelected,
+    this.fullScreen,
   });
 
   final CallViewState call;
@@ -38,6 +40,9 @@ class CallView extends StatefulWidget {
   final int Function() now;
   final ValueListenable<CallVideoPictures>? video;
   final void Function(CallViewCommand)? onDeviceSelected;
+
+  /// The desktop's full screen switch, shown by the open call.
+  final CallFullScreen? fullScreen;
   static int _now() => DateTime.now().millisecondsSinceEpoch;
 
   @override
@@ -73,40 +78,48 @@ class _CallViewState extends State<CallView> {
           onRestore: widget.onExpand,
           onEnd: () => widget.onAction(CallViewAction.end));
     }
-    return CallModalCard(
-      compact: widget.compact,
-      singleLine: widget.onMinimize != null,
-      onMinimize: widget.onMinimize,
-      label: switch (call.phase) {
-        CallViewPhase.incoming => l.callIncomingAriaLabel,
-        CallViewPhase.confirming => l.callAnswerPending,
-        CallViewPhase.outgoing => l.callOutgoingAriaLabel,
-        CallViewPhase.active => l.callActiveAriaLabel,
-      },
-      peer: call.peer,
-      status: _status(l),
-      notice: _notice(l),
-      statusFontFeatures: active ? const [FontFeature.tabularFigures()] : null,
-      onOpenConversation: () =>
-          widget.onAction(CallViewAction.openConversation),
-      actions: callControls(call, l, MoshColors.of(context), widget.onAction,
-          expand: widget.onExpand,
-          camera: !(widget.compact && widget.onMinimize != null),
-          devices: widget.compact || widget.onDeviceSelected == null
-              ? null
-              : () => unawaited(_devices())),
-      stage: widget.video == null || widget.compact
-          ? null
-          : CallVideoStage(
-              video: widget.video!,
-              peer: call.peer,
-              remoteCamera: active && call.media?.remoteCamera == true),
-    );
+    final label = switch (call.phase) {
+      CallViewPhase.incoming => l.callIncomingAriaLabel,
+      CallViewPhase.confirming => l.callAnswerPending,
+      CallViewPhase.outgoing => l.callOutgoingAriaLabel,
+      CallViewPhase.active => l.callActiveAriaLabel,
+    };
+    final figures = active ? const [FontFeature.tabularFigures()] : null;
+    void openConversation() => widget.onAction(CallViewAction.openConversation);
+    if (widget.compact) {
+      return CallStrip(
+          singleLine: widget.onMinimize != null,
+          label: label,
+          peer: call.peer,
+          status: _status(l),
+          notice: _notice(l),
+          statusFontFeatures: figures,
+          onOpenConversation: openConversation,
+          actions: callControls(call, l, widget.onAction,
+              expand: widget.onExpand, camera: widget.onMinimize == null));
+    }
+    return CallWindow(
+        label: label,
+        peer: call.peer,
+        status: _status(l),
+        statusFontFeatures: figures,
+        failed: call.audioFailed || call.error != null,
+        muted: call.muted,
+        notice: _notice(l),
+        video: widget.video,
+        remoteCamera: active && call.media?.remoteCamera == true,
+        onOpenConversation: openConversation,
+        onMinimize: widget.onMinimize,
+        fullScreen: widget.fullScreen,
+        buttons: ({required large}) => callControls(call, l, widget.onAction,
+            large: large,
+            devices: widget.onDeviceSelected == null
+                ? null
+                : () => unawaited(_devices())));
   }
 
   String _status(AppLocalizations l) {
     final call = widget.call;
-    if (call.error != null) return call.error!;
     if (call.audioFailed) return l.callAudioFailed;
     if (call.phase == CallViewPhase.confirming) return l.callAnswerPending;
     if (call.phase != CallViewPhase.active) {
@@ -121,13 +134,18 @@ class _CallViewState extends State<CallView> {
     return call.audioReady ? clock : "$clock · ${l.callAudioConnecting}";
   }
 
-  String? _notice(AppLocalizations l) {
+  CallNotice? _notice(AppLocalizations l) {
     final call = widget.call;
-    if (call.occupancyConflict) return l.callOccupancyConflict;
-    if (call.media?.cameraFailed == true) return l.callCameraUnavailable;
+    if (call.error case final error?) return CallNotice.error(error);
+    if (call.occupancyConflict) {
+      return CallNotice.warning(l.callOccupancyConflict);
+    }
+    if (call.media?.cameraFailed == true) {
+      return CallNotice.warning(l.callCameraUnavailable);
+    }
     if (call.phase == CallViewPhase.active &&
         call.media?.microphoneAvailable == false) {
-      return l.callMicrophoneUnavailable;
+      return CallNotice.warning(l.callMicrophoneUnavailable);
     }
     return null;
   }
