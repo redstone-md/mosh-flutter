@@ -329,3 +329,27 @@ fn org_admission_enforces_identity_and_roster_with_replace_dedup() {
 
     let _ = std::fs::remove_file(&db_path);
 }
+
+// In a plain group `from_fingerprint` is an unauthenticated self-claim. A
+// member's real commit that names our fingerprint must still apply: the
+// sequencer, not the claim, tells an echo of our own commit from new work.
+#[test]
+fn a_commit_claiming_our_fingerprint_still_applies() {
+    let _guard = MOSS_TEST_LOCK
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    drain_received_messages();
+
+    let mut view = MemberView::open(42398);
+    let own_fp = view.session().crypto.fingerprint();
+    let commit = view.cleo_commits_departure();
+    view.deliver(&ControlEnvelope::Commit {
+        admission_binding: None,
+        group_id: view.group_id.clone(),
+        from_fingerprint: own_fp,
+        commit_b64: encode(&commit),
+        roster_version: None,
+    });
+
+    assert_eq!(view.session().crypto.member_count(), 2);
+}

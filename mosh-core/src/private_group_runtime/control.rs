@@ -89,7 +89,6 @@ impl GroupSession {
     ) -> Result<(), PrivateGroupError> {
         match envelope {
             ControlEnvelope::Commit {
-                from_fingerprint,
                 commit_b64,
                 roster_version,
                 admission_binding,
@@ -98,7 +97,7 @@ impl GroupSession {
                 if let Some(binding) = &admission_binding {
                     self.retain_admission_association(&commit_b64, binding)?;
                 }
-                self.accept_commit(from_fingerprint, commit_b64, roster_version, sender, own_fp)
+                self.accept_commit(commit_b64, roster_version, sender)
             }
             ControlEnvelope::SelfRemove {
                 from_fingerprint,
@@ -218,26 +217,22 @@ impl GroupSession {
     }
     fn accept_commit(
         &mut self,
-        from_fingerprint: String,
         commit_b64: String,
         roster_version: Option<u64>,
         sender: Option<&str>,
-        own_fp: String,
     ) -> Result<(), PrivateGroupError> {
         if self.org_pubkey.is_some() {
             // Roster-derived authority incl. the lag buffer; own
             // commits come back around but dedup as already-applied.
             self.apply_org_commit(commit_b64, roster_version, sender)
-        } else if from_fingerprint == own_fp {
-            // Our own echo; already merged when we authored it.
-            Ok(())
         } else {
             // Plain groups: MLS and the epoch sequencer are the
-            // authority. `from_fingerprint` is a self-claim on an
+            // authority, and the sequencer also drops the echo of our own
+            // commit as stale. `from_fingerprint` is a self-claim on an
             // unauthenticated channel, so gating on it stopped no
-            // attacker — it only froze members whose admin pointer
-            // was stale, and the successor's departure commit is
-            // authored by a non-admin by design (ADR 0023).
+            // attacker: it froze members whose admin pointer was stale,
+            // and let anyone hide a real commit by naming its recipient
+            // (ADR 0023).
             self.apply_commit_sequenced(commit_b64)
         }
     }
