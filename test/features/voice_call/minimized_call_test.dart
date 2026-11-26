@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:mosh/src/app/mosh_theme.dart';
 import 'package:mosh/src/features/voice_call/call_strip.dart';
 import 'package:mosh/src/features/voice_call/call_view.dart';
 import 'package:mosh/src/features/voice_call/call_view_state.dart';
@@ -214,6 +215,22 @@ void main() {
     expect(find.textContaining('Calls are active on different devices'),
         findsOneWidget);
     expect(find.textContaining('0:05'), findsNothing);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  testWidgets('the plate says that the call has no audio in the error tone',
+      (tester) async {
+    await _plate(
+        tester,
+        const CallViewState(
+            sessionId: 'dm',
+            callId: 'call',
+            peer: 'Alice',
+            phase: CallViewPhase.active,
+            audioFailed: true));
+    final line = tester.widget<Text>(find.text('Audio unavailable'));
+    expect(line.style!.color,
+        MoshColors.of(tester.element(find.text('Audio unavailable'))).error);
     await tester.pumpWidget(const SizedBox.shrink());
   });
 

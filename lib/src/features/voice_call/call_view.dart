@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 
 import 'package:flutter/material.dart';
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/features/shared/mosh_notice.dart' show MoshNoticeTone;
 import 'call_controls.dart';
 import 'call_notice.dart';
 import 'call_plate.dart';
@@ -154,6 +155,10 @@ class _CallViewState extends State<CallView> {
       return CallLine(notice.text, tone: notice.tone);
     }
     final status = _status(l);
+    // Failed audio is the status itself, in the tone the open call gives it.
+    if (widget.call.audioFailed) {
+      return CallLine(status, tone: MoshNoticeTone.error);
+    }
     final muted =
         widget.call.phase == CallViewPhase.active && widget.call.muted;
     return CallLine(muted ? "$status · ${l.callMuted}" : status,
