@@ -16,23 +16,12 @@ const engine = path.resolve(process.argv[2] ?? "");
 const seconds = 15;
 const pulse = "/tmp/mosh-pa";
 
-await mkdir(pulse, { recursive: true });
-for (const side of ["a", "b"]) {
-  await writeFile(path.join(pulse, `${side}.pa`), [
-    `load-module module-native-protocol-unix socket=${pulse}/${side}.sock auth-anonymous=1`,
-    "load-module module-null-sink sink_name=mic rate=48000 channels=1",
-    "load-module module-null-sink sink_name=spk rate=48000 channels=1",
-    "set-default-sink spk",
-    "set-default-source mic.monitor",
-    "",
-  ].join("\n"));
-  await mkdir(path.join(pulse, `rt-${side}`), { recursive: true });
-  run("pulseaudio", ["-n", "-F", path.join(pulse, `${side}.pa`), "--daemonize=yes", "--exit-idle-time=-1"],
-    pulseEnv(side));
-}
 const bench = path.join(root, "mosh-probe/media-bench");
 const outputs = [];
+await mkdir(pulse, { recursive: true });
 try {
+  // Inside the try: if b's server fails to start, a's is still stopped.
+  for (const side of ["a", "b"]) await startPulse(side);
   run("cargo", ["build", "--locked", "--release", "--manifest-path", path.join(bench, "Cargo.toml")]);
   for (const scenario of [[], ["--late-microphone"]]) {
     outputs.push(run(path.join(bench, "target/release/mosh-media-bench"),
@@ -49,6 +38,21 @@ for (const output of outputs) {
   if (result.bursts_heard < seconds - 2) throw new Error(`callee heard ${result.bursts_heard} of ${seconds} bursts`);
   if (result.bursts_heard_back < seconds - 2) throw new Error(`caller heard ${result.bursts_heard_back} of ${seconds} bursts`);
   if (!(result.mouth_to_ear_ms < 300)) throw new Error(`mouth-to-ear ${result.mouth_to_ear_ms} ms`);
+}
+
+/** Starts one side's PulseAudio server with its microphone and speaker sinks. */
+async function startPulse(side) {
+  await writeFile(path.join(pulse, `${side}.pa`), [
+    `load-module module-native-protocol-unix socket=${pulse}/${side}.sock auth-anonymous=1`,
+    "load-module module-null-sink sink_name=mic rate=48000 channels=1",
+    "load-module module-null-sink sink_name=spk rate=48000 channels=1",
+    "set-default-sink spk",
+    "set-default-source mic.monitor",
+    "",
+  ].join("\n"));
+  await mkdir(path.join(pulse, `rt-${side}`), { recursive: true });
+  run("pulseaudio", ["-n", "-F", path.join(pulse, `${side}.pa`), "--daemonize=yes", "--exit-idle-time=-1"],
+    pulseEnv(side));
 }
 
 function run(command, args, env = {}) {
