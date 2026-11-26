@@ -94,3 +94,11 @@ fn an_expired_retry_budget_does_not_publish_again() {
         .unwrap();
     assert_eq!(message.retry_count, Some(0));
 }
+
+/// `--timeout-secs` is any u64; a budget past the clock's range waits
+/// without a deadline instead of panicking.
+#[test]
+fn a_timeout_past_the_clock_range_still_pumps() {
+    let reached = pump_until(Duration::from_secs(u64::MAX), || Ok(true)).unwrap();
+    assert!(reached);
+}

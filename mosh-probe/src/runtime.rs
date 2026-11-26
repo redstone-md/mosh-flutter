@@ -25,8 +25,9 @@ pub(super) fn pump_until(
     timeout: Duration,
     mut step: impl FnMut() -> Result<bool, Box<dyn std::error::Error>>,
 ) -> Result<bool, Box<dyn std::error::Error>> {
-    let deadline = std::time::Instant::now() + timeout;
-    while std::time::Instant::now() < deadline {
+    // A budget past the clock's range has no deadline.
+    let deadline = std::time::Instant::now().checked_add(timeout);
+    while deadline.is_none_or(|deadline| std::time::Instant::now() < deadline) {
         if step()? {
             return Ok(true);
         }
