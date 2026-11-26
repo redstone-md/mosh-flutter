@@ -7,7 +7,9 @@ struct Fixture {
     id: String,
     peer: MlsSessionCrypto,
     peer_identity: SigningKey,
-    directory: TempDirectory,
+    /// Bob's side of the file: it seals the manifest and serves the chunks.
+    sender: Transfer,
+    _directory: TempDirectory,
 }
 
 impl Fixture {
@@ -38,18 +40,20 @@ impl Fixture {
             .unwrap();
         peer.join_welcome(&outcome.welcome_bytes, &outcome.tree_bytes)
             .unwrap();
+        let sender_store = Arc::new(AttachmentStore::new(directory.path().join("sender")).unwrap());
         Self {
             runtime,
             id,
             peer,
             peer_identity: SigningKey::from_bytes(&[5; 32]),
-            directory,
+            sender: Transfer::new(sender_store),
+            _directory: directory,
         }
     }
 
     fn deliver_manifest(&mut self, outer: &str, inner: &str) -> Result<(), PrivateGroupError> {
-        let store = Arc::new(AttachmentStore::new(self.directory.path().join("sender")).unwrap());
-        let manifest = Transfer::new(store)
+        let manifest = self
+            .sender
             .prepare_outgoing(OutgoingAttachment {
                 attachment_id: "member-file".into(),
                 file_name: "report.txt".into(),
@@ -87,6 +91,62 @@ impl Fixture {
             payload: serde_json::to_vec(&proof).unwrap(),
         })
     }
+
+    /// Bob's answer to a request for the whole file, as the blob frames he
+    /// publishes. Serving the same chunk again yields the same bytes.
+    fn served_chunks(&mut self) -> Vec<MossReceivedMessage> {
+        let blob_channel = self.runtime.groups[&self.id].blob_channel.clone();
+        let request = crate::attachment_runtime::ChunkRequest {
+            attachment_id: "member-file".into(),
+            chunk_indices: vec![0],
+            execution: None,
+        };
+        let frames = self.sender.serve(&request);
+        assert!(!frames.is_empty(), "Bob holds the file");
+        frames
+            .into_iter()
+            .map(|frame| MossReceivedMessage {
+                channel: blob_channel.clone(),
+                payload: serde_json::to_vec(&BlobEnvelope::Chunk {
+                    participant_id: "bob-participant".into(),
+                    frame,
+                })
+                .unwrap(),
+            })
+            .collect()
+    }
+}
+
+// A member who saw Bob's chunks go by before asking for the file (another
+// member was downloading it) must still take them when Bob serves them again
+// for its own download. Chunk frames are deterministic, so the re-served ones
+// are byte-identical to what passed earlier.
+#[test]
+fn a_chunk_seen_before_the_download_is_taken_when_served_again() {
+    let _lock = MOSS_TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+    let mut fixture = Fixture::new();
+    let peer_id = hex::encode(fixture.peer_identity.verifying_key().to_bytes());
+    fixture.deliver_manifest(&peer_id, &peer_id).unwrap();
+    let chunks = fixture.served_chunks();
+    let session = fixture.runtime.groups.get_mut(&fixture.id).unwrap();
+    for chunk in chunks.clone() {
+        session.handle_moss_message(chunk).unwrap();
+    }
+
+    fixture
+        .runtime
+        .download_attachment(&fixture.id, "member-file")
+        .unwrap();
+    let session = fixture.runtime.groups.get_mut(&fixture.id).unwrap();
+    for chunk in chunks {
+        session.handle_moss_message(chunk).unwrap();
+    }
+
+    let snapshot = fixture.runtime.poll(&fixture.id).unwrap();
+    assert_eq!(
+        snapshot.attachments[0].state,
+        crate::conversation::attachments::AttachmentState::Available
+    );
 }
 
 #[test]

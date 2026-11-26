@@ -16,17 +16,20 @@ impl GroupSession {
         // BEFORE processing it would blackhole the bytes of anything that
         // failed — a retransmission could never repair the session because
         // the hash of the failed frame was already filed as seen.
+        //
+        // Blob frames are exempt too, as in the DM runtime. Chunk frames are
+        // deterministic, so a chunk served again (a retried preview, or for a
+        // member who watched another member's download pass and now asks for
+        // the file itself) is byte-identical to the first; so is a repeated
+        // request for a chunk that got lost. Both sides are idempotent:
+        // serving re-reads the file, and ingest skips a chunk it already
+        // holds or never asked for.
         if message.channel == self.data_channel {
             if self.seen.contains(&message.channel, &message.payload) {
                 return Ok(());
             }
             self.handle_data(message.payload.clone())?;
             self.seen.seen_before(&message.channel, &message.payload);
-            return Ok(());
-        }
-        if message.channel != self.control_channel
-            && self.seen.seen_before(&message.channel, &message.payload)
-        {
             return Ok(());
         }
         if message.channel == self.control_channel {
