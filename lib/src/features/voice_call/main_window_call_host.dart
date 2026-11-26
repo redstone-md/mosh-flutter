@@ -101,31 +101,14 @@ class _MainWindowCallHostState extends ConsumerState<MainWindowCallHost> {
     // may still report, and shows nothing.
     final covered = form == CallForm.open && widget.call != null;
     final strip = form == CallForm.strip && widget.call != null;
-    final colors = MoshColors.of(context);
     final layer = form == null
         ? null
         : KeyedSubtree(key: _layer, child: _controls(session!, form));
     final content = Stack(fit: StackFit.expand, children: [
-      Column(children: [
-        // The strip stands above the app and takes the status bar's place.
-        if (strip)
-          ColoredBox(
-              color: colors.surfaceContainerLowest,
-              child: SafeArea(bottom: false, child: layer!)),
-        Expanded(
-            // Keyed, so the strip's coming and going never remounts the app.
-            key: const ValueKey('app'),
-            child: MediaQuery.removePadding(
-                context: context,
-                removeTop: strip,
-                // Android's lock gate guards the chats under the call as well.
-                child: AndroidAppLockGate(
-                    interactive: !covered,
-                    child: ExcludeFocus(
-                        excluding: covered, child: widget.child)))),
-      ]),
+      _app(strip ? layer : null, covered: covered),
       // The tone of the open call, under the system's bars as well.
-      if (covered) ColoredBox(color: colors.surfaceContainerLowest),
+      if (covered)
+        ColoredBox(color: MoshColors.of(context).surfaceContainerLowest),
       if (layer != null && !strip)
         SafeArea(
             child: MainWindowCallFrame(
@@ -139,6 +122,26 @@ class _MainWindowCallHostState extends ConsumerState<MainWindowCallHost> {
                 ref.read(nativeCallOwnerProvider)?.showVideoAt(surfaces),
             child: content);
   }
+
+  /// The app, under the phone's [strip] when the call is one.
+  Widget _app(Widget? strip, {required bool covered}) => Column(children: [
+        // The strip stands above the app and takes the status bar's place.
+        if (strip != null)
+          ColoredBox(
+              color: MoshColors.of(context).surfaceContainerLowest,
+              child: SafeArea(bottom: false, child: strip)),
+        Expanded(
+            // Keyed, so the strip's coming and going never remounts the app.
+            key: const ValueKey('app'),
+            child: MediaQuery.removePadding(
+                context: context,
+                removeTop: strip != null,
+                // Android's lock gate guards the chats under the call as well.
+                child: AndroidAppLockGate(
+                    interactive: !covered,
+                    child: ExcludeFocus(
+                        excluding: covered, child: widget.child)))),
+      ]);
 
   Widget _controls(String session, CallForm form) {
     final window = _window;

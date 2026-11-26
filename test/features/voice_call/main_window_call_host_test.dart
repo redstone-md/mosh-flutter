@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show LogicalKeyboardKey;
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_riverpod/misc.dart' show Override;
+import 'package:mosh/src/gateway/conversation_target.dart';
+import 'package:mosh/src/state/conversation_providers.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mosh/src/features/voice_call/voice_call_host.dart';
@@ -27,8 +30,8 @@ class _Window extends DesktopWindowController {
 
 /// A Linux desktop: the call shows in the main window through textures,
 /// under the title bar, with a text field standing in for the chats.
-Future<({_Window window, ScriptableBridge bridge})> _pump(
-    WidgetTester tester, SessionSnapshot session) async {
+Future<({_Window window, ScriptableBridge bridge, ScriptableGateway gateway})>
+    _pump(WidgetTester tester, SessionSnapshot session) async {
   mockCallVideoPlugin(tester);
   final gateway = ScriptableGateway()..seedSessions([session]);
   final bridge = ScriptableBridge(conversations: gateway.conversations);
@@ -58,7 +61,7 @@ Future<({_Window window, ScriptableBridge bridge})> _pump(
       ],
       settle: false);
   await tester.pump(const Duration(milliseconds: 100));
-  return (window: window, bridge: bridge);
+  return (window: window, bridge: bridge, gateway: gateway);
 }
 
 final _outgoing = TestSnapshots.dm(
@@ -78,7 +81,7 @@ void main() {
   testWidgets(
       'a call the user started takes the window, goes full screen and '
       'leaves it for the title bar when minimized', (tester) async {
-    final (:window, bridge: _) = await _pump(tester, _outgoing);
+    final (:window, bridge: _, gateway: _) = await _pump(tester, _outgoing);
     expect(_chats, findsNothing, reason: 'the open call covers the chats');
     expect(_inTitleBar(find.text('Alice')), findsNothing);
 
@@ -113,7 +116,7 @@ void main() {
 
   testWidgets('the red button in the title bar ends the call and opens nothing',
       (tester) async {
-    final (window: _, :bridge) = await _pump(tester, _outgoing);
+    final (window: _, :bridge, gateway: _) = await _pump(tester, _outgoing);
     await tester.tap(find.byTooltip('Minimize call'));
     await tester.pump();
 
@@ -156,9 +159,10 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
   });
 
-  testWidgets('Accept on the card answers the call without opening it',
-      (tester) async {
-    final (window: _, :bridge) = await _pump(tester, _ringing);
+  testWidgets(
+      'Accept on the card answers the call, which stays minimized and '
+      'moves to the title bar', (tester) async {
+    final (window: _, :bridge, :gateway) = await _pump(tester, _ringing);
 
     await tester.tap(find.text('Accept'));
     await tester.pump(const Duration(milliseconds: 100));
@@ -167,11 +171,25 @@ void main() {
         'call');
     expect(_chats, findsOneWidget);
     expect(find.byTooltip('Enter Full Screen'), findsNothing);
+
+    // The other side confirms: the answered call is the title bar's plate.
+    gateway.seedSessions([
+      TestSnapshots.dm(
+          sessionId: 'origin',
+          peerDisplayName: 'Alice',
+          activeCall: TestCalls.active(callId: 'call'))
+    ]);
+    ProviderScope.containerOf(tester.element(find.byType(VoiceCallHost)))
+        .invalidate(conversationListProvider(ConversationKind.dm));
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(find.text('Accept'), findsNothing);
+    expect(_inTitleBar(find.byTooltip('Hang up')), findsOneWidget);
+    expect(_chats, findsOneWidget);
     await tester.pumpWidget(const SizedBox.shrink());
   });
 
   testWidgets('Decline on the card declines the call', (tester) async {
-    final (window: _, :bridge) = await _pump(tester, _ringing);
+    final (window: _, :bridge, gateway: _) = await _pump(tester, _ringing);
 
     await tester.tap(find.text('Decline'));
     await tester.pump(const Duration(milliseconds: 100));

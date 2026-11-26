@@ -71,17 +71,14 @@ class CallPlate extends StatelessWidget {
       );
 }
 
-/// The title bar's place for the call: the plate while a voice call is
-/// minimized on the desktop, and nothing otherwise. The call host under the
+/// The call in the title bar, which shows it while [callPresentationProvider]
+/// gives the plate: a voice call minimized on the desktop. The call host under the
 /// router keeps the call's sound, notification and errors.
 class TitleBarCall extends ConsumerWidget {
   const TitleBarCall({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    if (ref.watch(callPresentationProvider) != CallForm.plate) {
-      return const SizedBox.shrink();
-    }
     final session =
         ref.watch(voiceCallSessionProvider.select((s) => s?.sessionId));
     if (session == null) return const SizedBox.shrink();
@@ -90,10 +87,13 @@ class TitleBarCall extends ConsumerWidget {
         ref.watch(voiceCallOrchestratorProvider(session)),
         AppLocalizations.of(context)!);
     if (call == null) return const SizedBox.shrink();
-    return CallView(
-        call: call,
-        form: CallForm.plate,
-        onOpen: ref.read(callPresentationProvider.notifier).open,
-        onAction: (action) => runCallCommand(ref, call.command(action)));
+    return Padding(
+      padding: const EdgeInsets.only(left: MoshSpace.s2),
+      child: CallView(
+          call: call,
+          form: CallForm.plate,
+          onOpen: ref.read(callPresentationProvider.notifier).open,
+          onAction: (action) => runCallCommand(ref, call.command(action))),
+    );
   }
 }

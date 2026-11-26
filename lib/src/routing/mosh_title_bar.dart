@@ -9,6 +9,9 @@ import 'package:mosh/src/features/conversation/dm_state.dart';
 import 'package:mosh/src/features/diagnostics/state_label.dart';
 import 'package:mosh/src/features/shared/focus_ring.dart';
 import 'package:mosh/src/features/voice_call/call_plate.dart' show TitleBarCall;
+import 'package:mosh/src/features/voice_call/call_view_state.dart'
+    show CallForm;
+import 'package:mosh/src/state/call_presentation_provider.dart';
 import 'package:mosh/src/platform/desktop_chrome_scope.dart';
 import 'package:mosh/src/gateway/conversation_target.dart'
     show ConversationKind;
@@ -87,6 +90,10 @@ class MoshTitleBar extends ConsumerWidget {
     }
     final active =
         onOpenPeerStatus == null ? null : ref.watch(activeConversationProvider);
+    // The plate takes the room the state pill's label would: beside a call
+    // the pill is its dot.
+    final call =
+        showName && ref.watch(callPresentationProvider) == CallForm.plate;
     return Material(
       color: MoshColors.of(context).surfaceContainerLow,
       child: ConstrainedBox(
@@ -104,13 +111,11 @@ class MoshTitleBar extends ConsumerWidget {
                 child: _branding(context,
                     showName: showName && constraints.maxWidth >= 480 * scale)),
             // Beside the state pill, outside the room the window is dragged by.
-            if (showName)
-              Padding(
-                  padding: const EdgeInsets.only(left: MoshSpace.s2),
-                  child: ConstrainedBox(
-                      constraints: BoxConstraints(
-                          maxWidth: constraints.maxWidth * _kCallPlateShare),
-                      child: const TitleBarCall())),
+            if (call)
+              ConstrainedBox(
+                  constraints: BoxConstraints(
+                      maxWidth: constraints.maxWidth * _kCallPlateShare),
+                  child: const TitleBarCall()),
             if (active != null)
               Padding(
                   padding: const EdgeInsets.only(left: MoshSpace.s2),
@@ -119,7 +124,8 @@ class MoshTitleBar extends ConsumerWidget {
                         const BoxConstraints(maxWidth: _kStatePillMaxWidth),
                     child: _StatePillSlot(
                         activeKey: active,
-                        compact: constraints.maxWidth < _kCompactWidth * scale,
+                        compact: call ||
+                            constraints.maxWidth < _kCompactWidth * scale,
                         onTap: onOpenPeerStatus!),
                   )),
             if (trailing case final buttons?) ...[

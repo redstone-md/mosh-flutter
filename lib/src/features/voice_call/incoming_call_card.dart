@@ -3,6 +3,8 @@ import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/app/mosh_dimensions.dart';
 import 'package:mosh/src/app/mosh_theme.dart';
 import 'package:mosh/src/features/shared/avatar.dart';
+import 'package:mosh/src/features/shared/mosh_dialog.dart'
+    show moshDangerButtonStyle;
 import 'call_button.dart';
 
 /// The Incoming call card of the Minimized call card: a call rings in the
@@ -46,7 +48,7 @@ class IncomingCallCard extends StatelessWidget {
                   _who(context, colors),
                   Row(spacing: MoshSpace.s2, children: [
                     for (final control in controls)
-                      Expanded(child: _answer(context, colors, control)),
+                      Expanded(child: _answer(context, control)),
                   ]),
                 ]),
           ),
@@ -88,15 +90,12 @@ class IncomingCallCard extends StatelessWidget {
 
   /// A Button with the control's glyph and a word for it; the one that ends
   /// the call is the destructive Button.
-  Widget _answer(BuildContext context, MoshColors colors, CallControl control) {
+  Widget _answer(BuildContext context, CallControl control) {
     final l = AppLocalizations.of(context)!;
     final accept = control.tone == CallTone.accept;
     return FilledButton.icon(
         onPressed: control.onPressed,
-        style: accept
-            ? null
-            : FilledButton.styleFrom(
-                backgroundColor: colors.error, foregroundColor: colors.onError),
+        style: accept ? null : moshDangerButtonStyle(context),
         icon: Icon(control.icon),
         label: Text(accept ? l.callAccept : l.callDecline));
   }

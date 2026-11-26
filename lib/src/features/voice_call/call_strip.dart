@@ -4,9 +4,9 @@ import 'package:mosh/src/app/mosh_theme.dart';
 import 'call_button.dart';
 import 'call_who_line.dart';
 
-/// The Call strip of the Minimized call card: a call that is not open, on
-/// the phone, which has no title bar. It lies above the screen and has the
-/// plate's parts: a press on the name does [onOpen] (with [openTooltip]),
+/// The Call strip of the Minimized call card: a call that is not open, above
+/// the screen of the phone, which has no title bar, and under an app without
+/// the call engine. It has the plate's parts: a press on the name does [onOpen] (with [openTooltip]),
 /// the buttons do their own work.
 class CallStrip extends StatelessWidget {
   const CallStrip(

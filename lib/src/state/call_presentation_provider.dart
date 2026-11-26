@@ -19,6 +19,8 @@ final callPresentationProvider =
     NotifierProvider<CallPresentationNotifier, CallForm?>(
         CallPresentationNotifier.new);
 
+/// What the user chose for the call lives in the notifier, which Riverpod
+/// keeps across rebuilds: [build] derives the form from it and the call.
 class CallPresentationNotifier extends Notifier<CallForm?> {
   String? _call;
   bool _open = true;

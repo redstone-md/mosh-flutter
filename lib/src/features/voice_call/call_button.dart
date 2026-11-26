@@ -98,8 +98,16 @@ class _CallIconButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = MoshColors.of(context);
     final tone = control.tone;
+    // A bare button of the Icon button's size is the theme's own; the
+    // plate's small one takes the ink of the name beside it.
     final style = bare
-        ? const ButtonStyle()
+        ? ButtonStyle(
+            foregroundColor: size == null
+                ? null
+                : MoshState.unlessDisabled(
+                    colors.onSurface,
+                    MoshState.tint(
+                        colors.onSurface, MoshState.disabledContent)))
         : moshPlateIconButtonStyle(colors,
             plate: tone.plate(colors), ink: tone.ink(colors));
     // One node says what the button does and whether it is on.

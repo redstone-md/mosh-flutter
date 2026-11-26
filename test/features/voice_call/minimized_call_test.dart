@@ -83,7 +83,6 @@ void main() {
     await tester.pump();
 
     final strip = tester.getRect(find.byType(CallStrip));
-    expect(strip.top, 24, reason: 'under the status bar');
     expect(tester.getRect(find.byType(TextField)).top, strip.bottom,
         reason: 'the strip moves the screen down and covers none of it');
     await tester.enterText(find.byType(TextField), 'draft');
@@ -109,9 +108,6 @@ void main() {
                 callId: 'call', fromDevice: 'Alice', answerPending: false)));
     await tester.tap(find.byTooltip('Minimize call'));
     await tester.pump();
-    final inStrip = find.descendant(
-        of: find.byType(CallStrip), matching: find.byType(IconButton));
-    expect(inStrip, findsNWidgets(2), reason: 'Decline and Accept, no mic');
 
     await tester.tap(find.byTooltip('Accept call'));
     await tester.pump(const Duration(milliseconds: 100));
@@ -120,6 +116,25 @@ void main() {
         'call');
     expect(find.byType(TextField).hitTestable(), findsOneWidget,
         reason: 'answering from the strip does not open the call');
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  testWidgets('a call minimized while it rings is declined from the strip',
+      (tester) async {
+    final bridge = await _phone(
+        tester,
+        TestSnapshots.dm(
+            sessionId: 'origin',
+            pendingCall: const PendingCall(
+                callId: 'call', fromDevice: 'Alice', answerPending: false)));
+    await tester.tap(find.byTooltip('Minimize call'));
+    await tester.pump();
+
+    await tester.tap(find.byTooltip('Decline call'));
+    await tester.pump(const Duration(milliseconds: 100));
+
+    expect(bridge.lastCall(BridgeMethod.callDecline)!.arg<String>('callId'),
+        'call');
     await tester.pumpWidget(const SizedBox.shrink());
   });
 
