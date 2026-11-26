@@ -261,6 +261,8 @@ struct RosterLaggedCommit {
 
 /// Bounds the lag buffer against spam; genuine lag is 1–2 commits deep.
 pub(crate) const ROSTER_LAG_CAP: usize = 16;
+/// Slots one member may hold in the lag buffer, so it cannot evict another's.
+pub(crate) const ROSTER_LAG_PER_SENDER: usize = 4;
 /// Max plausible roster-version lead a lag-buffered commit may claim.
 pub(crate) const ROSTER_LAG_HORIZON: u64 = 64;
 
