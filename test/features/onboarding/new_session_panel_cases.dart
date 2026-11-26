@@ -99,6 +99,23 @@ void main() {
     expect(find.widgetWithText(TextField, 'dev'), findsOneWidget);
   });
 
+  // Regression (CodeAnt PR #8): a touch on Back does not unfocus the step's
+  // field, so the keyboard stayed up and typed into the hidden step.
+  testWidgets('a step left for the menu gives up the keyboard', (tester) async {
+    await _pumpWelcome(tester);
+    await _open(tester, 'Join a public channel');
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(TextField));
+    await tester.pump();
+    final field = tester.widget<EditableText>(find.byType(EditableText));
+    expect(field.focusNode.hasFocus, isTrue);
+
+    await tester.tap(find.text('Back'));
+    await tester.pumpAndSettle();
+
+    expect(field.focusNode.hasFocus, isFalse);
+  }, variant: TargetPlatformVariant.only(TargetPlatform.android));
+
   testWidgets('reduced motion swaps the step in place', (tester) async {
     tester.platformDispatcher.accessibilityFeaturesTestValue =
         const FakeAccessibilityFeatures(disableAnimations: true);

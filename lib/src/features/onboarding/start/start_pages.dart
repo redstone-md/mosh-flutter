@@ -97,17 +97,22 @@ class _StartPagesState extends State<StartPages>
           enabled: visible,
           child: IgnorePointer(
             ignoring: !shown,
-            child: ExcludeSemantics(
+            // A touch on Back leaves the field focused; a hidden page must
+            // give up the keyboard so typing cannot land in it.
+            child: ExcludeFocus(
               excluding: !shown,
-              child: Opacity(
-                opacity: opacity,
-                child: Transform.translate(
-                  offset:
-                      Offset(side * StartMotion.pageShift * (1 - opacity), 0),
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(minHeight: widget.minHeight),
-                    child: Align(
-                      child: SizedBox(width: double.infinity, child: page),
+              child: ExcludeSemantics(
+                excluding: !shown,
+                child: Opacity(
+                  opacity: opacity,
+                  child: Transform.translate(
+                    offset:
+                        Offset(side * StartMotion.pageShift * (1 - opacity), 0),
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(minHeight: widget.minHeight),
+                      child: Align(
+                        child: SizedBox(width: double.infinity, child: page),
+                      ),
                     ),
                   ),
                 ),
