@@ -78,3 +78,56 @@ pub(super) fn legacy_source_preserves_verified_live_origins(f: &mut Fixture) {
         .unwrap();
     assert_eq!(overlap.metadata.as_ref().unwrap().origin, Some(origin));
 }
+
+// The source exports a message it deleted as a tombstone. When this device
+// still shows the message, the tombstone must not stall the import: the
+// deletion reaches this device through the deletion protocol, which carries
+// the authority a bare marker does not, so the live copy stays until then.
+pub(super) fn a_tombstone_for_a_live_local_message_does_not_stall_the_import(f: &mut Fixture) {
+    let crypto = &f.peers[&f.contact.device().device_id];
+    let origin = crate::message_deletion::MessageOrigin::sign_mls(
+        &format!("dm:{}", f.session),
+        "overlap",
+        b"live",
+        crypto,
+        None,
+        None,
+    )
+    .unwrap();
+    let mut live = record("overlap", "live");
+    live.metadata = Some(crate::message_deletion::MessageMetadata {
+        origin: Some(origin),
+        ..Default::default()
+    });
+    f.runtime
+        .session_mut(&f.session)
+        .unwrap()
+        .messages
+        .push(live.clone().into_message());
+    let mut tombstone = live;
+    tombstone.body.clear();
+    if let Some(metadata) = tombstone.metadata.as_mut() {
+        metadata.deletion = Some(crate::message_deletion::DeletionMarker {
+            scope: crate::message_deletion::DeleteScope::ForEveryone,
+            status: crate::message_deletion::DeletionStatus::Confirmed,
+            administrator: None,
+        });
+    }
+    let packet = f.packet(
+        &f.source,
+        DeviceMessage::HistoryBatch(f.batch(0, vec![tombstone, record("other", "second")])),
+    );
+    f.receive(&packet).unwrap();
+    assert_eq!(f.history_sync(), Some(DmHistorySyncState::Complete));
+    let snapshot = f.snapshot();
+    let overlap = snapshot
+        .messages
+        .iter()
+        .find(|m| m.message_id.as_deref() == Some("overlap"))
+        .unwrap();
+    assert_eq!(overlap.body, "live");
+    assert!(snapshot
+        .messages
+        .iter()
+        .any(|m| m.message_id.as_deref() == Some("other")));
+}
