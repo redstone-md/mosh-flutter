@@ -9,3 +9,12 @@ test("a full limiter forgets its oldest callers instead of growing", () => {
   assert.equal(limit.allow("c"), false, "a recent caller is still limited");
   assert.ok(limit.allow("a"), "the oldest caller made room");
 });
+
+test("a refused request does not hold the slot a refund gives back", () => {
+  const limit = new RateLimit(1, 10_000, () => 0);
+  assert.ok(limit.allow("k"));
+  assert.equal(limit.allow("k"), false);
+
+  limit.refund("k");
+  assert.ok(limit.allow("k"), "the refunded slot is free again");
+});

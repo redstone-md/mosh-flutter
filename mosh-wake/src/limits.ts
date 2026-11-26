@@ -16,13 +16,14 @@ export class RateLimit {
     this.capacity = capacity;
   }
 
-  /** Counts a request under `key`; false once the window's limit is spent. */
+  /** Counts a request under `key`; false, and not counted, once the window's limit is spent. */
   allow(key: string): boolean {
     const now = this.now();
     const window = this.windows.get(key);
     if (window && now - window.start < this.windowMs) {
+      if (window.count >= this.limit) return false;
       window.count += 1;
-      return window.count <= this.limit;
+      return true;
     }
     this.windows.delete(key);
     this.prune(now);
