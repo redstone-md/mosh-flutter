@@ -4,8 +4,10 @@ import 'dart:ui' as ui;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:image/image.dart' as img;
 import 'package:mosh/src/features/device_link/device_link_qr.dart';
 import 'package:mosh/src/features/device_link/qr_image.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 
 import '../../support/pump.dart';
 import '../../support/device_link_fixture.dart';
@@ -34,6 +36,35 @@ void main() {
       expect(await decodeDeviceQr(bytes!.buffer.asUint8List()), link);
       image.dispose();
     });
+  });
+
+  // Regression (CodeAnt PR #7): pixels went to the reader in the wrong
+  // channel order. Blue on light yellow has one brightness in that order,
+  // so the colored code read as blank.
+  test('a QR drawn in blue on yellow is imported', () async {
+    final link = deviceLinkQrFixture();
+    final code = QrImage(QrValidator.validate(
+            data: link,
+            version: QrVersions.auto,
+            errorCorrectionLevel: QrErrorCorrectLevel.L)
+        .qrCode!);
+    const scale = 6, quiet = 4;
+    final side = (code.moduleCount + 2 * quiet) * scale;
+    final image = img.Image(width: side, height: side)
+      ..clear(img.ColorRgb8(255, 255, 128));
+    for (var row = 0; row < code.moduleCount; row++) {
+      for (var col = 0; col < code.moduleCount; col++) {
+        if (!code.isDark(row, col)) continue;
+        img.fillRect(image,
+            x1: (col + quiet) * scale,
+            y1: (row + quiet) * scale,
+            x2: (col + quiet + 1) * scale - 1,
+            y2: (row + quiet + 1) * scale - 1,
+            color: img.ColorRgb8(0, 0, 255));
+      }
+    }
+
+    expect(await decodeDeviceQr(img.encodePng(image)), link);
   });
 
   test('invalid and oversized images fail before QR import', () async {
