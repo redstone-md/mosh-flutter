@@ -9,6 +9,7 @@ import 'package:mosh/src/features/shared/modal_focus_trap.dart';
 import 'call_notice.dart';
 import 'call_video_stage.dart';
 import 'call_video_textures.dart';
+import 'call_button.dart' show CallControl;
 import 'call_window_parts.dart';
 
 /// How long the buttons of a call stay over its video without a pointer
@@ -33,7 +34,7 @@ class CallWindow extends StatefulWidget {
     required this.label,
     required this.peer,
     required this.status,
-    required this.buttons,
+    required this.controls,
     this.statusFontFeatures,
     this.failed = false,
     this.muted = false,
@@ -51,8 +52,8 @@ class CallWindow extends StatefulWidget {
   final String status;
   final List<FontFeature>? statusFontFeatures;
 
-  /// The call's buttons, larger on a phone held upright.
-  final List<Widget> Function({required bool large}) buttons;
+  /// The call's buttons, drawn larger on a phone held upright.
+  final List<CallControl> controls;
 
   /// Whether [status] says that the call cannot go on as it is.
   final bool failed;
@@ -258,7 +259,7 @@ class _CallWindowState extends State<CallWindow> {
           form: form,
           notice: widget.notice,
           onDockHover: _dock,
-          buttons: widget.buttons),
+          controls: widget.controls),
     ]);
   }
 }

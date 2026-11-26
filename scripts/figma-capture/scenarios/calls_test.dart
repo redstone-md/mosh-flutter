@@ -50,7 +50,8 @@ void main() {
     FigmaScene('incoming-mini', 'Calls / Incoming / Mini view',
         (tester, size) async {
       await openCall(tester, size, pending: _ringing);
-      // Desktop rings in the mini view; a phone opens the call expanded.
+      // Desktop rings in the corner card; a phone opens the call, and
+      // minimized it rings in the strip.
       if (size != FigmaDevice.desktop.size) {
         await tapCall(tester, 'Minimize call');
       }
@@ -192,8 +193,7 @@ void main() {
         (tester, size) async {
       await _active(tester, size,
           minimize: true, location: AppRoutes.dmFor('leo'));
-      // The mini view sits over the header on desktop, so press the
-      // header's button directly.
+      // Press the header's button directly: the scene is about the toast.
       final start = find.ancestor(
           of: find.byTooltip('Start voice call'),
           matching: find.byType(IconButton));

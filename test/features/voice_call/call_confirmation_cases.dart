@@ -34,7 +34,7 @@ void main() {
             data: buildMoshTheme(),
             child: Scaffold(
                 body: CallView(
-                    compact: true, call: call, onAction: actions.add))));
+                    form: CallForm.strip, call: call, onAction: actions.add))));
     expect(
         find.text(
             'Calls are active on different devices. New calls are unavailable until they end.'),

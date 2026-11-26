@@ -17,6 +17,11 @@ enum CallViewAction {
   bool get availableWhileBusy => this == end || this == openConversation;
 }
 
+/// Where a call is drawn. [open] takes the window; the others are the
+/// Minimized call card: the video [tile], the [card] a call rings in on the
+/// desktop, the [plate] in the desktop's title bar and the phone's [strip].
+enum CallForm { open, tile, card, plate, strip }
+
 /// Display data of one call. Every command identifies the displayed call.
 class CallViewState {
   const CallViewState({

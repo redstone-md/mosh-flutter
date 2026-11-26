@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/src/features/voice_call/call_strip.dart';
+import 'package:mosh/src/features/voice_call/call_video_stage.dart';
 import 'package:mosh/src/features/voice_call/voice_call_host.dart';
 import 'package:mosh/src/gateway/conversation_target.dart';
 import 'package:mosh/src/routing/app_router.dart';
@@ -115,7 +116,8 @@ void main() {
       expect(bridge.countOf(BridgeMethod.nativeCallPrepare), 1);
       expect(media.session?.callId, 'original-call');
     }
-    await tester.tap(find.byTooltip('Expand call'));
+    // The call has video, so it is minimized to its tile: the picture opens it.
+    await tester.tap(find.byType(CallVideoStage));
     await _frames(tester);
     await tester.tap(find.byTooltip('Mute'));
     await _frames(tester);

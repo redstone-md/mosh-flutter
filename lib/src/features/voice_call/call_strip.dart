@@ -1,80 +1,58 @@
 import 'package:flutter/material.dart';
+import 'package:mosh/src/app/mosh_dimensions.dart';
 import 'package:mosh/src/app/mosh_theme.dart';
-import 'package:mosh/src/features/shared/mosh_notice.dart';
-import 'call_notice.dart';
+import 'call_button.dart';
+import 'call_who_line.dart';
 
-/// The strip of a minimized call: who it is with, how it is going and its
-/// buttons. The open call is the CallWindow.
+/// The Call strip of the Minimized call card: a call that is not open, on
+/// the phone, which has no title bar. It lies above the screen and has the
+/// plate's parts: a press on the name does [onOpen] (with [openTooltip]),
+/// the buttons do their own work.
 class CallStrip extends StatelessWidget {
-  const CallStrip({
-    super.key,
-    required this.label,
-    required this.peer,
-    required this.status,
-    required this.actions,
-    this.statusFontFeatures,
-    this.onOpenConversation,
-    this.notice,
-    this.singleLine = false,
-  });
+  const CallStrip(
+      {super.key,
+      required this.label,
+      required this.peer,
+      required this.line,
+      required this.controls,
+      required this.onOpen,
+      this.openTooltip});
 
-  final String label;
-  final String peer;
-  final String status;
-  final List<Widget> actions;
-  final List<FontFeature>? statusFontFeatures;
-  final VoidCallback? onOpenConversation;
-  final CallNotice? notice;
-  final bool singleLine;
+  final String label, peer;
+  final CallLine line;
+  final List<CallControl> controls;
+  final VoidCallback? onOpen;
+  final String? openTooltip;
 
   @override
   Widget build(BuildContext context) {
-    final colors = MoshColors.of(context);
+    final who = InkWell(
+      onTap: onOpen,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(
+            minHeight: MoshControl.height(Theme.of(context).platform)),
+        child: Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: CallWhoLine(peer: peer, line: line, wide: true)),
+      ),
+    );
     return Material(
-      color: Theme.of(context).colorScheme.surfaceContainer,
+      color: MoshColors.of(context).surfaceContainerLowest,
       child: Semantics(
         label: label,
         container: true,
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          child: LayoutBuilder(
-              builder: (context, constraints) => !singleLine &&
-                      constraints.maxWidth < 480
-                  ? Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                          _identity(colors),
-                          const SizedBox(height: 8),
-                          Wrap(spacing: 12, runSpacing: 8, children: actions)
-                        ])
-                  : Row(spacing: 12, children: [
-                      Expanded(child: _identity(colors)),
-                      ...actions
-                    ])),
+          padding: const EdgeInsets.fromLTRB(
+              MoshSpace.s4, MoshSpace.s1, MoshSpace.s2, MoshSpace.s1),
+          child: Row(spacing: MoshSpace.s2, children: [
+            Expanded(
+                child: openTooltip == null
+                    ? who
+                    : Tooltip(message: openTooltip, child: who)),
+            for (final control in controls) CallMiniButton(control: control),
+          ]),
         ),
       ),
     );
   }
-
-  Widget _identity(MoshColors colors) => InkWell(
-      onTap: onOpenConversation,
-      child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(peer, maxLines: 1, overflow: TextOverflow.ellipsis),
-            Text(status,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(fontFeatures: statusFontFeatures)),
-            if (notice != null) _notice(colors),
-          ]));
-
-  Widget _notice(MoshColors colors) => Text(notice!.text,
-      style: TextStyle(
-          color: notice!.tone == MoshNoticeTone.error
-              ? colors.error
-              : colors.warning),
-      softWrap: true);
 }

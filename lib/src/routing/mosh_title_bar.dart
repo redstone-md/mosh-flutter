@@ -8,6 +8,7 @@ import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/features/conversation/dm_state.dart';
 import 'package:mosh/src/features/diagnostics/state_label.dart';
 import 'package:mosh/src/features/shared/focus_ring.dart';
+import 'package:mosh/src/features/voice_call/call_plate.dart' show TitleBarCall;
 import 'package:mosh/src/platform/desktop_chrome_scope.dart';
 import 'package:mosh/src/gateway/conversation_target.dart'
     show ConversationKind;
@@ -23,8 +24,11 @@ const double _kCompactWidth = 640;
 /// Widest the live state pill grows before its label ellipsizes.
 const double _kStatePillMaxWidth = 240;
 
-/// The Window title bar card: the app's mark, the chat list toggle and the
-/// state of the selected conversation, on the panel level so it reads as part
+/// How much of the bar a minimized call's plate may take.
+const double _kCallPlateShare = 0.4;
+
+/// The Window title bar card: the app's mark, the chat list toggle, a
+/// minimized call and the state of the selected conversation, on the panel level so it reads as part
 /// of the window's frame. The desktop window frame adds the window buttons
 /// and the drag area; a phone has no title bar.
 class MoshTitleBar extends ConsumerWidget {
@@ -63,7 +67,8 @@ class MoshTitleBar extends ConsumerWidget {
   final VoidCallback? onToggleChatList;
   final bool integrated;
 
-  /// False during setup, whose bar is the mark alone.
+  /// False during setup, whose bar is the mark alone: it has no name and,
+  /// with no chats yet, no call.
   final bool showName;
 
   /// What the window puts before the bar's own content: the buttons of a
@@ -98,6 +103,14 @@ class MoshTitleBar extends ConsumerWidget {
             Expanded(
                 child: _branding(context,
                     showName: showName && constraints.maxWidth >= 480 * scale)),
+            // Beside the state pill, outside the room the window is dragged by.
+            if (showName)
+              Padding(
+                  padding: const EdgeInsets.only(left: MoshSpace.s2),
+                  child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                          maxWidth: constraints.maxWidth * _kCallPlateShare),
+                      child: const TitleBarCall())),
             if (active != null)
               Padding(
                   padding: const EdgeInsets.only(left: MoshSpace.s2),
