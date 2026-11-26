@@ -148,6 +148,9 @@ mod tests {
         assert!(drop_missing(&mut choices, &[], &[]));
         assert!(!choices.microphone);
         selection.fall_back(|| Ok(())).unwrap();
+        // The worker applies the changed switch while the device is still
+        // gone; the engine refuses an input id it does not have.
+        assert!(!selection.apply(&choices, || Ok([false, true])).unwrap());
         // The microphone is plugged back in and switched on again.
         choices.microphone = true;
         assert!(!drop_missing(&mut choices, &[mic], &[]));
