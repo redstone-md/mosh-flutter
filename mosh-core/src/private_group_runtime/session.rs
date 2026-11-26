@@ -134,6 +134,9 @@ pub(super) struct GroupSession {
     pub(super) last_roster_version_seen: Option<u64>,
     /// Org removals this admin commits when its turn comes (`org_commits`).
     pub(super) pending_removals: super::org_commits::PendingRemovals,
+    /// This branch lost an org fork: stays set until the member rejoins,
+    /// whatever later commits say, and stops it acting as an admin.
+    pub(super) forked_off: bool,
     /// Fingerprint → wall-clock deadline of that member's typing hint. A
     /// refresh inside the window renews the entry; silence lets it lapse.
     pub(super) typing_members: HashMap<String, u64>,
@@ -208,6 +211,7 @@ impl GroupSession {
             roster_lag: Vec::new(),
             last_roster_version_seen: None,
             pending_removals: Default::default(),
+            forked_off: false,
             typing_members: HashMap::new(),
             member_names: HashMap::new(),
             typing_gate: TypingGate::default(),

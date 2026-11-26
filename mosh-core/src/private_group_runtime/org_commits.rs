@@ -1,10 +1,12 @@
-//! Who commits an org removal.
+//! Who commits an org removal, and which branch survives when two did.
 //!
 //! Every roster admin may commit (ADR 0005), but gossip has no order, so two
 //! admins committing the same removal fork the MLS tree. One admin is
-//! designated per removal and the others only stand by.
+//! designated per removal and the others only stand by; a fork that still
+//! happens is resolved by a rule both branches compute alike.
 
 use super::*;
+use sha2::{Digest, Sha256};
 use std::collections::BTreeMap;
 
 /// How long each admin below the designated one waits before committing a
@@ -136,5 +138,45 @@ impl GroupSession {
                 &format!("org removal commit failed: {error}"),
             );
         }
+    }
+
+    /// An authorized commit for an epoch we already merged, with other bytes,
+    /// means two admins committed concurrently. Both branches keep the commit
+    /// whose SHA-256 sorts lower; the one that merged the other must rejoin.
+    /// Our merged commit comes from the commit log, so an epoch we never
+    /// merged (we joined later) is ignored. Org groups only: plain control
+    /// frames are unauthenticated, and a forged blob must not force a rejoin.
+    pub(super) fn note_org_fork(&mut self, commit_b64: &str) {
+        if self.org_pubkey.is_none() || self.forked_off {
+            return;
+        }
+        let Ok(theirs) = decode(commit_b64) else {
+            return;
+        };
+        let Ok(epoch) = MlsSessionCrypto::commit_epoch(&theirs) else {
+            return;
+        };
+        if self.crypto.epoch().is_none_or(|current| epoch >= current) {
+            return;
+        }
+        let Some(ours) = self.merged_commit(epoch) else {
+            return;
+        };
+        if ours != theirs && Sha256::digest(&ours) > Sha256::digest(&theirs) {
+            self.forked_off = true;
+            dlog::write(
+                LogLevel::Warn,
+                kinds::COMMIT,
+                &self.group_id,
+                &format!("epoch {epoch} forked and this branch lost; rejoin needed"),
+            );
+        }
+    }
+
+    fn merged_commit(&self, epoch: u64) -> Option<Vec<u8>> {
+        let store = self.persistence.as_ref()?;
+        let rows = store.list_group_commits_from(&self.group_id, epoch).ok()?;
+        let (logged, bytes) = rows.into_iter().next()?;
+        (logged == epoch).then_some(bytes)
     }
 }

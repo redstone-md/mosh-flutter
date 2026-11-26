@@ -58,11 +58,13 @@ impl GroupSession {
     /// Merge a control-channel commit in epoch order. Duplicates and stale
     /// replays are no-ops; future commits are buffered and drained once their
     /// epoch is reached; an unreachable buffered commit triggers a resync
-    /// request (spec §7).
+    /// request (spec §7). Org callers have already authorized the author, so
+    /// a stale commit that differs from ours is checked as a fork.
     pub(super) fn apply_commit_sequenced(
         &mut self,
         commit_b64: String,
     ) -> Result<(), PrivateGroupError> {
+        self.note_org_fork(&commit_b64);
         let outcome = sequence_commit(
             &mut self.crypto,
             &mut self.sequencer,
@@ -147,6 +149,9 @@ impl GroupSession {
         &mut self,
         commits: Vec<ResyncCommit>,
     ) -> Result<(), PrivateGroupError> {
+        for commit in &commits {
+            self.note_org_fork(&commit.commit_b64);
+        }
         let still_gapped = absorb_resync_commits(
             &mut self.crypto,
             &mut self.sequencer,

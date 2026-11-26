@@ -1,5 +1,6 @@
 use super::super::org_commits::FALLBACK_COMMIT_DELAY_MS as DELAY;
 use super::*;
+use sha2::{Digest, Sha256};
 
 /// An org group with two admins that both run the real session logic, `a`
 /// on a runtime and `b` beside it, plus two plain members at the crypto
@@ -349,4 +350,27 @@ fn the_fallback_still_removes_the_leaver_after_an_unrelated_commit() {
     org.pump(0, DELAY);
     assert_eq!(org.epoch(0), start + 2);
     assert!(!org.admin(0).crypto.member_identities().contains(&leaver));
+}
+
+#[test]
+fn a_forked_epoch_sends_the_higher_commit_hash_to_rejoin() {
+    let _guard = locked();
+    let mut org = TwoAdmins::open("fork", false);
+    let start = org.epoch(0);
+    let departure = org.departure();
+    org.deliver(0, departure.clone());
+    org.deliver(1, departure);
+    // Neither hears the other in time: both commit the departure.
+    org.pump(0, 0);
+    org.pump(1, 0);
+    org.pump(1, DELAY);
+    let ours = org.commit_at(0, start).unwrap();
+    let theirs = org.commit_at(1, start).unwrap();
+    assert_ne!(ours, theirs, "the fixture forks the tree");
+    org.relay(start);
+    // A redelivered duplicate must not clear the verdict.
+    org.relay(start);
+    let loser = usize::from(Sha256::digest(&ours) < Sha256::digest(&theirs));
+    assert!(org.needs_rejoin(loser), "the higher hash rejoins");
+    assert!(!org.needs_rejoin(1 - loser), "the lower hash stays");
 }

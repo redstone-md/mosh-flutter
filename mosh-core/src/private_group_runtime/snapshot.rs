@@ -32,7 +32,7 @@ impl GroupSession {
             attachments: self.transfer.views(),
             dm_offers: self.dm_offers.to_vec(),
             mesh: mesh::mesh_info(&self.node),
-            needs_rejoin: self.needs_rejoin,
+            needs_rejoin: self.needs_rejoin || self.forked_off,
             org_pubkey: self.org_pubkey.clone(),
             member_peer_ids: match self.org_pubkey {
                 Some(_) => self.crypto.member_identities(),

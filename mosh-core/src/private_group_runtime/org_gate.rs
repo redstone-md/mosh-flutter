@@ -90,12 +90,16 @@ impl GroupSession {
 
     /// May this client author membership commits? Org groups: roster role
     /// (ADR 0005) — the fingerprint-admin machinery is not consulted at
-    /// all. Plain groups: the legacy single-admin flag.
+    /// all — unless this branch lost a fork and must not grow or serve it.
+    /// Plain groups: the legacy single-admin flag.
     pub(super) fn acting_admin(&mut self) -> bool {
         self.try_acting_admin().unwrap_or(false)
     }
 
     pub(super) fn try_acting_admin(&mut self) -> Result<bool, PrivateGroupError> {
+        if self.forked_off {
+            return Ok(false);
+        }
         if self.org_pubkey.is_some() {
             let id = self.own_peer_id().ok_or(PrivateGroupError::NotReady)?;
             return Ok(self
