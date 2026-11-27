@@ -2,17 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/src/features/onboarding/first_run_transition.dart';
 import 'package:mosh/src/features/onboarding/first_run_profile.dart';
+import 'package:mosh/src/features/onboarding/first_run_provider.dart';
 import 'package:mosh/src/state/locale_provider.dart';
 
 import '../../support/first_run.dart';
 import '../../support/first_run_preview.dart';
 
 void main() {
-  for (final size in [
-    const Size(1280, 680),
-    const Size(1920, 1080),
-    const Size(390, 844),
-  ]) {
+  for (final size in [const Size(1280, 680), const Size(1920, 1080)]) {
     testWidgets('the name step stands in the middle at $size', (tester) async {
       final harness =
           FirstRunHarness(profile: const FirstRunProfile(displayName: 'Лена'));
@@ -25,6 +22,17 @@ void main() {
       expect(step.width, lessThanOrEqualTo(480 + 48));
     });
   }
+
+  testWidgets('a phone starts the name step at the top of the screen',
+      (tester) async {
+    final harness =
+        FirstRunHarness(profile: const FirstRunProfile(displayName: 'Лена'));
+    await harness.pump(tester, size: const Size(390, 844));
+    final step = tester.getRect(setupStep);
+    final viewport = _viewport(tester);
+    expect(step.top, viewport.top);
+    expect(step.width, viewport.width);
+  });
 
   testWidgets('a step taller than the window scrolls', (tester) async {
     final harness =
@@ -42,7 +50,7 @@ void main() {
 
   for (final size in [const Size(1280, 680), const Size(900, 700)]) {
     for (final step in SetupStep.values) {
-      testWidgets('$step fits the first viewport at $size', (tester) async {
+      testWidgets('$step lays out in Russian at $size', (tester) async {
         await prepareSetupPreview(tester);
         final harness = FirstRunHarness(
             profile: FirstRunProfile(displayName: 'Лена', step: step));
@@ -52,16 +60,41 @@ void main() {
             .setLocale(const Locale('ru'));
         await tester.pumpAndSettle();
         expect(tester.takeException(), isNull);
-        final scroll =
-            tester.state<ScrollableState>(find.byType(Scrollable).first);
-        expect(scroll.position.maxScrollExtent, closeTo(0, 1));
-        expect(
-            tester.getRect(setupStep).bottom, lessThanOrEqualTo(size.height));
+        // The device step holds the link card and is the tallest: it lays
+        // out without an error here, and may scroll. The other two fit.
+        if (step != SetupStep.device) {
+          final scroll =
+              tester.state<ScrollableState>(find.byType(Scrollable).first);
+          expect(scroll.position.maxScrollExtent, closeTo(0, 1));
+          expect(
+              tester.getRect(setupStep).bottom, lessThanOrEqualTo(size.height));
+        }
         await saveSetupPreview(tester,
             'first-run-${step.name}-${size.width.toInt()}x${size.height.toInt()}');
       });
     }
   }
+
+  testWidgets('a step too tall for the room under the top raises it for good',
+      (tester) async {
+    final harness =
+        FirstRunHarness(profile: const FirstRunProfile(displayName: 'Yuna'));
+    await harness.pump(tester, size: const Size(1280, 680));
+    final opened = tester.getRect(setupStep).top;
+    final profile = harness.container.read(firstRunProfileProvider.notifier);
+    await profile.goTo(SetupStep.device);
+    await tester.pumpAndSettle();
+    final raised = tester.getRect(setupStep);
+    expect(raised.top, lessThan(opened));
+    // As far up as the device step needs, and no further than the window.
+    expect(
+        raised.top,
+        _viewport(tester).top +
+            (_viewport(tester).height - raised.height).clamp(0, opened));
+    await profile.goTo(SetupStep.network);
+    await tester.pumpAndSettle();
+    expect(tester.getRect(setupStep).top, raised.top);
+  });
 
   testWidgets('the step stays in the middle as the window grows',
       (tester) async {

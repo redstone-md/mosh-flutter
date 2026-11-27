@@ -177,8 +177,6 @@ class _GroupCreateStepState extends ConsumerState<GroupCreateStep> {
           loading: _busy,
           child: FilledButton.icon(
             onPressed: _named ? _onCreate : null,
-            style:
-                FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
             icon: _busy ? const MoshSpinner() : null,
             label: Text(l.onboardGroupCreate),
           ),

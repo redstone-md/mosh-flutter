@@ -6,6 +6,8 @@ import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 import 'package:mosh/src/features/conversation/conversation_tools.dart'
     show isMobileBreakpoint;
+import 'package:mosh/src/features/shared/page_header.dart';
+import 'package:mosh/src/features/shared/rail_back_button.dart';
 
 import 'start_list.dart';
 import 'start_motion.dart';
@@ -27,8 +29,9 @@ class StartMenu extends StatelessWidget {
   final VoidCallback onPickJoin;
   final VoidCallback onPickChannel;
 
-  /// Width of the menu on the desktop: a 440 px row and the menu's padding.
-  static const maxWidth = 472.0;
+  /// Width of the menu's cards on the desktop: a 440 px row inside the
+  /// card's edge. A narrower pane gives the cards all it has.
+  static const maxWidth = 440.0 + 2 * MoshBorder.thin;
 
   @override
   Widget build(BuildContext context) {
@@ -44,9 +47,19 @@ class StartMenu extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // A narrow window opens the menu as a screen of its own, and
-            // the bar with the way back already names it.
-            if (!isMobileBreakpoint(context))
+            // A narrow window opens the menu as a screen of its own: its
+            // name comes with the way back to the chat list, which is
+            // offstage there.
+            if (isMobileBreakpoint(context))
+              Padding(
+                padding: const EdgeInsets.only(bottom: MoshSpace.s2),
+                child: PageHeader(
+                  title: l.shellNewSession,
+                  backTooltip: l.backToConversations,
+                  onBack: () => backToRail(context),
+                ),
+              )
+            else
               Padding(
                 padding: const EdgeInsets.fromLTRB(
                     MoshSpace.s4, 0, MoshSpace.s4, MoshSpace.s4),

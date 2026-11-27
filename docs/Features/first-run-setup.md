@@ -6,9 +6,13 @@
 > with the progress, the question and why Mosh asks it, the controls, one
 > primary button and Back as the quiet one. The bordered card, the
 > illustrations in `assets/onboarding/`, the two-column frame, the setup
-> theme and `first_run_sizing.dart` are gone. The step the wizard opens with
-> stands in the middle of the window and its top then stays put, so the
-> progress does not move when steps differ in height; a taller step scrolls.
+> theme and `first_run_sizing.dart` are gone. On the desktop the step the
+> wizard opens with stands in the middle of the window and its top then
+> stays put, so the progress does not move when a later step is no taller
+> than the room under it. A step too tall for that room, as the device step
+> is in a short window, raises the top once and for good, and one taller
+> than the window scrolls. On a phone a step starts at the top of the
+> screen.
 > The sections below that describe the card, the artwork and their sizes are
 > the history of the earlier layout. Flow, persistence, device linking and
 > network behaviour are unchanged.
@@ -31,9 +35,10 @@ approved on 2026-10-02.
 - Require a display name, restore it after restart, and allow editing in Settings.
   Use initials for the avatar. Name changes apply to new conversations; existing
   conversations keep their names.
-- Offer "This is my first device" and "Connect to an existing profile". The
-  first choice continues setup; the second reuses QR/image/link import and
-  approval on the trusted installation.
+- Offer "This is my first device" under the card that connects this device
+  to an existing profile, which is open from the start. The button continues
+  setup; the card reuses QR/image/link import and approval on the trusted
+  installation.
 - Use automatic networking by default. Choosing a physical adapter is optional
   and explains that it routes Mosh traffic around the VPN. Explain any required
   restart before applying it.
@@ -178,7 +183,8 @@ enlarged text, keyboard input or expanded device-link states. The outer frame
 stays stationary and keeps its insets even while the content scrolls. The
 minimum-height constraint permits growth without fixed text heights or
 intrinsic measurement. Regression tests
-require all three default steps to fit at 1280×680 and 900×700 in Russian, and
+require the name and network steps to fit at 1280×680 and 900×700 in Russian
+(the device step holds the link card and may scroll there), and
 verify equal insets, content centering, internal scrolling, image resizing,
 name preservation and keyboard access.
 

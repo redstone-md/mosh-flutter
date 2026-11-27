@@ -57,6 +57,7 @@ void main() {
   testWidgets('Back reverses the subtle slide and restores the saved name',
       (tester) async {
     await _pump(tester, SetupStep.device);
+    await tester.ensureVisible(find.text('Back'));
     await tester.tap(find.text('Back'));
     await tester.pump();
     await tester.pump();

@@ -47,7 +47,7 @@ export const COMPONENTS = [
   component('surfaces', 'Banner', ['MoshNotice', 'FeedBanner', 'ChatErrorBanner', 'OrgAddMissingBanner', 'GroupRejoinNeededError', 'PersistenceWarningBanner', 'AboutUpdateNotice']),
   component('surfaces', 'Inline note', ['SetupPrivacyNote', 'channel_join_step._OpenWarning', 'invite_result._ReadyNote']),
   component('surfaces', 'Toast', ['ToastCard']),
-  component('surfaces', 'Settings card', ['SettingsSurface', 'SettingsCardHeader', 'SettingsIcon', 'SettingsFold', 'MoshDisclosure', 'SettingsPageHeader', 'ListTile', 'Card']),
+  component('surfaces', 'Settings card', ['SettingsSurface', 'SettingsCardHeader', 'SettingsIcon', 'SettingsFold', 'MoshDisclosure', 'PageHeader', 'ListTile', 'Card']),
   component('surfaces', 'Navigation row', ['SettingsNav', 'settings_nav._SectionRow', 'StartRow', 'start_list._Section']),
   component('surfaces', 'Device row', ['device_list._DeviceRow', 'device_list._Id']),
   component('surfaces', 'Details panel', ['ConversationDetailsPanel', 'conversation_details_panel._Section', 'conversation_details_panel._MemberRow', 'PanelHead', 'ConnectionStatusPanel', 'PeerStatusDrawer']),

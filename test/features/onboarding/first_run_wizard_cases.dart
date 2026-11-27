@@ -68,7 +68,6 @@ void main() {
         profile:
             const FirstRunProfile(displayName: 'Juno', step: SetupStep.device));
     await harness.pump(tester);
-    await tapSetup(tester, 'Connect to an existing profile');
     await tester.enterText(
         find.byType(TextField), 'mosh://device-link/example');
     await tester.ensureVisible(find.byIcon(MoshIcons.forward));
@@ -97,13 +96,12 @@ void main() {
   });
 
   testWidgets(
-      'cancel link returns to device choices and allows another attempt',
+      'cancel link returns to the empty link field and allows another attempt',
       (tester) async {
     final harness = FirstRunHarness(
         profile:
             const FirstRunProfile(displayName: 'Juno', step: SetupStep.device));
     await harness.pump(tester);
-    await tapSetup(tester, 'Connect to an existing profile');
     await tester.enterText(find.byType(TextField), 'mosh://device-link/first');
     await tester.tap(find.byTooltip('Connect'));
     await tester.pumpAndSettle();
@@ -112,11 +110,10 @@ void main() {
     expect(find.text('ABCDEF123456'), findsOneWidget);
     harness.link.actionError = null;
     await tapSetup(tester, 'Cancel link');
-    expect(find.text('Connect to an existing profile'), findsOneWidget);
+    expect(tester.widget<TextField>(find.byType(TextField)).controller!.text,
+        isEmpty);
     expect(find.text('This is my first device'), findsOneWidget);
-    expect(find.byType(TextField), findsNothing);
     expect(harness.store.profile!.step, SetupStep.device);
-    await tapSetup(tester, 'Connect to an existing profile');
     await tester.enterText(find.byType(TextField), 'mosh://device-link/second');
     await tester.tap(find.byTooltip('Connect'));
     await tester.pumpAndSettle();
@@ -137,8 +134,8 @@ void main() {
     await harness.pump(tester, settle: false);
     await tester.pump(const Duration(milliseconds: 100));
     await tester.pump();
-    final button = tester.widget<OutlinedButton>(find.widgetWithText(
-        OutlinedButton, 'Cancel linking and continue independently'));
+    final button = tester.widget<TextButton>(find.widgetWithText(
+        TextButton, 'Cancel linking and continue independently'));
     expect(button.onPressed, isNull);
     expect(harness.link.cancellations, 0);
     harness.link.publish(setupDeviceSnapshot(

@@ -19,7 +19,7 @@ import '../../support/pump.dart';
 
 const _card = 'Join a public channel';
 const _warning =
-    'End-to-end encryption is disabled for public channels. Anyone who joins this channel can read messages.';
+    'End-to-end encryption is off in public channels. Anyone who joins this channel can read its messages.';
 
 Finder _inStep(Finder matching) =>
     find.descendant(of: find.byType(ChannelJoinStep), matching: matching);
@@ -56,7 +56,7 @@ void main() {
       (tester) async {
     await pumpStartStep(tester, _card, bridge: ScriptableBridge());
 
-    expect(find.text('Join an open room by its name.'), findsOneWidget);
+    expect(find.text('Join an open room by its name'), findsOneWidget);
     expect(find.text(_warning), findsOneWidget);
     expect(find.text('Channel name'), findsOneWidget);
     expect(find.text('Join channel'), findsOneWidget);

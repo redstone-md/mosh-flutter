@@ -5,8 +5,8 @@ import 'package:mosh/src/app/mosh_icons.dart';
 /// The Page header card: the head of a screen that is not a conversation.
 /// Its name; with [onBack] it is the phone's: the way back stands before a
 /// smaller name.
-class SettingsPageHeader extends StatelessWidget {
-  const SettingsPageHeader({
+class PageHeader extends StatelessWidget {
+  const PageHeader({
     super.key,
     required this.title,
     this.onBack,

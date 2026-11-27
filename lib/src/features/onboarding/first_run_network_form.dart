@@ -3,6 +3,7 @@ import 'package:mosh/src/app/mosh_dimensions.dart';
 import 'package:mosh/src/features/shared/inline_error.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_field.dart';
 import 'package:mosh/src/app/mosh_select.dart';
 import 'package:mosh/src/app/mosh_theme.dart';
 import 'package:mosh/src/features/shared/mosh_dialog.dart';
@@ -127,13 +128,14 @@ class _FirstRunNetworkFormState extends ConsumerState<FirstRunNetworkForm> {
           ),
           const SizedBox(height: MoshSpace.s4),
         ],
+        MoshFieldLabel(l.firstRunNetworkAdapter, enabled: !_saving),
         _picker(l),
-        const SizedBox(height: MoshSpace.s4),
+        const SizedBox(height: MoshSpace.s5),
         Text(
           _picked == null ? l.firstRunAutomaticHint : l.firstRunBypassHint,
           style: Theme.of(
             context,
-          ).textTheme.bodyLarge?.copyWith(color: colors.onSurfaceVariant),
+          ).textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant),
         ),
         if (_needsRestart) ...[
           const SizedBox(height: MoshSpace.s3),

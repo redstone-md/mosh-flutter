@@ -18,6 +18,7 @@ class DisplayNameForm extends StatefulWidget {
       this.showAvatar = true,
       this.showPlus = false,
       this.showSaveConfirmation = true,
+      this.inSetup = false,
       this.note});
   final String initialName;
   final String actionLabel;
@@ -29,6 +30,11 @@ class DisplayNameForm extends StatefulWidget {
 
   /// Settings confirms a save; the wizard confirms by moving to the next step.
   final bool showSaveConfirmation;
+
+  /// Setup asks for the name in its heading, so its field is bare under a
+  /// short label, with a placeholder. The profile editor's field carries its
+  /// mark and says under it that the name can change.
+  final bool inSetup;
 
   /// Stands between the field and the button: what setup says about the name.
   final Widget? note;
@@ -114,7 +120,7 @@ class _DisplayNameFormState extends State<DisplayNameForm> {
 
   Widget _field(AppLocalizations l) => MoshField(
         enabled: !_busy,
-        label: l.setupDisplayNameLabel,
+        label: widget.inSetup ? l.firstRunNameLabel : l.setupDisplayNameLabel,
         child: TextFormField(
             controller: _name,
             enabled: !_busy,
@@ -127,9 +133,11 @@ class _DisplayNameFormState extends State<DisplayNameForm> {
                 ? l.firstRunNameRequired
                 : null,
             decoration: InputDecoration(
-                prefixIcon: const Icon(MoshIcons.person),
+                hintText: widget.inSetup ? l.firstRunNamePlaceholder : null,
+                prefixIcon:
+                    widget.inSetup ? null : const Icon(MoshIcons.person),
+                helperText: widget.inSetup ? null : l.firstRunNameHint,
                 counterText: '',
-                helperText: l.firstRunNameHint,
                 helperMaxLines: 3,
                 errorMaxLines: 3)),
       );

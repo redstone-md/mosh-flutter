@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/src/features/device_link/device_link_import_form.dart';
 import 'package:mosh/src/features/onboarding/first_run_profile.dart';
@@ -11,7 +10,7 @@ import '../../support/first_run_preview.dart';
 import '../../support/scriptable_device_link.dart';
 
 const _titles = {
-  SetupStep.name: 'Выберите своё имя',
+  SetupStep.name: 'Как вас называть?',
   SetupStep.device: 'Настройте это устройство',
   SetupStep.network: 'Настройте подключение',
 };
@@ -23,9 +22,13 @@ void main() {
       await _pump(tester, step, const Size(390, 844));
       final title = find.text(_titles[step]!);
       expect(title, findsOneWidget);
+      // The step leads with its own heading; the device step's link card
+      // has one more under it.
       expect(
-          find.byWidgetPredicate((widget) =>
-              widget is Semantics && widget.properties.header == true),
+          find.ancestor(
+              of: title,
+              matching: find.byWidgetPredicate((widget) =>
+                  widget is Semantics && widget.properties.header == true)),
           findsOneWidget);
       await saveSetupPreview(tester, 'first-run-hierarchy-${step.name}-phone');
     });
@@ -44,14 +47,12 @@ void main() {
     });
   }
 
-  testWidgets('one primary button moves on; connecting is the quiet choice',
+  testWidgets('one primary button moves on; reading a QR is the quiet choice',
       (tester) async {
     await _pump(tester, SetupStep.device, const Size(1280, 680));
     expect(find.widgetWithText(FilledButton, 'Это моё первое устройство'),
         findsOneWidget);
-    expect(
-        find.widgetWithText(
-            OutlinedButton, 'Подключить к существующему профилю'),
+    expect(find.widgetWithText(OutlinedButton, 'Выбрать картинку с QR'),
         findsOneWidget);
     expect(find.widgetWithText(TextButton, 'Назад'), findsOneWidget);
   });
@@ -86,7 +87,6 @@ void main() {
       (tester) async {
     await prepareSetupPreview(tester);
     await _pump(tester, SetupStep.device, const Size(1280, 680));
-    await tapSetup(tester, 'Подключить к существующему профилю');
     const link = 'mosh://device-link?invite=pending';
     await tester.enterText(find.byType(TextField), link);
     tester.view.physicalSize = const Size(320, 568);
@@ -120,16 +120,6 @@ void main() {
     await tapSetup(tester, 'Continue');
     expect(harness.store.profile!.displayName, 'Anna Ivanova');
     expect(harness.store.profile!.step, SetupStep.device);
-  });
-
-  testWidgets('keyboard users can open device linking with Tab and Enter',
-      (tester) async {
-    await _pump(tester, SetupStep.device, const Size(1280, 680));
-    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
-    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
-    await tester.pumpAndSettle();
-    expect(find.byType(DeviceLinkImportForm), findsOneWidget);
-    expect(tester.takeException(), isNull);
   });
 }
 

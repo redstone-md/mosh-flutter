@@ -263,14 +263,34 @@ void main() {
 
     expect(find.byType(NewSessionPanel), findsOneWidget);
     expect(find.byType(StartMenu), findsOneWidget);
-    // A narrow window names the menu once, in the bar with the way back.
-    expect(
-        find.descendant(
-            of: find.byType(AppBar),
-            matching: find.text('Start a conversation')),
-        findsOneWidget);
-    expect(_onboardTitle(), findsNothing);
+    // A narrow window names the menu once, in its header with the way back.
+    expect(_onboardTitle(), findsOneWidget);
     expect(find.text('Start a private chat'), findsOneWidget);
+  });
+
+  // The phone has no bar over the pane: a step leads back to the menu, and
+  // only the menu's header leads back to the chat list.
+  testWidgets(
+      'mobile (400x800): Back leaves a step for the menu, then the list',
+      (tester) async {
+    await pumpShellApp(tester,
+        gateway: ScriptableGateway(), physical: const Size(400, 800));
+    appRouter.go(AppRoutes.chat);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Join a public channel'));
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('Back to conversations').hitTestable(), findsNothing);
+
+    await tester.tap(find.text('Back'));
+    await tester.pumpAndSettle();
+    expect(
+        appRouter.routerDelegate.currentConfiguration.uri.path, AppRoutes.chat);
+
+    await tester.tap(find.byTooltip('Back to conversations'));
+    await tester.pumpAndSettle();
+    expect(appRouter.routerDelegate.currentConfiguration.uri.path,
+        AppRoutes.sessions);
   });
 
   testWidgets(

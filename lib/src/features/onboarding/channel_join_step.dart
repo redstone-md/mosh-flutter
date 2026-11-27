@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mosh/src/app/mosh_dimensions.dart';
 import 'package:mosh/src/app/mosh_spinner.dart';
 import 'package:mosh/src/app/mosh_field.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -98,27 +99,24 @@ class _ChannelJoinStepState extends ConsumerState<ChannelJoinStep> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         _OpenWarning(text: l.onboardChannelStepBody),
-        const SizedBox(height: 20),
+        const SizedBox(height: MoshSpace.s4),
         MoshField(
           label: l.onboardChannelNameLabel,
           child: TextField(
             controller: _nameController,
             decoration: InputDecoration(
-              hintText: l.onboardChannelPlaceholder,
-              helperText: l.onboardChannelNameRule,
+              hintText: l.onboardChannelNameRule,
               prefixIcon: const Icon(MoshIcons.tag, size: 20),
             ),
             textInputAction: TextInputAction.done,
             onSubmitted: (_) => _onJoin(),
           ),
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: MoshSpace.s4),
         MoshLoading(
           loading: _busy,
           child: FilledButton.icon(
             onPressed: _canJoin ? _onJoin : null,
-            style:
-                FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
             icon: _busy ? const MoshSpinner() : null,
             label: Text(l.onboardChannelJoin),
           ),
@@ -127,7 +125,7 @@ class _ChannelJoinStepState extends ConsumerState<ChannelJoinStep> {
           const SizedBox(height: 12),
           InlineError(message: _error?.describe(l)),
         ],
-        const SizedBox(height: 24),
+        const SizedBox(height: MoshSpace.s4),
         _Examples(
           label: l.onboardChannelExamples,
           onPick: (name) => _nameController.value = TextEditingValue(
@@ -172,32 +170,24 @@ class _Examples extends StatelessWidget {
         .textTheme
         .labelMedium
         ?.copyWith(color: colors.onSurfaceMuted);
-    return Column(children: [
-      Row(children: [
-        Expanded(child: Divider(color: colors.outlineVariant)),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12),
-          child: Text(label, style: style),
-        ),
-        Expanded(child: Divider(color: colors.outlineVariant)),
-      ]),
-      const SizedBox(height: 12),
-      ChipTheme(
-        data: moshSuggestionChipTheme(Theme.of(context), colors),
-        child: Wrap(
-          spacing: 10,
-          runSpacing: 10,
-          alignment: WrapAlignment.center,
-          children: [
-            for (final name in names)
-              ActionChip(
-                visualDensity: VisualDensity.standard,
-                label: Text('#$name'),
-                onPressed: () => onPick(name),
-              ),
-          ],
-        ),
+    // The label and the names stand in one row, and wrap as one.
+    return ChipTheme(
+      data: moshSuggestionChipTheme(Theme.of(context), colors),
+      child: Wrap(
+        spacing: MoshSpace.s2,
+        runSpacing: MoshSpace.s2,
+        alignment: WrapAlignment.center,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          Text(label, style: style),
+          for (final name in names)
+            ActionChip(
+              visualDensity: VisualDensity.standard,
+              label: Text('#$name'),
+              onPressed: () => onPick(name),
+            ),
+        ],
       ),
-    ]);
+    );
   }
 }

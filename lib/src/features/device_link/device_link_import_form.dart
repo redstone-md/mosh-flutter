@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:mosh/src/app/mosh_field.dart';
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_dimensions.dart';
 import 'package:mosh/src/app/mosh_icons.dart';
+import 'package:mosh/src/app/mosh_theme.dart'
+    show MoshColors, moshTonalIconButtonStyle;
 
 class DeviceLinkImportForm extends StatefulWidget {
   const DeviceLinkImportForm({
@@ -35,39 +38,49 @@ class _DeviceLinkImportFormState extends State<DeviceLinkImportForm> {
     final l = AppLocalizations.of(context)!;
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       if (widget.onScan != null) ...[
-        FilledButton.icon(
+        // No way to read the QR is the primary one: in setup that is the
+        // button under the card.
+        OutlinedButton.icon(
           onPressed: widget.busy ? null : widget.onScan,
           icon: const Icon(MoshIcons.scan, size: 20),
           label: Text(l.deviceLinkScan),
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: MoshSpace.s4),
       ],
       OutlinedButton.icon(
         onPressed: widget.busy ? null : widget.onImage,
         icon: const Icon(MoshIcons.image, size: 20),
         label: Text(l.deviceLinkImportImage),
       ),
-      const SizedBox(height: 16),
-      MoshField(
-        label: l.deviceLinkPasteLabel,
-        child: TextField(
-          controller: _uri,
-          maxLength: 2048,
-          autocorrect: false,
-          enableSuggestions: false,
-          textInputAction: TextInputAction.go,
-          onSubmitted: widget.busy ? null : widget.onSubmit,
-          decoration: InputDecoration(
-            counterText: '',
-            suffixIcon: IconButton(
-              tooltip: l.deviceLinkImport,
-              onPressed:
-                  widget.busy ? null : () => widget.onSubmit(_uri.text.trim()),
-              icon: const Icon(MoshIcons.forward),
+      const SizedBox(height: MoshSpace.s4),
+      // The link is sent with the button beside its field, level with the well.
+      Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
+        Expanded(
+          child: MoshField(
+            label: l.deviceLinkPasteLabel,
+            child: TextField(
+              controller: _uri,
+              maxLength: 2048,
+              autocorrect: false,
+              enableSuggestions: false,
+              textInputAction: TextInputAction.go,
+              onSubmitted: widget.busy ? null : widget.onSubmit,
+              decoration: InputDecoration(
+                counterText: '',
+                hintText: l.deviceLinkPastePlaceholder,
+              ),
             ),
           ),
         ),
-      ),
+        const SizedBox(width: MoshSpace.s2),
+        IconButton(
+          style: moshTonalIconButtonStyle(MoshColors.of(context)),
+          tooltip: l.deviceLinkImport,
+          onPressed:
+              widget.busy ? null : () => widget.onSubmit(_uri.text.trim()),
+          icon: const Icon(MoshIcons.forward),
+        ),
+      ]),
     ]);
   }
 }

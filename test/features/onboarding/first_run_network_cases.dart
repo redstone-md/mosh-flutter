@@ -30,7 +30,7 @@ FirstRunHarness _harness() => FirstRunHarness(
     bridge: ScriptableBridge()..seedInterfaces([_ethernet]));
 
 Future<void> _chooseEthernet(WidgetTester tester) async {
-  await tapSetup(tester, 'Automatic · system connection');
+  await tapSetup(tester, 'Automatic, system connection');
   await tapSetup(tester, 'Ethernet - 192.168.1.5');
 }
 
@@ -145,7 +145,7 @@ void main() {
     await harness.pump(tester);
     expect(find.text('Could not read network state'), findsOneWidget);
     await tapSetup(tester, 'Retry');
-    expect(find.text('Automatic · system connection'), findsOneWidget);
+    expect(find.text('Automatic, system connection'), findsOneWidget);
     expect(harness.bridge.countOf(BridgeMethod.setVpnBypassConsent), 0);
     await tapSetup(tester, 'Save and finish');
     expect(harness.bridge.countOf(BridgeMethod.setVpnBypassConsent), 0);
@@ -191,7 +191,7 @@ void main() {
             .onPressed,
         isNull);
     await tapSetup(tester, 'Missing · unavailable');
-    await tapSetup(tester, 'Automatic · system connection');
+    await tapSetup(tester, 'Automatic, system connection');
     await tapSetup(tester, 'Save and finish');
     await tapSetup(tester, 'Understood');
     expect(

@@ -89,20 +89,20 @@ Future<FirstRunHarness> _setup(WidgetTester tester, Size size,
   return harness;
 }
 
-Future<void> _openLinkInput(WidgetTester tester) async {
-  await tapSetup(tester, 'Connect to an existing profile');
+/// Types a device link into the card's field.
+Future<void> _typeLink(WidgetTester tester) async {
   await tester.enterText(find.byType(TextField), _link);
   await tester.pumpAndSettle();
 }
 
 Future<void> _submitLink(WidgetTester tester) async {
-  await _openLinkInput(tester);
+  await _typeLink(tester);
   await tester.ensureVisible(find.byTooltip('Connect'));
   await tester.tap(find.byTooltip('Connect'));
 }
 
 Future<void> _pickEthernet(WidgetTester tester) async {
-  await tapSetup(tester, 'Automatic · system connection');
+  await tapSetup(tester, 'Automatic, system connection');
   await tapSetup(tester, 'Ethernet - 192.168.1.24');
 }
 
@@ -160,7 +160,7 @@ final List<FigmaScene> setupScenes = [
   FigmaScene('device-link-input', 'Onboarding / Device / Paste link',
       (tester, size) async {
     await _setup(tester, size, step: SetupStep.device);
-    await _openLinkInput(tester);
+    await _typeLink(tester);
   }),
   FigmaScene('device-link-connecting', 'Onboarding / Device / Connecting',
       (tester, size) async {
@@ -233,7 +233,7 @@ final List<FigmaScene> setupScenes = [
       (tester, size) async {
     await _setup(tester, size,
         step: SetupStep.network, bridge: _networkBridge());
-    await tapSetup(tester, 'Automatic · system connection');
+    await tapSetup(tester, 'Automatic, system connection');
   }),
   FigmaScene('network-bypass', 'Onboarding / Network / Bypass adapter',
       (tester, size) async {

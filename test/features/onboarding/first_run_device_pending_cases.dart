@@ -15,7 +15,6 @@ void main() {
             const FirstRunProfile(displayName: 'Juno', step: SetupStep.device));
     await harness.pump(tester);
     harness.link.hold(DeviceLinkMethod.joinLink);
-    await tapSetup(tester, 'Connect to an existing profile');
     await tester.enterText(find.byType(TextField), 'mosh://device-link/held');
     await tester.ensureVisible(find.byTooltip('Connect'));
     await tester.tap(find.byTooltip('Connect'));

@@ -19,7 +19,7 @@ class SetupHeading extends StatelessWidget {
     final l = AppLocalizations.of(context)!;
     final text = Theme.of(context).textTheme;
     final (title, body) = switch (step) {
-      SetupStep.name => (l.firstRunNameTitle, l.firstRunNameBody),
+      SetupStep.name => (l.firstRunNameQuestion, l.firstRunNameBody),
       SetupStep.device => (l.firstRunDeviceTitle, l.firstRunDeviceBody),
       SetupStep.network => (l.firstRunNetworkTitle, l.firstRunNetworkBody),
     };
@@ -38,7 +38,7 @@ class SetupHeading extends StatelessWidget {
 }
 
 /// The Privacy kind of the Inline note card, under the name field: a quiet
-/// note on the panel level that conversations are end-to-end encrypted.
+/// note on the panel level on where the name is kept and who sees it.
 class SetupPrivacyNote extends StatelessWidget {
   const SetupPrivacyNote({super.key});
 
@@ -47,6 +47,6 @@ class SetupPrivacyNote extends StatelessWidget {
         inline: true,
         tone: MoshNoticeTone.secure,
         icon: MoshIcons.lock,
-        detail: AppLocalizations.of(context)!.firstRunEncryption,
+        detail: AppLocalizations.of(context)!.firstRunNamePrivacy,
       );
 }

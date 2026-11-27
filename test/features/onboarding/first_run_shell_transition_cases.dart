@@ -9,7 +9,9 @@ import 'package:mosh/src/features/device_link/device_link_import_form.dart';
 import '../../support/first_run.dart';
 
 void main() {
-  for (final size in [const Size(1280, 680), const Size(390, 844)]) {
+  // The desktop window is tall enough for the device step under the top the
+  // name step takes; a shorter one raises the top to make room.
+  for (final size in [const Size(1280, 1400), const Size(390, 844)]) {
     testWidgets('step changes keep the visible shell mounted at $size',
         (tester) async {
       final harness =
@@ -62,7 +64,6 @@ void main() {
         profile:
             const FirstRunProfile(displayName: 'Yuna', step: SetupStep.device));
     await harness.pump(tester);
-    await tapSetup(tester, 'Connect to an existing profile');
     const uri = 'mosh://device-link?invite=unfinished';
     await tester.enterText(find.byType(TextField), uri);
     final importer = tester.state(find.byType(DeviceLinkImportForm));

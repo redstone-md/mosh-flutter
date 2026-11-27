@@ -3,7 +3,6 @@ import 'package:mosh/src/app/mosh_dimensions.dart';
 import 'package:mosh/src/features/shared/inline_error.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mosh/l10n/app_localizations.dart';
-import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/features/device_link/device_link_provider.dart';
 import 'package:mosh/src/features/device_link/device_link_state.dart';
 import 'package:mosh/src/features/device_link/devices_settings_section.dart';
@@ -18,7 +17,6 @@ class FirstRunDeviceStep extends ConsumerStatefulWidget {
 }
 
 class _FirstRunDeviceStepState extends ConsumerState<FirstRunDeviceStep> {
-  bool _connecting = false;
   String? _error;
   String? _notice;
 
@@ -58,31 +56,22 @@ class _FirstRunDeviceStepState extends ConsumerState<FirstRunDeviceStep> {
     final locked =
         link == null || link.busy || link.delivering || link.readError != null;
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-      if (link == null ||
-          _connecting ||
-          pending ||
-          connected ||
-          link.readError != null) ...[
-        if (device.isLoading)
-          const Center(child: CircularProgressIndicator())
-        else
-          DevicesSettingsSection(
-              joiningOnly: true,
-              onCancelled: () => setState(() => _connecting = false)),
-        const SizedBox(height: MoshSpace.s5),
-      ] else ...[
-        OutlinedButton.icon(
-            onPressed: locked ? null : () => setState(() => _connecting = true),
-            icon: const Icon(MoshIcons.scan),
-            label: Text(l.firstRunConnectDevice)),
-        const SizedBox(height: MoshSpace.s3),
-      ],
+      // The card that connects this device to an existing profile is open
+      // from the start; going on without it is the button under it.
+      if (device.isLoading)
+        const Center(child: CircularProgressIndicator())
+      else
+        const DevicesSettingsSection(joiningOnly: true),
+      const SizedBox(height: MoshSpace.s5),
       // One primary button moves on. While a link waits for its answer the
-      // way on is to give it up, which is the quiet button.
+      // way on is to give it up, which is a text button: the card over it
+      // holds what the step is about.
       if (pending && !connected)
-        OutlinedButton(
-            onPressed: locked ? null : _continue,
-            child: Text(l.firstRunCancelLink))
+        Center(
+          child: TextButton(
+              onPressed: locked ? null : _continue,
+              child: Text(l.firstRunCancelLink)),
+        )
       else
         FilledButton(
             onPressed: locked ? null : _continue,

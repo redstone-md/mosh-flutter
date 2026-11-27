@@ -3,6 +3,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_dimensions.dart';
+import 'package:mosh/src/features/conversation/conversation_tools.dart'
+    show isMobileBreakpoint;
 import 'package:mosh/src/features/onboarding/channel_join_step.dart';
 import 'package:mosh/src/features/onboarding/chat_create_step.dart';
 import 'package:mosh/src/features/onboarding/group_create_step.dart';
@@ -51,6 +54,10 @@ class _NewSessionPanelState extends ConsumerState<NewSessionPanel> {
   Widget build(BuildContext context) {
     final l = AppLocalizations.of(context)!;
     final warning = ref.watch(persistenceWarningProvider);
+    // On a phone the menu's header stands close under the screen's top; a
+    // step keeps the padding of the Wizard step card over its Back.
+    final stepTop = isMobileBreakpoint(context) ? MoshSpace.s3 : 0.0;
+    final steps = _steps(l);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
@@ -68,34 +75,40 @@ class _NewSessionPanelState extends ConsumerState<NewSessionPanel> {
               onPickJoin: () => _go(OnboardStep.join),
               onPickChannel: () => _go(OnboardStep.channel),
             ),
-            StartStep(
-              title: l.onboardTileChatTitle,
-              subtitle: l.onboardChatStepBody,
-              onBack: _backToMenu,
-              child: ChatCreateStep(onOpened: _openChat),
-            ),
-            StartStep(
-              title: l.onboardTileGroupTitle,
-              subtitle: l.onboardGroupStepBody,
-              onBack: _backToMenu,
-              child: const GroupCreateStep(),
-            ),
-            StartStep(
-              title: l.onboardTileJoinTitle,
-              subtitle: l.onboardJoinStepBody,
-              onBack: _backToMenu,
-              // Deep links still open /join full-screen.
-              child: const OnboardJoinStep(),
-            ),
-            StartStep(
-              title: l.onboardTileChannelTitle,
-              subtitle: l.onboardChannelStepLead,
-              onBack: _backToMenu,
-              child: const ChannelJoinStep(),
-            ),
+            for (final step in steps)
+              Padding(padding: EdgeInsets.only(top: stepTop), child: step),
           ],
         ),
       ],
     );
   }
+
+  /// The four steps the menu leads to, in the order of [OnboardStep].
+  List<Widget> _steps(AppLocalizations l) => [
+        StartStep(
+          title: l.onboardTileChatTitle,
+          subtitle: l.onboardChatStepBody,
+          onBack: _backToMenu,
+          child: ChatCreateStep(onOpened: _openChat),
+        ),
+        StartStep(
+          title: l.onboardTileGroupTitle,
+          subtitle: l.onboardGroupStepBody,
+          onBack: _backToMenu,
+          child: const GroupCreateStep(),
+        ),
+        StartStep(
+          title: l.onboardTileJoinTitle,
+          subtitle: l.onboardJoinStepBody,
+          onBack: _backToMenu,
+          // Deep links still open /join full-screen.
+          child: const OnboardJoinStep(),
+        ),
+        StartStep(
+          title: l.onboardTileChannelTitle,
+          subtitle: l.onboardChannelStepLead,
+          onBack: _backToMenu,
+          child: const ChannelJoinStep(),
+        ),
+      ];
 }
