@@ -22,7 +22,8 @@ Future<void> send(
     RustLib.instance.api
         .crateApiConversationSend(reference: reference, body: body);
 
-/// Retry a failed outbound message by its message id.
+/// Retry a failed outbound message by its message id. Like a send, it is
+/// user work: it wakes a suspended node and holds off suspension until done.
 Future<void> retry(
         {required BridgeConversationRef reference,
         required String messageId}) =>
