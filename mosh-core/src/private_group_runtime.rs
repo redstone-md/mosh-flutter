@@ -366,6 +366,7 @@ mod org_gate;
 mod pending_join;
 mod plus;
 mod rehydrate;
+mod roster_lag;
 mod snapshot;
 mod wires;
 
