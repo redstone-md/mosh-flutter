@@ -109,6 +109,12 @@ void main() {
             const Offset(8, 8));
 
     expect(opened, 0);
+    // Regression (CodeAnt PR #201): a screen reader still announced the
+    // inert preview as a button it could press.
+    final semantics = tester.ensureSemantics();
+    expect(tester.getSemantics(find.bySemanticsLabel('Open photo.png')),
+        isSemantics(isButton: true, hasEnabledState: true, isEnabled: false));
+    semantics.dispose();
   });
 
   testWidgets(
