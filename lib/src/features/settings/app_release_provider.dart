@@ -62,8 +62,8 @@ class GitHubReleaseFeed {
   static final Uri releasesUrl = Uri.parse(
       'https://api.github.com/repos/redstone-md/mosh-flutter/releases?per_page=10');
 
-  /// The newest published build, pre-releases included. Rows are ordered by
-  /// creation date, so the highest version wins rather than the top row.
+  /// The newest published build, pre-releases included: the highest version
+  /// among the ten most recently created releases, not the top row.
   Future<PublishedRelease> latest() async {
     final decoded = jsonDecode(await (_read ?? _readOverHttp)(releasesUrl));
     if (decoded is! List<Object?>) {
