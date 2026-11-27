@@ -725,13 +725,9 @@
   "@onboardJoinConnect": {
     "description": "Button label to connect via a joined invite"
   },
-  "onboardChannelStepBody": "End-to-end encryption is disabled for public channels. Anyone who joins this channel can read messages.",
+  "onboardChannelStepBody": "End-to-end encryption is off in public channels. Anyone who joins this channel can read its messages.",
   "@onboardChannelStepBody": {
     "description": "Body of the channel step in onboarding"
-  },
-  "onboardChannelPlaceholder": "channel-name",
-  "@onboardChannelPlaceholder": {
-    "description": "Placeholder for the channel name field on onboarding"
   },
   "onboardChannelJoin": "Join channel",
   "@onboardChannelJoin": {

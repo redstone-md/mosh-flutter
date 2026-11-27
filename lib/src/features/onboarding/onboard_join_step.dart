@@ -226,8 +226,6 @@ class _OnboardJoinStepState extends ConsumerState<OnboardJoinStep> {
           loading: _busy,
           child: FilledButton.icon(
             onPressed: _detected ? _connect : null,
-            style:
-                FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
             icon: _busy ? const MoshSpinner() : null,
             label: Text(l.onboardJoinConnect),
           ),

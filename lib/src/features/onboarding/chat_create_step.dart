@@ -115,7 +115,6 @@ class _ChatCreateStepState extends ConsumerState<ChatCreateStep> {
         child: FilledButton.icon(
           // Opening a saved invitation also keeps this button off.
           onPressed: _busy && !_creating ? null : _create,
-          style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
           icon: _creating ? const MoshSpinner() : const Icon(MoshIcons.link),
           label: Text(hasInvites ? l.createNewInvitation : l.onboardChatCreate),
         ),
