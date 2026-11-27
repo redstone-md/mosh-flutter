@@ -56,7 +56,7 @@ void main() {
       (tester) async {
     await pumpStartStep(tester, _card, bridge: ScriptableBridge());
 
-    expect(find.text('Join an open room by its name.'), findsOneWidget);
+    expect(find.text('Join an open room by its name'), findsOneWidget);
     expect(find.text(_warning), findsOneWidget);
     expect(find.text('Channel name'), findsOneWidget);
     expect(find.text('Join channel'), findsOneWidget);

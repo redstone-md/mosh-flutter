@@ -51,10 +51,11 @@ class _FirstRunWizardState extends ConsumerState<FirstRunWizard> {
     final pad = constraints.maxWidth < FirstRunWizard.stepWidth + MoshSpace.s12
         ? MoshSpace.s4
         : MoshSpace.s6;
+    final mobile = isMobileBreakpoint(context);
     return SingleChildScrollView(
       child: SetupStableLayout(
         viewportHeight: constraints.maxHeight,
-        centred: !isMobileBreakpoint(context),
+        centred: !mobile,
         layout: (
           constraints.biggest,
           MediaQuery.textScalerOf(context),
@@ -73,7 +74,7 @@ class _FirstRunWizardState extends ConsumerState<FirstRunWizard> {
                   // On a phone the progress stands a step inside the column.
                   Padding(
                     padding: EdgeInsets.symmetric(
-                        horizontal: pad == MoshSpace.s4 ? MoshSpace.s4 : 0),
+                        horizontal: mobile ? MoshSpace.s4 : 0),
                     child:
                         Center(child: SetupProgress(step: widget.profile.step)),
                   ),

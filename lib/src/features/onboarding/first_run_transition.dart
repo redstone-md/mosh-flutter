@@ -7,8 +7,8 @@ const setupStepDuration = Duration(milliseconds: 240);
 const setupStepExitDuration = Duration(milliseconds: 120);
 const setupStepCurve = Cubic(.23, 1, .32, 1);
 
-/// Places the wizard in its viewport: the step it opens with stands in the
-/// middle, and from then on its top stays where it is, so the progress does
+/// Places the wizard in its viewport. [centred], the step it opens with
+/// stands in the middle, and from then on its top stays where it is, so the progress does
 /// not move when a taller or a shorter step takes the place of the first.
 /// A step too tall for the room under that top raises it, and one taller
 /// than the window scrolls.
@@ -20,12 +20,12 @@ class SetupStableLayout extends SingleChildRenderObjectWidget {
       {super.key,
       required this.layout,
       required this.viewportHeight,
-      this.centred = true,
+      required this.centred,
       required super.child});
   final Object layout;
   final double viewportHeight;
 
-  /// Off on a phone, where a step starts at the top of the screen.
+  /// Off on a phone, where every step starts at the top of the screen.
   final bool centred;
 
   @override

@@ -21,6 +21,9 @@ Widget? railBackButton(BuildContext context) {
   return IconButton(
     icon: const Icon(MoshIcons.back),
     tooltip: l.backToConversations,
-    onPressed: () => context.go(AppRoutes.sessions),
+    onPressed: () => backToRail(context),
   );
 }
+
+/// Shows the chat list in place of a pane that covers it on mobile.
+void backToRail(BuildContext context) => context.go(AppRoutes.sessions);

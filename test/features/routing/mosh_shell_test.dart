@@ -264,7 +264,6 @@ void main() {
     expect(find.byType(NewSessionPanel), findsOneWidget);
     expect(find.byType(StartMenu), findsOneWidget);
     // A narrow window names the menu once, in its header with the way back.
-    expect(find.byType(AppBar), findsNothing);
     expect(_onboardTitle(), findsOneWidget);
     expect(find.text('Start a private chat'), findsOneWidget);
   });

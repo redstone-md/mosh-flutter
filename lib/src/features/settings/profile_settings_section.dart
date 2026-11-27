@@ -32,6 +32,9 @@ class ProfileSettingsSection extends ConsumerWidget {
                 hint: l.firstRunNameScope,
                 child: DisplayNameForm(
                     showPlus: true,
+                    fieldDecoration: InputDecoration(
+                        prefixIcon: const Icon(MoshIcons.person),
+                        helperText: l.firstRunNameHint),
                     initialName: profile.displayName,
                     actionLabel: l.firstRunSaveName,
                     onSave:

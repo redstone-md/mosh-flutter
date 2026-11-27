@@ -16,6 +16,7 @@
   "firstRunNameTitle": "Choose your name",
   "firstRunNameQuestion": "What should people call you?",
   "firstRunNameBody": "Your name is shown to the people you talk to. You can change it later.",
+  "firstRunNameHint": "You can change this name later in Settings.",
   "firstRunNameScope": "This name is used for new conversations. Existing conversations keep their names.",
   "firstRunNameRequired": "Enter a name to continue.",
   "firstRunNameSaved": "Name saved.",
@@ -33,7 +34,7 @@
   "firstRunNetworkTitle": "Choose your connection",
   "firstRunNetworkBody": "Use the system connection, or choose a physical network interface if a VPN interferes with discovery.",
   "firstRunVpnDetected": "Your VPN currently carries the default network route.",
-  "firstRunNetworkAdapter": "Network interface",
+  "firstRunNetworkAdapter": "Connection",
   "firstRunAutomatic": "Automatic, system connection",
   "firstRunAutomaticHint": "Mosh follows your system routing, including an active VPN.",
   "firstRunBypassHint": "Mosh will use this interface directly, outside your VPN. Your public IP may be visible to peers and trackers.",
@@ -73,10 +74,10 @@
     "description": "Title of the session setup section"
   },
   "setupDisplayNameLabel": "Display name",
-  "setupDisplayNamePlaceholder": "Your display name",
   "@setupDisplayNameLabel": {
     "description": "Label for the display name field"
   },
+  "setupDisplayNamePlaceholder": "Your display name",
   "setupStaticPeerLabel": "Static peer (optional)",
   "@setupStaticPeerLabel": {
     "description": "Label for the static peer field"
@@ -637,7 +638,7 @@
   "@onboardJoinPreviewBad": {
     "description": "Join preview for an unrecognized link"
   },
-  "onboardChannelStepLead": "Join an open room by its name.",
+  "onboardChannelStepLead": "Join an open room by its name",
   "@onboardChannelStepLead": {
     "description": "Subtitle of the join channel step"
   },

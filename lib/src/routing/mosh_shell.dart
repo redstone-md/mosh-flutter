@@ -214,22 +214,26 @@ class ChatPaneWelcome extends StatelessWidget {
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
-            final side = constraints.maxWidth < 400 ? MoshSpace.s4 : 32.0;
+            final side =
+                constraints.maxWidth < 400 ? MoshSpace.s4 : MoshSpace.s8;
+            const vertical = MoshSpace.s12;
             return Align(
               alignment: mobile ? Alignment.topCenter : Alignment.center,
               child: SingleChildScrollView(
                 padding: mobile
                     ? EdgeInsets.fromLTRB(
                         side, MoshSpace.s1, side, MoshSpace.s4)
-                    : EdgeInsets.symmetric(horizontal: side, vertical: 48),
+                    : EdgeInsets.symmetric(
+                        horizontal: side, vertical: vertical),
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 1240),
                   child: NewSessionPanel(
                     // The desktop keeps the menu and a step in one centred
                     // frame; a short pane can have less height than the
                     // padding.
-                    minHeight:
-                        mobile ? 0 : math.max(0, constraints.maxHeight - 96),
+                    minHeight: mobile
+                        ? 0
+                        : math.max(0, constraints.maxHeight - vertical * 2),
                   ),
                 ),
               ),

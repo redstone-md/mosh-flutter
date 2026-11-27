@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/app/mosh_dimensions.dart';
@@ -8,7 +7,7 @@ import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 import 'package:mosh/src/features/conversation/conversation_tools.dart'
     show isMobileBreakpoint;
 import 'package:mosh/src/features/settings/settings_page_header.dart';
-import 'package:mosh/src/routing/app_router.dart' show AppRoutes;
+import 'package:mosh/src/features/shared/rail_back_button.dart';
 
 import 'start_list.dart';
 import 'start_motion.dart';
@@ -57,7 +56,7 @@ class StartMenu extends StatelessWidget {
                 child: SettingsPageHeader(
                   title: l.shellNewSession,
                   backTooltip: l.backToConversations,
-                  onBack: () => context.go(AppRoutes.sessions),
+                  onBack: () => backToRail(context),
                 ),
               )
             else

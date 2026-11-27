@@ -18,6 +18,7 @@ class DisplayNameForm extends StatefulWidget {
       this.showAvatar = true,
       this.showPlus = false,
       this.showSaveConfirmation = true,
+      this.fieldDecoration = const InputDecoration(),
       this.note});
   final String initialName;
   final String actionLabel;
@@ -29,6 +30,10 @@ class DisplayNameForm extends StatefulWidget {
 
   /// Settings confirms a save; the wizard confirms by moving to the next step.
   final bool showSaveConfirmation;
+
+  /// What the field carries beside its label and placeholder: the profile
+  /// editor's mark and its line under the field. Setup's field is bare.
+  final InputDecoration fieldDecoration;
 
   /// Stands between the field and the button: what setup says about the name.
   final Widget? note;
@@ -126,9 +131,10 @@ class _DisplayNameFormState extends State<DisplayNameForm> {
             validator: (name) => name == null || name.trim().isEmpty
                 ? l.firstRunNameRequired
                 : null,
-            decoration: InputDecoration(
+            decoration: widget.fieldDecoration.copyWith(
                 hintText: l.setupDisplayNamePlaceholder,
                 counterText: '',
+                helperMaxLines: 3,
                 errorMaxLines: 3)),
       );
 }
