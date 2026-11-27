@@ -1,5 +1,8 @@
 package app.mosh.mosh;
 
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.ToIntFunction;
@@ -7,6 +10,8 @@ import java.util.function.ToIntFunction;
 /** Android's selected communication output determines its microphone. */
 final class MoshCallAudioPolicy {
     private static final String DEFAULT_INPUT = "android:communication-input";
+    /** Enough to tell one phone's routes apart, too little to name the hardware. */
+    private static final int ROUTE_HASH_BYTES = 6;
 
     // android.media.AudioDeviceInfo types, inlined by javac anyway, so this
     // policy compiles and runs under a plain JVM (android-context-check).
@@ -26,6 +31,27 @@ final class MoshCallAudioPolicy {
 
     static boolean acceptsInput(boolean sourcePresent, String requested) {
         return sourcePresent && (requested == null || DEFAULT_INPUT.equals(requested));
+    }
+
+    /**
+     * The id an output keeps while it is reconnected, so a saved pick finds it
+     * in a later call: its kind and its hardware address, or its product name
+     * when it has no address (built-in routes, Android 8.x). Android's own
+     * device id is handed out again on every connection. The identity is
+     * hashed: the id is saved with the settings and can reach a call's log
+     * line, which has no business carrying a hardware address.
+     */
+    static String routeId(int type, String address, CharSequence productName) {
+        String identity = address == null || address.isEmpty() ? String.valueOf(productName) : address;
+        byte[] digest;
+        try {
+            digest = MessageDigest.getInstance("SHA-256").digest(identity.getBytes(StandardCharsets.UTF_8));
+        } catch (NoSuchAlgorithmException missing) {
+            throw new IllegalStateException("Every Java platform provides SHA-256", missing);
+        }
+        StringBuilder id = new StringBuilder("android:").append(type).append(':');
+        for (int i = 0; i < ROUTE_HASH_BYTES; i++) id.append(String.format("%02x", digest[i]));
+        return id.toString();
     }
 
     /**

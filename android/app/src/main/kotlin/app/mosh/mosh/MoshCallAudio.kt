@@ -31,7 +31,7 @@ internal class MoshCallAudio(context: Context) {
         }
         val outputs = JSONArray()
         for (device in routes()) {
-            outputs.put(JSONObject().put("id", "android:${device.id}")
+            outputs.put(JSONObject().put("id", routeId(device))
                 .put("name", when (device.type) {
                     AudioDeviceInfo.TYPE_BUILTIN_SPEAKER -> "Speaker"
                     AudioDeviceInfo.TYPE_BUILTIN_EARPIECE -> "Earpiece"
@@ -54,6 +54,10 @@ internal class MoshCallAudio(context: Context) {
     } else {
         MoshCallAudioPolicy.legacyOutputs(manager.getDevices(AudioManager.GET_DEVICES_OUTPUTS).asList()) { it.type }
     }
+
+    // The address arrived in Android 9.
+    private fun routeId(device: AudioDeviceInfo): String = MoshCallAudioPolicy.routeId(
+        device.type, if (Build.VERSION.SDK_INT >= 28) device.address else null, device.productName)
 
     // Android 8-11 reaches a Bluetooth headset through an SCO link the app
     // requests; it connects asynchronously, so a pick means it was asked for.
@@ -79,7 +83,7 @@ internal class MoshCallAudio(context: Context) {
             active = true
         }
         val id = value.optString("output").takeUnless { it.isBlank() || it == "null" }
-        val device = routes().firstOrNull { "android:${it.id}" == id }
+        val device = routes().firstOrNull { routeId(it) == id }
         val ok = when {
             Build.VERSION.SDK_INT >= 31 && device != null -> manager.setCommunicationDevice(device)
             Build.VERSION.SDK_INT >= 31 -> { manager.clearCommunicationDevice(); id == null }
