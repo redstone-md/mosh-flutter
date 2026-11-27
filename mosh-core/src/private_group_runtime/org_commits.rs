@@ -3,7 +3,7 @@
 //! Every roster admin may commit (ADR 0005), but gossip has no order, so two
 //! admins committing the same removal fork the MLS tree. One admin is
 //! designated per removal and the others only stand by; a fork that still
-//! happens is resolved by a rule both branches compute alike.
+//! happens is proven by MLS and resolved by a rule both branches compute alike.
 
 use super::*;
 use sha2::{Digest, Sha256};
@@ -140,14 +140,38 @@ impl GroupSession {
         }
     }
 
-    /// An authorized commit for an epoch we already merged, with other bytes,
-    /// means two admins committed concurrently. Both branches keep the commit
-    /// whose SHA-256 sorts lower; the one that merged the other must rejoin.
-    /// Our merged commit comes from the commit log, so an epoch we never
-    /// merged (we joined later) is ignored. Org groups only: plain control
-    /// frames are unauthenticated, and a forged blob must not force a rejoin.
+    /// Remember how this group left `epoch`, the state before and the commit
+    /// merged, so a rival commit for it can be proven later. Org groups only.
+    pub(super) fn witness_merge(&mut self, epoch: u64, before: MlsSessionCrypto, merged: &[u8]) {
+        if self.org_pubkey.is_none() {
+            return;
+        }
+        let merged = merged.to_vec();
+        self.merge_witnesses
+            .insert(epoch, MergeWitness { before, merged });
+        while self.merge_witnesses.len() > FORK_WITNESS_EPOCHS {
+            self.merge_witnesses.pop_first();
+        }
+    }
+
+    /// The state to witness if `commit_b64` is about to merge at our epoch.
+    pub(super) fn merge_probe(&self, commit_b64: &str) -> Option<(u64, MlsSessionCrypto)> {
+        self.org_pubkey.as_ref()?;
+        let epoch = MlsSessionCrypto::commit_epoch(&decode(commit_b64).ok()?).ok()?;
+        (self.crypto.epoch() == Some(epoch))
+            .then(|| self.crypto.receive_candidate().ok())
+            .flatten()
+            .map(|state| (epoch, state))
+    }
+
+    /// A commit for an epoch this session merged, with other bytes, is a fork
+    /// once MLS proves it: it must stage against our state at that epoch and
+    /// be signed by a leaf whose peer-id is a roster admin. Both branches keep
+    /// the commit whose SHA-256 sorts lower; the one that merged the other
+    /// must rejoin. Unproven bytes, epochs we never merged here and plain
+    /// groups (which keep no witnesses) leave the branch alone.
     pub(super) fn note_org_fork(&mut self, commit_b64: &str) {
-        if self.org_pubkey.is_none() || self.forked_off {
+        if self.forked_off {
             return;
         }
         let Ok(theirs) = decode(commit_b64) else {
@@ -156,13 +180,16 @@ impl GroupSession {
         let Ok(epoch) = MlsSessionCrypto::commit_epoch(&theirs) else {
             return;
         };
-        if self.crypto.epoch().is_none_or(|current| epoch >= current) {
-            return;
-        }
-        let Some(ours) = self.merged_commit(epoch) else {
+        let Some(witness) = self.merge_witnesses.get(&epoch) else {
             return;
         };
-        if ours != theirs && Sha256::digest(&ours) > Sha256::digest(&theirs) {
+        if witness.merged == theirs || Sha256::digest(&witness.merged) < Sha256::digest(&theirs) {
+            return;
+        }
+        let Some(author) = witness.rival_author(&theirs) else {
+            return;
+        };
+        if self.roster_role_is_admin(&author) {
             self.forked_off = true;
             dlog::write(
                 LogLevel::Warn,
@@ -172,11 +199,25 @@ impl GroupSession {
             );
         }
     }
+}
 
-    fn merged_commit(&self, epoch: u64) -> Option<Vec<u8>> {
-        let store = self.persistence.as_ref()?;
-        let rows = store.list_group_commits_from(&self.group_id, epoch).ok()?;
-        let (logged, bytes) = rows.into_iter().next()?;
-        (logged == epoch).then_some(bytes)
+/// Merged epochs kept for fork detection; an older rival goes unnoticed.
+const FORK_WITNESS_EPOCHS: usize = 4;
+
+/// How this session left one epoch: the state before it and the commit it
+/// merged. In memory, so a rejoined session never judges an old branch.
+pub(super) struct MergeWitness {
+    before: MlsSessionCrypto,
+    merged: Vec<u8>,
+}
+
+pub(super) type MergeWitnesses = BTreeMap<u64, MergeWitness>;
+
+impl MergeWitness {
+    /// Peer-id of the leaf that signed `commit`, if it is a valid commit for
+    /// the witnessed epoch.
+    fn rival_author(&self, commit: &[u8]) -> Option<String> {
+        let staged = self.before.stage_membership(commit, None).ok()?;
+        self.before.member_identity_for_signer(&staged.author)
     }
 }

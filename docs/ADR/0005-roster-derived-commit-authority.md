@@ -34,12 +34,12 @@ set (UI-enforced, soft).
   member being removed excluded. An admin of rank k commits only after k ×
   15 s and only if the leaf is still in its tree, so it stands in for
   offline admins without racing online ones.
-- A fork that still happens is detected when an admin's commit arrives for
-  an epoch already merged with other bytes (the commit log holds ours).
-  Both branches keep the commit with the lower SHA-256; a client that merged
-  the other reports `needs_rejoin` and stops acting as an admin. Admissions
-  are still committed by every admin that sees the KeyPackage and rely on
-  this detection alone.
+- A fork that still happens is detected when a commit arrives for one of
+  the last few epochs this session merged, with other bytes. It counts only
+  if it stages against the state kept for that epoch and its signing leaf
+  is a roster admin. Both branches keep the commit with the lower SHA-256;
+  a client that merged the other reports `needs_rejoin` and stops acting as
+  an admin. The record is in memory, so a restart forgets it.
 - A group whose last in-group admin is revoked becomes crypto-unmanageable;
   backstop is re-creating the group from the roster (one action).
 - `AdminHandoff` remains for non-org groups only.

@@ -269,3 +269,9 @@ mod authentication_org;
 
 #[path = "runtime_tests/org_commits.rs"]
 mod org_commits;
+
+#[path = "runtime_tests/org_fixture.rs"]
+mod org_fixture;
+
+#[path = "runtime_tests/org_forks.rs"]
+mod org_forks;

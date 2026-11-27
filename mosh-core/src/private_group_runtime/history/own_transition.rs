@@ -49,7 +49,8 @@ impl GroupSession {
                 &[],
             )?;
         }
-        self.crypto = candidate;
+        let before = std::mem::replace(&mut self.crypto, candidate);
+        self.witness_merge(prior.epoch, before, &raw);
         self.log_commit(prior.epoch, &raw);
         self.node
             .publish_room_best_effort(&self.mesh_id, &self.control_channel, &bytes)

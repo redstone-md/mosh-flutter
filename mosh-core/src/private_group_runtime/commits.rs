@@ -58,13 +58,14 @@ impl GroupSession {
     /// Merge a control-channel commit in epoch order. Duplicates and stale
     /// replays are no-ops; future commits are buffered and drained once their
     /// epoch is reached; an unreachable buffered commit triggers a resync
-    /// request (spec §7). Org callers have already authorized the author, so
-    /// a stale commit that differs from ours is checked as a fork.
+    /// request (spec §7). Org groups also check a stale commit as a fork and
+    /// witness a merge at our epoch, so a rival for it can be proven later.
     pub(super) fn apply_commit_sequenced(
         &mut self,
         commit_b64: String,
     ) -> Result<(), PrivateGroupError> {
         self.note_org_fork(&commit_b64);
+        let probe = self.merge_probe(&commit_b64);
         let outcome = sequence_commit(
             &mut self.crypto,
             &mut self.sequencer,
@@ -72,6 +73,11 @@ impl GroupSession {
             &self.group_id,
             &commit_b64,
         )?;
+        if let Some((epoch, before)) = probe {
+            if self.crypto.epoch() > Some(epoch) {
+                self.witness_merge(epoch, before, &decode(&commit_b64)?);
+            }
+        }
         match outcome {
             SequenceOutcome::Done => {
                 // A real commit closed the gap: clear any stale rejoin hint so
