@@ -105,6 +105,7 @@ fn a_group_joiner_record_without_snapshot_is_dropped_at_rehydrate() {
         org_pubkey: None,
         names: Default::default(),
         wake: Default::default(),
+        forked_off: false,
     };
     crate::conversation::history::History::new(GROUP_HISTORY)
         .write_record(&persistence, "group-orphan", &record)
@@ -157,6 +158,7 @@ fn a_real_group_record_without_snapshot_is_kept_and_reported() {
         org_pubkey: None,
         names: Default::default(),
         wake: Default::default(),
+        forked_off: false,
     };
     crate::conversation::history::History::new(GROUP_HISTORY)
         .write_record(&persistence, "group-corrupt", &record)

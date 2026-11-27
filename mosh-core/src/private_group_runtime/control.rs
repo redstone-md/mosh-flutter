@@ -152,13 +152,7 @@ impl GroupSession {
             return Ok(());
         }
         if self.org_pubkey.is_some() {
-            return self.admit_org_member(
-                sender,
-                participant_id,
-                &key_package,
-                joiner_binding,
-                own_fp,
-            );
+            return self.admit_org_member(sender, participant_id, &key_package, joiner_binding);
         }
         self.admit_history_member(participant_id, &key_package, joiner_binding, own_fp)
     }
@@ -251,6 +245,9 @@ impl GroupSession {
             if let Err(error @ PrivateGroupError::Persistence(_)) = handoff {
                 return Err(error);
             }
+        }
+        if self.org_pubkey.is_some() {
+            return self.schedule_departure(proposal_b64);
         }
         if !self.should_commit_departure(from_fingerprint) {
             return Ok(());

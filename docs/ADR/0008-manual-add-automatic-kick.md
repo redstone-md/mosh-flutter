@@ -19,8 +19,9 @@ group traffic.
 Adds and kicks are asymmetric. Adding members is manual: the admin client
 shows "roster has +N not in group G — add?" and one click issues a single
 multi-proposal commit (N × Add). Kicking is automatic: on `member_removed`,
-the first online `role: admin` client commits the Remove for every group
-bound to that org, with no user interaction.
+the designated admin client (ADR 0005) commits the Remove for every group
+bound to that org, with no user interaction; the other admins stand by
+and commit after their delay only if it has not landed.
 
 ## Consequences
 
@@ -29,8 +30,11 @@ bound to that org, with no user interaction.
   admins during onboarding waves.
 - Revocation does not wait for a human; the window is bounded by admin
   client uptime, not attention. Runbook recommends ≥2 admins.
-- Kick races between two online admins remain possible but rare
-  (revocations are infrequent), covered by first-commit-wins retry and the
-  rejoin self-heal from ADR 0005.
+- A kick waits at most one fallback delay per admin ranked above the one
+  that commits it. Admins whose rosters or trees disagree can still both
+  kick; the fork rule from ADR 0005 sends one branch to rejoin.
+- A joiner's KeyPackage (an accepted invitation, or a rejoin after a fork)
+  is admitted the same way: the designated admin at once, the others after
+  their delay and only if nobody admitted it first.
 - A default `#general` is just the first ad-hoc group created at org setup;
   no special mechanics to maintain.

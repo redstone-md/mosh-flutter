@@ -78,7 +78,8 @@ impl GroupSession {
             joiner,
             super::welcome::replay_write(&replay_key, &replay)?,
         )?;
-        self.crypto = candidate;
+        let before = std::mem::replace(&mut self.crypto, candidate);
+        self.witness_merge(prior.epoch, before, &outcome.commit_bytes);
         self.log_commit(prior.epoch, &outcome.commit_bytes);
         self.retain_admission_replay(replay_key, replay.clone());
         self.publish_admission_replay(&replay)
