@@ -61,13 +61,14 @@ impl TextRecord {
         Ok(())
     }
 
+    /// A tombstone never carries text; a signed record must match its origin.
     pub(super) fn validate_content(&self, context: &str) -> Result<()> {
+        if self.is_tombstone() && !self.body.is_empty() {
+            return Err(invalid());
+        }
         if let Some(origin) = self.metadata.as_ref().and_then(|m| m.origin.as_ref()) {
             if self.is_tombstone() {
-                if origin.conversation != context
-                    || origin.id != self.message_id
-                    || !self.body.is_empty()
-                {
+                if origin.conversation != context || origin.id != self.message_id {
                     return Err(invalid());
                 }
                 origin.verify_signature().map_err(|_| invalid())?;

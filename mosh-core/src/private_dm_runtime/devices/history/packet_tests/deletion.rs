@@ -129,6 +129,19 @@ pub(super) fn a_tombstone_for_a_live_local_message_does_not_stall_the_import(f: 
     assert!(row("call-row").call_event.is_some());
 }
 
+// A tombstone carries no text, with or without an origin: a batch that
+// marks a row deleted yet keeps its body must not restore that text.
+pub(super) fn a_tombstone_with_text_is_refused(f: &mut Fixture) {
+    let mut marked = tombstone(record("gone", ""));
+    marked.body = "secret".into();
+    let packet = f.packet(
+        &f.source,
+        DeviceMessage::HistoryBatch(f.batch(0, vec![marked])),
+    );
+    assert!(f.receive(&packet).is_err());
+    assert!(f.snapshot().messages.iter().all(|m| m.body != "secret"));
+}
+
 fn tombstone(mut record: TextRecord) -> TextRecord {
     record.body.clear();
     record
