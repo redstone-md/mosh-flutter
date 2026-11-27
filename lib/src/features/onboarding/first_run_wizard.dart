@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/app/mosh_dimensions.dart';
+import 'package:mosh/src/features/conversation/conversation_tools.dart'
+    show isMobileBreakpoint;
 import 'package:mosh/src/routing/mosh_title_bar.dart';
 
 import 'display_name_form.dart';
@@ -43,8 +45,8 @@ class _FirstRunWizardState extends ConsumerState<FirstRunWizard> {
         ])),
       );
 
-  /// The Wizard step card: one column on the background, 480 px wide on the
-  /// desktop and as wide as the screen on a phone.
+  /// The Wizard step card: one column on the background, 480 px wide and
+  /// centred on the desktop, as wide as the screen and at its top on a phone.
   Widget _viewport(BuildContext context, BoxConstraints constraints) {
     final pad = constraints.maxWidth < FirstRunWizard.stepWidth + MoshSpace.s12
         ? MoshSpace.s4
@@ -52,6 +54,7 @@ class _FirstRunWizardState extends ConsumerState<FirstRunWizard> {
     return SingleChildScrollView(
       child: SetupStableLayout(
         viewportHeight: constraints.maxHeight,
+        centred: !isMobileBreakpoint(context),
         layout: (
           constraints.biggest,
           MediaQuery.textScalerOf(context),
@@ -67,7 +70,13 @@ class _FirstRunWizardState extends ConsumerState<FirstRunWizard> {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Center(child: SetupProgress(step: widget.profile.step)),
+                  // On a phone the progress stands a step inside the column.
+                  Padding(
+                    padding: EdgeInsets.symmetric(
+                        horizontal: pad == MoshSpace.s4 ? MoshSpace.s4 : 0),
+                    child:
+                        Center(child: SetupProgress(step: widget.profile.step)),
+                  ),
                   const SizedBox(height: MoshSpace.s5),
                   SetupStepTransition(
                       key: const ValueKey('setup-content'),

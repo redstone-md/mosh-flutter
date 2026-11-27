@@ -127,10 +127,8 @@ class _DisplayNameFormState extends State<DisplayNameForm> {
                 ? l.firstRunNameRequired
                 : null,
             decoration: InputDecoration(
-                prefixIcon: const Icon(MoshIcons.person),
+                hintText: l.setupDisplayNamePlaceholder,
                 counterText: '',
-                helperText: l.firstRunNameHint,
-                helperMaxLines: 3,
                 errorMaxLines: 3)),
       );
 }

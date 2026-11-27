@@ -102,7 +102,7 @@ Future<void> _submitLink(WidgetTester tester) async {
 }
 
 Future<void> _pickEthernet(WidgetTester tester) async {
-  await tapSetup(tester, 'Automatic · system connection');
+  await tapSetup(tester, 'Automatic, system connection');
   await tapSetup(tester, 'Ethernet - 192.168.1.24');
 }
 
@@ -233,7 +233,7 @@ final List<FigmaScene> setupScenes = [
       (tester, size) async {
     await _setup(tester, size,
         step: SetupStep.network, bridge: _networkBridge());
-    await tapSetup(tester, 'Automatic · system connection');
+    await tapSetup(tester, 'Automatic, system connection');
   }),
   FigmaScene('network-bypass', 'Onboarding / Network / Bypass adapter',
       (tester, size) async {

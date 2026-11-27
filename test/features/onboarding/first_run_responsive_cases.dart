@@ -8,11 +8,7 @@ import '../../support/first_run.dart';
 import '../../support/first_run_preview.dart';
 
 void main() {
-  for (final size in [
-    const Size(1280, 680),
-    const Size(1920, 1080),
-    const Size(390, 844),
-  ]) {
+  for (final size in [const Size(1280, 680), const Size(1920, 1080)]) {
     testWidgets('the name step stands in the middle at $size', (tester) async {
       final harness =
           FirstRunHarness(profile: const FirstRunProfile(displayName: 'Лена'));
@@ -25,6 +21,17 @@ void main() {
       expect(step.width, lessThanOrEqualTo(480 + 48));
     });
   }
+
+  testWidgets('a phone starts the name step at the top of the screen',
+      (tester) async {
+    final harness =
+        FirstRunHarness(profile: const FirstRunProfile(displayName: 'Лена'));
+    await harness.pump(tester, size: const Size(390, 844));
+    final step = tester.getRect(setupStep);
+    final viewport = _viewport(tester);
+    expect(step.top, viewport.top);
+    expect(step.width, viewport.width);
+  });
 
   testWidgets('a step taller than the window scrolls', (tester) async {
     final harness =

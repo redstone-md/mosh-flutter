@@ -20,29 +20,40 @@ class SetupStableLayout extends SingleChildRenderObjectWidget {
       {super.key,
       required this.layout,
       required this.viewportHeight,
+      this.centred = true,
       required super.child});
   final Object layout;
   final double viewportHeight;
 
+  /// Off on a phone, where a step starts at the top of the screen.
+  final bool centred;
+
   @override
   RenderObject createRenderObject(BuildContext context) =>
-      _StableLayout(layout, viewportHeight);
+      _StableLayout(layout, viewportHeight, centred);
 
   @override
   void updateRenderObject(BuildContext context, RenderObject renderObject) =>
-      (renderObject as _StableLayout).configure(layout, viewportHeight);
+      (renderObject as _StableLayout)
+          .configure(layout, viewportHeight, centred);
 }
 
 class _StableLayout extends RenderShiftedBox {
-  _StableLayout(this._layout, this._viewportHeight) : super(null);
+  _StableLayout(this._layout, this._viewportHeight, this._centred)
+      : super(null);
   Object _layout;
   double _viewportHeight;
+  bool _centred;
   double? _top;
 
-  void configure(Object layout, double viewportHeight) {
-    if ((layout, viewportHeight) == (_layout, _viewportHeight)) return;
+  void configure(Object layout, double viewportHeight, bool centred) {
+    if ((layout, viewportHeight, centred) ==
+        (_layout, _viewportHeight, _centred)) {
+      return;
+    }
     _layout = layout;
     _viewportHeight = viewportHeight;
+    _centred = centred;
     _top = null;
     markNeedsLayout();
   }
@@ -56,7 +67,7 @@ class _StableLayout extends RenderShiftedBox {
         (_viewportHeight - step.size.height).clamp(0.0, double.infinity);
     // A step that no longer fits under the top it was given (it opened
     // while still loading, say) pulls the top up just far enough, for good.
-    final top = _top = (_top ?? room / 2).clamp(0.0, room);
+    final top = _top = (_top ?? (_centred ? room / 2 : 0)).clamp(0.0, room);
     size = constraints.constrain(Size(constraints.maxWidth,
         (top + step.size.height).clamp(_viewportHeight, double.infinity)));
     (step.parentData! as BoxParentData).offset =

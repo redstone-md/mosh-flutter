@@ -12,10 +12,10 @@
   "firstRunDeviceStep": "Device",
   "firstRunNetworkStep": "Network",
   "firstRunProgress": "Step {step} of {total}",
-  "firstRunEncryption": "Private messages are end-to-end encrypted",
+  "firstRunNamePrivacy": "Your name is stored on this device and shown only to the people you talk to",
   "firstRunNameTitle": "Choose your name",
-  "firstRunNameBody": "Choose the name people will see when you start a conversation.",
-  "firstRunNameHint": "You can change this name later in Settings.",
+  "firstRunNameQuestion": "What should people call you?",
+  "firstRunNameBody": "Your name is shown to the people you talk to. You can change it later.",
   "firstRunNameScope": "This name is used for new conversations. Existing conversations keep their names.",
   "firstRunNameRequired": "Enter a name to continue.",
   "firstRunNameSaved": "Name saved.",
@@ -24,7 +24,7 @@
   "firstRunBack": "Back",
   "firstRunSaving": "Saving…",
   "firstRunDeviceTitle": "Set up this device",
-  "firstRunDeviceBody": "Start with your first device, or connect to your existing Mosh profile using a QR from a trusted device.",
+  "firstRunDeviceBody": "Start here if this is your first device, or connect it to the Mosh you already use.",
   "firstRunConnectDevice": "Connect to an existing profile",
   "firstRunFirstDevice": "This is my first device",
   "firstRunCancelLink": "Cancel linking and continue independently",
@@ -34,7 +34,7 @@
   "firstRunNetworkBody": "Use the system connection, or choose a physical network interface if a VPN interferes with discovery.",
   "firstRunVpnDetected": "Your VPN currently carries the default network route.",
   "firstRunNetworkAdapter": "Network interface",
-  "firstRunAutomatic": "Automatic · system connection",
+  "firstRunAutomatic": "Automatic, system connection",
   "firstRunAutomaticHint": "Mosh follows your system routing, including an active VPN.",
   "firstRunBypassHint": "Mosh will use this interface directly, outside your VPN. Your public IP may be visible to peers and trackers.",
   "firstRunAdapterUnavailable": "{adapter} · unavailable",
@@ -72,7 +72,8 @@
   "@setupSectionTitle": {
     "description": "Title of the session setup section"
   },
-  "setupDisplayNameLabel": "Your display name",
+  "setupDisplayNameLabel": "Display name",
+  "setupDisplayNamePlaceholder": "Your display name",
   "@setupDisplayNameLabel": {
     "description": "Label for the display name field"
   },

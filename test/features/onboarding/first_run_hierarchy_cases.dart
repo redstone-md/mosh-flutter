@@ -11,7 +11,7 @@ import '../../support/first_run_preview.dart';
 import '../../support/scriptable_device_link.dart';
 
 const _titles = {
-  SetupStep.name: 'Выберите своё имя',
+  SetupStep.name: 'Как вас называть?',
   SetupStep.device: 'Настройте это устройство',
   SetupStep.network: 'Настройте подключение',
 };
