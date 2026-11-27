@@ -233,3 +233,37 @@ fn hello_and_stale_roster_trigger_republish() {
 
     let _ = std::fs::remove_file(&path);
 }
+
+#[test]
+fn leaving_one_org_keeps_the_room_of_another_on_the_same_mesh() {
+    let _guard = MOSS_TEST_LOCK
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    drain_received_messages();
+
+    let (persistence, path) = temp_persistence("shared-mesh", [47u8; 32]);
+    let moss = Arc::new(MossFfiRuntime::load_default().expect("moss should load"));
+    let mut runtime = OrgRuntime::from_shared(moss, Some(persistence));
+    for (bundle_uri, listen_port) in [
+        (bundle("orgmesh-shared"), 42350),
+        (org_bundle("orgmesh-shared"), 42351),
+    ] {
+        runtime
+            .join_org(JoinOrgRequest {
+                bundle_uri,
+                display_name: "Alice".into(),
+                listen_port,
+                static_peer: None,
+            })
+            .expect("join should succeed");
+    }
+
+    runtime.leave_org(ORG_KEY_HEX).expect("leave should work");
+
+    let remaining = &runtime.orgs[&org_key_hex()];
+    assert!(remaining.node.subscribed_to_room(
+        "orgmesh-shared",
+        &format!("{ORG_CONTROL_PREFIX}orgmesh-shared")
+    ));
+    let _ = std::fs::remove_file(&path);
+}
