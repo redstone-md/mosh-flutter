@@ -4,7 +4,8 @@ use super::*;
 /// An org group with two admins that both run the real session logic, `a`
 /// on a runtime and `b` beside it, plus two plain members at the crypto
 /// layer: `leaver`, who departs, and `member`, who stays and only merges.
-/// Frames move between them by hand, so every arrival order is explicit.
+/// The roster also lists `joiner_key`, who holds no leaf yet. Frames move
+/// between them by hand, so every arrival order is explicit.
 pub(super) struct TwoAdmins {
     pub(super) runtime: PrivateGroupRuntime,
     pub(super) b: GroupSession,
@@ -16,7 +17,12 @@ pub(super) struct TwoAdmins {
     pub(super) leaver: MlsSessionCrypto,
     pub(super) member: MlsSessionCrypto,
     pub(super) member_peer: String,
+    pub(super) joiner_key: SigningKey,
     paths: Vec<PathBuf>,
+}
+
+fn joiner_key() -> SigningKey {
+    SigningKey::from_bytes(&[203; 32])
 }
 
 /// Give `a` a fixed Moss identity, so admin order is the same on every run.
@@ -42,7 +48,8 @@ fn admin_key(other: &str, below: bool) -> SigningKey {
         .expect("some seed sorts on each side")
 }
 
-/// Both admins, the leaver and optionally `member`, in both admins' stores.
+/// Both admins, the leaver, the joiner and optionally `member`, in both
+/// admins' stores.
 fn put_roster(
     stores: &[Arc<Persistence>; 2],
     version: u64,
@@ -54,7 +61,10 @@ fn put_roster(
         .iter()
         .map(|peer| serde_json::json!({"moss_peer_id": peer, "name": "a", "role": "admin"}))
         .collect();
-    let plain = std::iter::once(org_signing::peer_id_hex(leaver)).chain(member.map(str::to_string));
+    let plain = [leaver, &joiner_key()]
+        .map(org_signing::peer_id_hex)
+        .into_iter()
+        .chain(member.map(str::to_string));
     members.extend(
         plain.map(|peer| serde_json::json!({"moss_peer_id": peer, "name": "m", "role": "member"})),
     );
@@ -166,6 +176,7 @@ impl TwoAdmins {
             leaver,
             member,
             member_peer,
+            joiner_key: joiner_key(),
             paths,
         }
     }
@@ -205,6 +216,25 @@ impl TwoAdmins {
         };
         let key = self.leaver_key.clone();
         self.signed(&key, &envelope)
+    }
+
+    /// A KeyPackage for a fresh MLS identity of `key`'s peer-id, sent by
+    /// `key`: a new joiner, or a member rejoining over its stale leaf.
+    pub(super) fn key_package(&mut self, key: &SigningKey) -> (MossReceivedMessage, Vec<u8>) {
+        let peer = org_signing::peer_id_hex(key);
+        let package = MlsSessionCrypto::new(&peer)
+            .unwrap()
+            .key_package_bytes()
+            .unwrap();
+        let envelope = ControlEnvelope::KeyPackage {
+            group_id: self.group_id.clone(),
+            participant_id: format!("participant-{peer}"),
+            from_device: peer.clone(),
+            from_fingerprint: peer,
+            key_package_b64: encode(&package),
+            joiner_binding: None,
+        };
+        (self.signed(key, &envelope), package)
     }
 
     pub(super) fn deliver(&mut self, i: usize, frame: MossReceivedMessage) {

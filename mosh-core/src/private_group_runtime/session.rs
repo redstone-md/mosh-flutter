@@ -132,8 +132,9 @@ pub(super) struct GroupSession {
     /// Roster version at the last lag-retry, so a change triggers exactly
     /// one retry pass.
     pub(super) last_roster_version_seen: Option<u64>,
-    /// Org removals this admin commits when its turn comes (`org_commits`).
-    pub(super) pending_removals: super::org_commits::PendingRemovals,
+    /// Org removals and admissions this admin commits when its turn comes
+    /// (`org_commits`).
+    pub(super) pending_commits: super::org_commits::PendingCommits,
     /// This branch lost an org fork: stays set until the member rejoins,
     /// whatever later commits say, and stops it acting as an admin.
     pub(super) forked_off: bool,
@@ -212,7 +213,7 @@ impl GroupSession {
             incoming_org_control: None,
             roster_lag: Vec::new(),
             last_roster_version_seen: None,
-            pending_removals: Default::default(),
+            pending_commits: Default::default(),
             forked_off: false,
             merge_witnesses: Default::default(),
             typing_members: HashMap::new(),

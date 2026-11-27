@@ -290,7 +290,8 @@ impl GroupSession {
     /// Driven by the drain loop (poll cadence) with its clock. One pass per
     /// roster version change, and on rehydrate (`last_roster_version_seen`
     /// starts None), retries lag-buffered commits and reconciles group
-    /// membership; every pass commits the removals whose turn has come.
+    /// membership; every pass commits the removals and admissions whose turn
+    /// has come.
     pub(super) fn sync_roster_state(&mut self, now: u64) {
         if self.org_pubkey.is_none() {
             return;
@@ -301,7 +302,7 @@ impl GroupSession {
             self.retry_roster_lagged();
             self.reconcile_roster_membership();
         }
-        self.pump_removals(now);
+        self.pump_commits(now);
     }
 
     /// Crypto layer of revocation (spec §6, ADR 0008), reconciliation-style:
@@ -326,7 +327,8 @@ impl GroupSession {
             .filter(|identity| !roster.members.iter().any(|m| m.moss_peer_id == *identity))
             .collect();
         for peer_id in revoked {
-            self.schedule_removal(super::org_commits::RemovalTarget::Identity(peer_id));
+            let target = super::org_commits::RemovalTarget::Identity(peer_id);
+            self.schedule_commit(super::org_commits::OrgCommit::Remove(target));
         }
     }
 
@@ -334,13 +336,13 @@ impl GroupSession {
     /// must equal the envelope's verified peer-id AND be in the roster.
     /// `replace_member` removes any stale leaf with the same identity in the
     /// same commit (rejoin/device-replace dedup); with none it's a plain Add.
+    /// The designated admin admits; the others stand by (`org_commits`).
     pub(super) fn admit_org_member(
         &mut self,
         sender_peer_id: Option<&str>,
         participant_id: String,
         key_package: &[u8],
         joiner_binding: Option<&crate::sender_auth::SenderProof>,
-        own_fp: String,
     ) -> Result<(), PrivateGroupError> {
         let Some(sender) = sender_peer_id else {
             return Ok(());
@@ -364,6 +366,11 @@ impl GroupSession {
             );
             return Ok(());
         }
-        self.admit_history_member(participant_id, key_package, joiner_binding, own_fp)
+        self.schedule_admission(super::org_commits::Admission {
+            identity,
+            participant: participant_id,
+            package: key_package.to_vec(),
+            joiner: joiner_binding.cloned(),
+        })
     }
 }

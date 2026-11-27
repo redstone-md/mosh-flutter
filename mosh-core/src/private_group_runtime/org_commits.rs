@@ -1,15 +1,15 @@
-//! Who commits an org removal.
+//! Who commits an org membership change.
 //!
 //! Every roster admin may commit (ADR 0005), but gossip has no order, so two
-//! admins committing the same removal fork the MLS tree. One admin is
-//! designated per removal and the others only stand by; a fork that still
-//! happens is settled in `org_forks`.
+//! admins committing the same removal or admitting the same joiner fork the
+//! MLS tree. One admin is designated per change and the others only stand
+//! by; a fork that still happens is settled in `org_forks`.
 
 use super::*;
-use std::collections::BTreeMap;
+use crate::sender_auth::SenderProof;
 
 /// How long each admin below the designated one waits before committing a
-/// removal nobody has committed yet.
+/// change nobody has committed yet.
 pub(super) const FALLBACK_COMMIT_DELAY_MS: u64 = 15_000;
 
 /// A leaf an admin has to remove from an org group.
@@ -46,10 +46,51 @@ impl RemovalTarget {
     }
 }
 
-/// Removals waiting for this admin's turn, with the deadline stamped by the
-/// first pump that saw them. In memory only: a revocation is re-derived from
-/// the roster after a restart.
-pub(super) type PendingRemovals = BTreeMap<RemovalTarget, Option<u64>>;
+/// A joiner's KeyPackage that passed the org admission rule (ADR 0004):
+/// its credential is `identity`, the roster member who sent it.
+pub(super) struct Admission {
+    pub(super) identity: String,
+    pub(super) participant: String,
+    pub(super) package: Vec<u8>,
+    pub(super) joiner: Option<SenderProof>,
+}
+
+/// A membership change this admin commits when its turn comes.
+pub(super) enum OrgCommit {
+    Remove(RemovalTarget),
+    Admit(Admission),
+}
+
+impl OrgCommit {
+    /// One leaf, or one joiner: a joiner's newer KeyPackage replaces the
+    /// older one, so a joiner never waits in line twice.
+    fn same_change(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Remove(a), Self::Remove(b)) => a == b,
+            (Self::Admit(a), Self::Admit(b)) => a.identity == b.identity,
+            _ => false,
+        }
+    }
+
+    /// The member the change is about, who never ranks for it.
+    fn subject(&self, crypto: &MlsSessionCrypto) -> Option<String> {
+        match self {
+            Self::Remove(target) => target.identity(crypto),
+            Self::Admit(admission) => Some(admission.identity.clone()),
+        }
+    }
+}
+
+/// A change waiting for this admin's turn, with the deadline stamped by the
+/// first pump that saw it.
+pub(super) struct PendingCommit {
+    change: OrgCommit,
+    deadline: Option<u64>,
+}
+
+/// In memory only: a revocation is re-derived from the roster after a
+/// restart, and a joiner re-sends its KeyPackage until a Welcome arrives.
+pub(super) type PendingCommits = Vec<PendingCommit>;
 
 impl GroupSession {
     /// Accept an org member's departure: prove the proposal now, while its
@@ -62,45 +103,90 @@ impl GroupSession {
             return Ok(());
         }
         let signer = self.crypto.self_removal_signer(&decode(proposal_b64)?)?;
-        self.schedule_removal(RemovalTarget::Leaf(signer));
+        self.schedule_commit(OrgCommit::Remove(RemovalTarget::Leaf(signer)));
         Ok(())
     }
 
-    pub(super) fn schedule_removal(&mut self, target: RemovalTarget) {
-        self.pending_removals.entry(target).or_insert(None);
+    /// Admit an org joiner: at once when this admin is designated, so a
+    /// joiner is not kept waiting by the pump, otherwise when its turn comes.
+    pub(super) fn schedule_admission(
+        &mut self,
+        admission: Admission,
+    ) -> Result<(), PrivateGroupError> {
+        match self.committer_rank(Some(&admission.identity)) {
+            Some(0) => self.admit(admission),
+            Some(_) => {
+                self.schedule_commit(OrgCommit::Admit(admission));
+                Ok(())
+            }
+            None => Ok(()),
+        }
     }
 
-    /// Commit every pending removal whose turn has come. One that another
-    /// admin committed first, so its leaf has left our tree, is dropped.
-    pub(super) fn pump_removals(&mut self, now: u64) {
-        let targets: Vec<RemovalTarget> = self.pending_removals.keys().cloned().collect();
-        for target in targets {
-            if self.removal_due(&target, now) {
-                self.pending_removals.remove(&target);
-                self.commit_removal(&target);
+    /// Queue a change; a repeat keeps the deadline already stamped, so a
+    /// re-sent frame never pushes this admin's turn back.
+    pub(super) fn schedule_commit(&mut self, change: OrgCommit) {
+        let queued = self
+            .pending_commits
+            .iter_mut()
+            .find(|pending| pending.change.same_change(&change));
+        match queued {
+            Some(pending) => pending.change = change,
+            None => self.pending_commits.push(PendingCommit {
+                change,
+                deadline: None,
+            }),
+        }
+    }
+
+    /// Commit every pending change whose turn has come. One that another
+    /// admin committed first is dropped: the leaf has left our tree, or the
+    /// joiner's KeyPackage holds one.
+    pub(super) fn pump_commits(&mut self, now: u64) {
+        let epoch = self.crypto.epoch();
+        for mut pending in std::mem::take(&mut self.pending_commits) {
+            match self.turn_due(&mut pending, now) {
+                Some(true) => self.commit_change(pending.change),
+                Some(false) => self.pending_commits.push(pending),
+                None => {}
+            }
+        }
+        if self.crypto.epoch() != epoch {
+            self.history_dispatch.invalidate();
+        }
+    }
+
+    /// Stamp the deadline on first sight: rank k waits k delays. None for a
+    /// change that is done or not ours to commit.
+    fn turn_due(&mut self, pending: &mut PendingCommit, now: u64) -> Option<bool> {
+        if !self.joined || !self.outstanding(&pending.change) {
+            return None;
+        }
+        let subject = pending.change.subject(&self.crypto);
+        let rank = self.committer_rank(subject.as_deref())?;
+        let wait = rank.saturating_mul(FALLBACK_COMMIT_DELAY_MS);
+        Some(now >= *pending.deadline.get_or_insert(now.saturating_add(wait)))
+    }
+
+    /// Still to do: the leaf is in our tree, or the joiner is still on the
+    /// roster and its KeyPackage is not. A rejoiner's stale leaf has another
+    /// signer, so it does not count as admitted.
+    fn outstanding(&mut self, change: &OrgCommit) -> bool {
+        match change {
+            OrgCommit::Remove(target) => target.present(&self.crypto),
+            OrgCommit::Admit(admission) => {
+                self.crypto
+                    .key_package_signer_is_member(&admission.package)
+                    .is_ok_and(|member| !member)
+                    && self.roster_contains(&admission.identity)
             }
         }
     }
 
-    /// Stamp the deadline on first sight: rank k waits k delays. Drops a
-    /// target that has left the tree or is not ours to commit.
-    fn removal_due(&mut self, target: &RemovalTarget, now: u64) -> bool {
-        let rank = match self.joined && target.present(&self.crypto) {
-            true => self.committer_rank(target.identity(&self.crypto).as_deref()),
-            false => None,
-        };
-        let (Some(rank), Some(deadline)) = (rank, self.pending_removals.get_mut(target)) else {
-            self.pending_removals.remove(target);
-            return false;
-        };
-        let wait = rank.saturating_mul(FALLBACK_COMMIT_DELAY_MS);
-        now >= *deadline.get_or_insert(now.saturating_add(wait))
-    }
-
     /// Our place in the commit order, mirroring `successor_of` for plain
     /// groups: roster admins holding a leaf here, by peer-id, without the
-    /// member being removed. Rank 0 is the designated committer.
-    fn committer_rank(&mut self, removed: Option<&str>) -> Option<u64> {
+    /// member the change is about. Rank 0 is the designated committer.
+    fn committer_rank(&mut self, subject: Option<&str>) -> Option<u64> {
         if !self.acting_admin() {
             return None;
         }
@@ -112,7 +198,7 @@ impl GroupSession {
             .iter()
             .filter(|member| member.role == "admin" && leaves.contains(&member.moss_peer_id))
             .map(|member| member.moss_peer_id.as_str())
-            .filter(|peer_id| Some(*peer_id) != removed)
+            .filter(|peer_id| Some(*peer_id) != subject)
             .collect();
         admins.sort_unstable();
         admins.dedup();
@@ -120,22 +206,36 @@ impl GroupSession {
         u64::try_from(rank).ok()
     }
 
-    fn commit_removal(&mut self, target: &RemovalTarget) {
-        let result = self
-            .crypto
-            .receive_candidate()
-            .map_err(PrivateGroupError::from)
-            .and_then(|mut candidate| {
-                let raw = target.commit(&mut candidate)?;
-                self.publish_membership_change(candidate, raw)
-            });
+    fn commit_change(&mut self, change: OrgCommit) {
+        let (kind, result) = match change {
+            OrgCommit::Remove(target) => (kinds::KICK, self.commit_removal(&target)),
+            OrgCommit::Admit(admission) => (kinds::COMMIT, self.admit(admission)),
+        };
         if let Err(error) = result {
             dlog::write(
                 LogLevel::Error,
-                kinds::KICK,
+                kind,
                 &self.group_id,
-                &format!("org removal commit failed: {error}"),
+                &format!("org membership commit failed: {error}"),
             );
         }
+    }
+
+    fn commit_removal(&mut self, target: &RemovalTarget) -> Result<(), PrivateGroupError> {
+        let mut candidate = self.crypto.receive_candidate()?;
+        let raw = target.commit(&mut candidate)?;
+        self.publish_membership_change(candidate, raw)
+    }
+
+    /// Add the joiner, replacing any stale leaf of its peer-id.
+    fn admit(&mut self, admission: Admission) -> Result<(), PrivateGroupError> {
+        let own_fp = self.crypto.fingerprint();
+        let Admission {
+            participant,
+            package,
+            joiner,
+            ..
+        } = admission;
+        self.admit_history_member(participant, &package, joiner.as_ref(), own_fp)
     }
 }

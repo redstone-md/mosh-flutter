@@ -152,13 +152,7 @@ impl GroupSession {
             return Ok(());
         }
         if self.org_pubkey.is_some() {
-            return self.admit_org_member(
-                sender,
-                participant_id,
-                &key_package,
-                joiner_binding,
-                own_fp,
-            );
+            return self.admit_org_member(sender, participant_id, &key_package, joiner_binding);
         }
         self.admit_history_member(participant_id, &key_package, joiner_binding, own_fp)
     }
