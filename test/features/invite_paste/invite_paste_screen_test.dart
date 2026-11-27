@@ -59,26 +59,29 @@ void main() {
   testWidgets('dm detection shows the ok badge and enables Connect',
       (tester) async {
     final semantics = tester.ensureSemantics();
-    await pumpPasteStep(tester, ScriptableBridge());
+    try {
+      await pumpPasteStep(tester, ScriptableBridge());
 
-    await tester.enterText(find.byType(TextField),
-        'mosh://invite?mesh=7x9v&session=drift-41#fp=91A4-D2C8-77B0');
-    await tester.pump();
-    // ok badge: the "private chat invite detected" label.
-    expect(find.text('Private chat invite detected'), findsOneWidget);
-    expect(find.text('Opens a private chat with the person who sent it.'),
-        findsOneWidget);
-    // A recognised link is a quiet note, and a screen reader still hears it.
-    expect(
-        tester
-            .getSemantics(find.byType(JoinPreview))
-            .flagsCollection
-            .isLiveRegion,
-        isTrue);
-    // DM -> Connect enabled.
-    expect(tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
-        isNotNull);
-    semantics.dispose();
+      await tester.enterText(find.byType(TextField),
+          'mosh://invite?mesh=7x9v&session=drift-41#fp=91A4-D2C8-77B0');
+      await tester.pump();
+      // ok badge: the "private chat invite detected" label.
+      expect(find.text('Private chat invite detected'), findsOneWidget);
+      expect(find.text('Opens a private chat with the person who sent it.'),
+          findsOneWidget);
+      // A recognised link is a quiet note, and a screen reader still hears it.
+      expect(
+          tester
+              .getSemantics(find.byType(JoinPreview))
+              .flagsCollection
+              .isLiveRegion,
+          isTrue);
+      // DM -> Connect enabled.
+      expect(tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
+          isNotNull);
+    } finally {
+      semantics.dispose();
+    }
   });
 
   testWidgets('unknown detection shows the bad badge and disables Connect',

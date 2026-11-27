@@ -36,7 +36,8 @@ class DeviceLinkSteps extends StatelessWidget {
       l.deviceLinkStepApprove,
       l.deviceLinkStepFinish,
     ];
-    // The phone sets the steps closer, so the three keep to one line.
+    // The phone sets the steps closer, so the three keep to one line where
+    // their names allow it; longer ones wrap.
     final gap = isMobileBreakpoint(context) ? MoshSpace.s2 : MoshSpace.s4;
     return Wrap(spacing: gap, runSpacing: MoshSpace.s2, children: [
       for (final (index, label) in labels.indexed)

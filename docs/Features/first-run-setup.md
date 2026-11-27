@@ -8,8 +8,11 @@
 > illustrations in `assets/onboarding/`, the two-column frame, the setup
 > theme and `first_run_sizing.dart` are gone. On the desktop the step the
 > wizard opens with stands in the middle of the window and its top then
-> stays put, so the progress does not move when steps differ in height; a
-> taller step scrolls. On a phone a step starts at the top of the screen.
+> stays put, so the progress does not move when a later step is no taller
+> than the room under it. A step too tall for that room, as the device step
+> is in a short window, raises the top once and for good, and one taller
+> than the window scrolls. On a phone a step starts at the top of the
+> screen.
 > The sections below that describe the card, the artwork and their sizes are
 > the history of the earlier layout. Flow, persistence, device linking and
 > network behaviour are unchanged.
