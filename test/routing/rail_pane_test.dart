@@ -17,12 +17,8 @@ import '../support/rail.dart';
 final _handle = find.byWidgetPredicate((widget) =>
     widget is MouseRegion && widget.cursor == SystemMouseCursors.resizeColumn);
 
-double _railWidth(WidgetTester tester) => tester
-    .getTopLeft(find
-        .descendant(
-            of: find.byType(RailPane), matching: find.byType(VerticalDivider))
-        .first)
-    .dx;
+/// Where the list ends: the middle of the handle that resizes it.
+double _railWidth(WidgetTester tester) => tester.getCenter(_handle).dx - 0.5;
 
 Future<void> _drag(WidgetTester tester, double dx) async {
   final gesture = await tester.startGesture(tester.getCenter(_handle),

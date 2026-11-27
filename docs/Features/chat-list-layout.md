@@ -6,7 +6,7 @@ navigation.
 
 ## Behavior
 
-- **Resizing.** The divider between the list and the conversation is a 9px
+- **Resizing.** The edge between the list and the conversation is a 9px
   handle with a resize cursor. Its line lights up on hover, focus and drag.
   The list follows the pointer from the press. Its width stays between 268px
   and 480px, and the conversation keeps at least 320px. Without a chosen
@@ -56,7 +56,7 @@ navigation.
 
 `RailLayoutNotifier` (`state/rail_layout_provider.dart`) holds the layout:
 drag steps preview it, and drag ends, toggles and key steps save it.
-`RailPane` (`routing/rail_pane.dart`) lays out the list, the divider and
+`RailPane` (`routing/rail_pane.dart`) lays out the list and
 the handle. The list is laid out at its final width and clipped while the
 width animates, so it never reflows mid-animation. `RailCompactScope` tells the
 rail widgets whether to render the strip. `CompactRailItem` renders a

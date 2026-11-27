@@ -107,8 +107,9 @@ class _RailPaneState extends ConsumerState<RailPane> {
     return Stack(
       children: [
         Row(children: [
+          // The list is a panel beside the conversation: the two differ by
+          // their level, with no line between them.
           rail,
-          const VerticalDivider(width: 1, thickness: 1),
           Expanded(child: widget.chat),
         ]),
         PositionedDirectional(
