@@ -32,9 +32,10 @@ approved on 2026-10-02.
 - Require a display name, restore it after restart, and allow editing in Settings.
   Use initials for the avatar. Name changes apply to new conversations; existing
   conversations keep their names.
-- Offer "This is my first device" and "Connect to an existing profile". The
-  first choice continues setup; the second reuses QR/image/link import and
-  approval on the trusted installation.
+- Offer "This is my first device" under the card that connects this device
+  to an existing profile, which is open from the start. The button continues
+  setup; the card reuses QR/image/link import and approval on the trusted
+  installation.
 - Use automatic networking by default. Choosing a physical adapter is optional
   and explains that it routes Mosh traffic around the VPN. Explain any required
   restart before applying it.

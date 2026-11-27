@@ -90,7 +90,6 @@ Future<FirstRunHarness> _setup(WidgetTester tester, Size size,
 }
 
 Future<void> _openLinkInput(WidgetTester tester) async {
-  await tapSetup(tester, 'Connect to an existing profile');
   await tester.enterText(find.byType(TextField), _link);
   await tester.pumpAndSettle();
 }

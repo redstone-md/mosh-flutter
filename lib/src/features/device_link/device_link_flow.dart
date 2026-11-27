@@ -29,7 +29,10 @@ class DeviceLinkFlow extends StatelessWidget {
   final DeviceLinkRole role;
   final bool busy;
   final ValueChanged<String> onApprove;
-  final VoidCallback onCancel;
+
+  /// The way out of the link. Null in setup before a link is read: the step
+  /// has its own way on and back.
+  final VoidCallback? onCancel;
   final Widget? importForm;
 
   @override
@@ -47,14 +50,16 @@ class DeviceLinkFlow extends StatelessWidget {
         DeviceLinkSteps(role: role, phase: snapshot.phase),
         const SizedBox(height: MoshSpace.s4),
         ..._content(context, l),
-        const SizedBox(height: MoshSpace.s4),
-        if (snapshot.phase != DeviceLinkPhase.delivering)
+        if (onCancel != null &&
+            snapshot.phase != DeviceLinkPhase.delivering) ...[
+          const SizedBox(height: MoshSpace.s4),
           Align(
             alignment: AlignmentDirectional.centerStart,
             child: TextButton(
                 onPressed: busy ? null : onCancel,
                 child: Text(l.deviceLinkDecline)),
           ),
+        ],
       ]),
     );
   }

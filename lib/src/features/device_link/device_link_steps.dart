@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:mosh/src/features/conversation/conversation_tools.dart'
+    show isMobileBreakpoint;
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/app/mosh_dimensions.dart';
 import 'package:mosh/src/features/shared/step_mark.dart';
@@ -34,7 +36,9 @@ class DeviceLinkSteps extends StatelessWidget {
       l.deviceLinkStepApprove,
       l.deviceLinkStepFinish,
     ];
-    return Wrap(spacing: MoshSpace.s4, runSpacing: MoshSpace.s2, children: [
+    // The phone sets the steps closer, so the three keep to one line.
+    final gap = isMobileBreakpoint(context) ? MoshSpace.s2 : MoshSpace.s4;
+    return Wrap(spacing: gap, runSpacing: MoshSpace.s2, children: [
       for (final (index, label) in labels.indexed)
         _Step(
             label: label,
