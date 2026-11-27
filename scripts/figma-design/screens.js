@@ -33,7 +33,7 @@ function settingsPage(name, Device, section) {
   const row = stretch(f, 'panels'), nav = add(row, inst('Settings navigation', { Device }), { fillH: true });
   // The navigation opens on its first section: the one asked for takes the mark from it.
   const rows = nav.findAll((n) => n.type === 'INSTANCE' && n.name === 'Navigation row');
-  const open = rows.find((r) => r.findOne((n) => n.name === 'label').characters === section) ?? rows[0];
+  const open = section ? rows.find((r) => r.findOne((n) => n.name === 'label').characters === section) ?? fail('settings section ' + section) : rows[0];
   if (open !== rows[0]) for (const [r, State] of [[rows[0], 'Default'], [open, 'Selected']]) r.swapComponent(variant('Navigation row', { State, Device }));
   return stretch(row, 'page', { dir: 'V', gap: 6, pad: [8, 10] });
 }
