@@ -21,6 +21,7 @@ import 'package:mosh/src/features/sessions/sessions_screen.dart';
 import 'package:mosh/src/features/conversation/dm_screen.dart';
 import 'package:mosh/src/features/conversation/group_screen.dart';
 import 'package:mosh/src/features/invite_paste/invite_paste_screen.dart';
+import 'package:mosh/src/features/onboarding/join_preview.dart';
 import 'package:mosh/src/features/onboarding/start/start_menu.dart';
 import '../../support/scriptable_bridge.dart';
 import '../../support/scriptable_gateway.dart';
@@ -57,6 +58,7 @@ void main() {
 
   testWidgets('dm detection shows the ok badge and enables Connect',
       (tester) async {
+    final semantics = tester.ensureSemantics();
     await pumpPasteStep(tester, ScriptableBridge());
 
     await tester.enterText(find.byType(TextField),
@@ -66,9 +68,17 @@ void main() {
     expect(find.text('Private chat invite detected'), findsOneWidget);
     expect(find.text('Opens a private chat with the person who sent it.'),
         findsOneWidget);
+    // A recognised link is a quiet note, and a screen reader still hears it.
+    expect(
+        tester
+            .getSemantics(find.byType(JoinPreview))
+            .flagsCollection
+            .isLiveRegion,
+        isTrue);
     // DM -> Connect enabled.
     expect(tester.widget<FilledButton>(find.byType(FilledButton)).onPressed,
         isNotNull);
+    semantics.dispose();
   });
 
   testWidgets('unknown detection shows the bad badge and disables Connect',

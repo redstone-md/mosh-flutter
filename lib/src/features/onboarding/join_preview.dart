@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 
 import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/app/mosh_icons.dart';
-import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
+import 'package:mosh/src/features/shared/mosh_notice.dart';
 import 'package:mosh/src/invite/invite_detection.dart';
 
 /// What a pasted link opens, as far as the link itself says: its kind and,
-/// for a group or an organization, the name it carries. Screen readers
-/// hear each change.
+/// for a group or an organization, the name it carries: an inline note under
+/// the link field, marked in the primary colour once the link is recognised
+/// and an error plate when it is not a Mosh invite. Screen readers hear each
+/// change.
 class JoinPreview extends StatelessWidget {
   const JoinPreview({
     super.key,
@@ -24,85 +26,41 @@ class JoinPreview extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = MoshColors.of(context);
     final l = AppLocalizations.of(context)!;
-    final text = Theme.of(context).textTheme;
-    final (icon, color, detail) = switch (kind) {
+    final (tone, icon, detail) = switch (kind) {
       InviteDetectionKind.dm => (
+          MoshNoticeTone.secure,
           MoshIcons.chat,
-          colors.primary,
           l.onboardJoinPreviewDm
         ),
       InviteDetectionKind.group => (
+          MoshNoticeTone.secure,
           MoshIcons.group,
-          colors.primary,
           name ?? l.onboardJoinPreviewGroup
         ),
       InviteDetectionKind.org => (
+          MoshNoticeTone.secure,
           MoshIcons.organisation,
-          colors.primary,
           name ?? l.onboardJoinPreviewOrg
         ),
       InviteDetectionKind.unknown => (
+          MoshNoticeTone.error,
           MoshIcons.linkOff,
-          colors.error,
           l.onboardJoinPreviewBad
         ),
       InviteDetectionKind.empty => (
+          MoshNoticeTone.neutral,
           MoshIcons.chats,
-          colors.onSurfaceMuted,
           l.onboardJoinPreviewEmpty
         ),
     };
-    final known = color == colors.primary;
-    return Semantics(
-      liveRegion: true,
-      child: AnimatedContainer(
-        duration: MediaQuery.disableAnimationsOf(context)
-            ? Duration.zero
-            : const Duration(milliseconds: 250),
-        curve: const Cubic(0.22, 1, 0.36, 1),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(12),
-          color:
-              known ? colors.secondaryContainer : colors.surfaceContainerLowest,
-          border: Border.all(
-              color: known
-                  ? colors.primary.withValues(alpha: 0.3)
-                  : kind == InviteDetectionKind.unknown
-                      ? colors.error
-                      : colors.outlineVariant),
-        ),
-        child: Row(children: [
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: colors.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(icon, size: 24, color: color),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title,
-                    style: text.titleSmall?.copyWith(
-                        color: kind == InviteDetectionKind.unknown
-                            ? colors.error
-                            : colors.onSurface)),
-                const SizedBox(height: 4),
-                Text(detail,
-                    style: text.bodySmall?.copyWith(
-                        color: colors.onSurfaceVariant, height: 1.4)),
-              ],
-            ),
-          ),
-        ]),
-      ),
+    return MoshNotice(
+      tone: tone,
+      icon: icon,
+      title: title,
+      detail: detail,
+      inline: true,
+      announced: true,
     );
   }
 }
