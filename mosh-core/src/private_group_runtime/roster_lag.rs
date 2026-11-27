@@ -7,7 +7,7 @@ impl GroupSession {
     /// envelope signature proves only a key, and keys are free, so the slot
     /// goes to a key that already holds a leaf in this group: only a member
     /// can be the admin a newer roster promotes. Each member gets a few
-    /// slots, so one member's flood cannot push out another's commit.
+    /// slots, and a full buffer makes the heaviest sender give one up.
     pub(super) fn buffer_roster_lagged(&mut self, entry: RosterLaggedCommit) {
         let sender = entry.sender_peer_id.as_str();
         // Control frames skip the replay set; a redelivery is already held.
@@ -38,11 +38,31 @@ impl GroupSession {
             );
             return;
         }
-        // FIFO at cap: garbage must not lock out a later genuine entry.
         if self.roster_lag.len() >= ROSTER_LAG_CAP {
-            self.roster_lag.remove(0);
+            self.evict_heaviest_lagged();
         }
         self.roster_lag.push(entry);
+    }
+
+    /// At cap, the sender holding the most slots gives up its oldest entry.
+    /// A flood thus costs its own senders, never a member with fewer claims
+    /// held, and a later genuine entry still finds room.
+    fn evict_heaviest_lagged(&mut self) {
+        let held = |sender: &str| {
+            self.roster_lag
+                .iter()
+                .filter(|entry| entry.sender_peer_id == sender)
+                .count()
+        };
+        let heaviest = self
+            .roster_lag
+            .iter()
+            .enumerate()
+            .max_by_key(|(index, entry)| (held(&entry.sender_peer_id), std::cmp::Reverse(*index)))
+            .map(|(index, _)| index);
+        if let Some(index) = heaviest {
+            self.roster_lag.remove(index);
+        }
     }
 
     /// Re-run lag-buffered commits after a roster change. Entries whose
