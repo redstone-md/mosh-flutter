@@ -53,13 +53,15 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
     // The rail carries NO header of
     // its own; the shell titlebar sits above it.
     return Scaffold(
-      backgroundColor: MoshColors.of(context).surfaceContainerLowest,
+      // The list is a panel, on the level of the title bar over it.
+      backgroundColor: MoshColors.of(context).surfaceContainerLow,
       // The rail carries no AppBar, so nothing else keeps it clear of the
       // status bar / camera cutout. Desktop gets that clearance from the
       // shell titlebar above it; the mobile shell is a bare IndexedStack, so
       // on Android 15+ (edge-to-edge is mandatory there) the first row drew
-      // under the cutout. Inside the Scaffold, so surfaceContainerLowest still paints edge to
-      // edge behind the status bar and only the content is inset.
+      // under the cutout. Inside the Scaffold, so the panel's fill still
+      // paints edge to edge behind the status bar and only the content is
+      // inset.
       body: SafeArea(
         // While the pane animates wider than the strip, the strip keeps
         // its place at the start.
