@@ -20,7 +20,9 @@ Flutter chat list, messages and details for DMs, private groups and public chann
   retain their own queued/sent/delivered states. Refused admissions are retained
   separately for Retry, so a later success cannot erase an earlier failure.
   Completion never clears a newer draft, including an identical one. A refused
-  send restores its text only if the empty draft has remained untouched.
+  send restores its text only if the empty draft has remained untouched. When
+  the router reuses the chat screen for another conversation, each conversation
+  keeps its own draft for as long as the screen stays mounted.
 
 - `RailActivity` scans each history once. Text and attachments determine the
   latest activity; blank control/call events do not reorder chats. Dated activity

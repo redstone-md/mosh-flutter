@@ -93,7 +93,39 @@ void main() {
     expect(release.version, '0.22.0');
   });
 
-  test('comparison ignores suffixes and never suggests a downgrade', () {
+  // Regression (CodeAnt PR #9): an installed release candidate never saw
+  // its own stable build as newer.
+  test('a stable build outranks its own release candidates', () {
+    expect(isNewerRelease('1.2.3', '1.2.3-rc.1'), isTrue);
+    expect(isNewerRelease('1.2.3-rc.2', '1.2.3-rc.1'), isTrue);
+    expect(isNewerRelease('1.2.3-rc.10', '1.2.3-rc.2'), isTrue);
+    expect(isNewerRelease('1.2.3-rc.1', '1.2.3-rc.1'), isFalse);
+    expect(isNewerRelease('1.2.3-rc.1', '1.2.3'), isFalse);
+    expect(isNewerRelease('1.2.3+7', '1.2.3'), isFalse);
+  });
+
+  // Regression (CodeAnt PR #201): a numeric identifier past 64 bits compared
+  // as text, so the longer, larger number ranked lower.
+  test('pre-release numbers of any size compare as numbers', () {
+    const larger = '1.2.3-rc.100000000000000000000';
+    const smaller = '1.2.3-rc.99999999999999999999';
+    expect(isNewerRelease(larger, smaller), isTrue);
+    expect(isNewerRelease(smaller, larger), isFalse);
+    expect(isNewerRelease('1.2.3-rc.beta', larger), isTrue);
+  });
+
+  test('the feed names the stable build over its candidate', () async {
+    const body = '[{"tag_name": "v1.2.3-rc.1", '
+        '"html_url": "https://example.test/releases/1.2.3-rc.1"},'
+        '{"tag_name": "v1.2.3", '
+        '"html_url": "https://example.test/releases/1.2.3"}]';
+
+    final release = await GitHubReleaseFeed(read: (_) async => body).latest();
+
+    expect(release.version, '1.2.3');
+  });
+
+  test('comparison never suggests a downgrade', () {
     expect(isNewerRelease('0.22.0', '0.21.0'), isTrue);
     expect(isNewerRelease('1.0.0', '0.99.99'), isTrue);
     expect(isNewerRelease('0.22.0-rc.1', '0.21.0'), isTrue);

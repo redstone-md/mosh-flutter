@@ -1,58 +1,13 @@
+use super::fixture::{Fixture, ROOM};
 use super::*;
 use crate::message_deletion::{
     cipher, fragments, protocol::DeletionMessage, shared, DeleteScope, DeletionStatus,
 };
-use crate::test_temp_directory::TempDirectory;
 
-const ROOM: &str = "deletion-test";
 #[path = "deletion_names.rs"]
 mod names;
 
-struct Fixture {
-    runtime: ChannelRuntime,
-    store: Arc<Persistence>,
-    directory: TempDirectory,
-}
 impl Fixture {
-    fn new() -> Self {
-        drain_received_messages();
-        let directory = TempDirectory::new("channel-deletion");
-        let store = Arc::new(
-            Persistence::open_with_dek(&directory.path().join("history"), [39; 32]).unwrap(),
-        );
-        let _identity = crate::moss_ffi::replace_test_keystore(Some(store.clone()));
-        let mut runtime = ChannelRuntime::from_shared(
-            Arc::new(MossFfiRuntime::load_default().unwrap()),
-            Arc::new(AttachmentStore::new(directory.path()).unwrap()),
-            Some(store.clone()),
-        );
-        runtime
-            .join(JoinChannelRequest {
-                name: ROOM.into(),
-                display_name: "Same name".into(),
-                listen_port: 0,
-                static_peer: None,
-            })
-            .unwrap();
-        Self {
-            runtime,
-            store,
-            directory,
-        }
-    }
-    fn restart(&mut self) {
-        let _identity = crate::moss_ffi::replace_test_keystore(Some(self.store.clone()));
-        self.runtime = ChannelRuntime::from_shared(
-            Arc::new(MossFfiRuntime::load_default().unwrap()),
-            Arc::new(AttachmentStore::new(self.directory.path()).unwrap()),
-            Some(self.store.clone()),
-        );
-        self.runtime.rehydrate();
-    }
-    fn deliver(&mut self, message: MossReceivedMessage) {
-        inbox::deliver(message);
-        self.runtime.poll(ROOM).unwrap();
-    }
     fn deletion_status(&mut self) -> DeletionStatus {
         self.runtime.poll(ROOM).unwrap().messages[0]
             .metadata

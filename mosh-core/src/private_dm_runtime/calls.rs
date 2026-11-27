@@ -96,8 +96,7 @@ impl PrivateDmSession {
         }
         self.publish_call_accept(call_id)?;
         if let Some(call) = self.call.as_mut() {
-            call.phase = CallPhase::Accepting;
-            call.mark_offer_sent(now_ms());
+            call.accept(now_ms());
         }
         Ok(())
     }

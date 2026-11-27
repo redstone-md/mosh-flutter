@@ -24,8 +24,10 @@ String? appDataDir() => _resolvedAppDataDir;
 /// fallback branch be unit-tested on a host without the plugin (the test
 /// passes a getter that throws `MissingPlatformDirectoryException`). On
 /// success, returns the resolved path. If the seam throws, falls back to a
-/// `mosh` subdir under `Directory.systemTemp` (the pre-M-5 behavior) and logs
-/// the cause so a device log makes the fallback obvious.
+/// `mosh` subdir under `Directory.systemTemp` and logs the cause so a device
+/// log makes the fallback obvious. Both sides append their own `mosh`, so the
+/// database then lives at `temp/mosh/mosh/history.redb`, not at the pre-M-5
+/// `temp/mosh/history.redb`.
 Future<String> resolveAppDataDir({
   Future<Directory> Function() supportDir = getApplicationSupportDirectory,
 }) async {
@@ -35,8 +37,8 @@ Future<String> resolveAppDataDir({
   } catch (error, stackTrace) {
     // MissingPlatformDirectoryException (or any platform failure) -> keep the
     // app running via the temp fallback rather than crashing startup. The
-    // cause is logged so a device log surfaces it; the fallback matches the
-    // pre-M-5 Rust behavior so DBs written before the bridge stay readable.
+    // cause is logged so a device log surfaces it. Dart and Rust both open
+    // the same file under this fallback.
     debugPrint(
       'mosh: getApplicationSupportDirectory() failed; '
       'falling back to temp/mosh for app_data_dir. '

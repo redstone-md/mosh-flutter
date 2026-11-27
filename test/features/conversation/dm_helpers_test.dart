@@ -45,6 +45,11 @@ void main() {
     });
 
     // --- Edge cases ---
+    test('an emoji initial is a whole character, never half of one', () {
+      expect(avatarInitials('👨‍👩‍👧‍👦 family'), '👨‍👩‍👧‍👦F');
+      expect(avatarInitials('😀😀'), '😀');
+    });
+
     test('three words capped to 2 initials', () {
       expect(avatarInitials('alpha beta gamma'), 'AB');
     });

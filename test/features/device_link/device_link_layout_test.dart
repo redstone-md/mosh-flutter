@@ -180,6 +180,19 @@ void main() {
     expect(find.text('Copied'), findsOneWidget);
   });
 
+  // Regression (CodeAnt PR #7): a box narrower than the code and its quiet
+  // zone gave the code a negative inset, which fails layout.
+  testWidgets('the linking code lays out in a box narrower than itself',
+      (tester) async {
+    await pumpScreen(
+        tester,
+        const Center(
+            child: SizedBox(
+                width: 40,
+                child: DeviceLinkQr(uri: 'mosh://link/abc', label: 'code'))));
+    expect(tester.takeException(), isNull);
+  });
+
   for (final width in [320.0, 800.0]) {
     for (final phase in [
       DeviceLinkPhase.showingQr,

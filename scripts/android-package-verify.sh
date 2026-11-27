@@ -14,7 +14,7 @@ esac
 SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:?Set ANDROID_HOME or ANDROID_SDK_ROOT}}"
 PIN="${ANDROID_SIGNING_CERT_SHA256:?Set the independent signing certificate SHA-256}"
 PIN="${PIN//:/}"
-PIN="${PIN,,}"
+PIN="$(printf '%s' "$PIN" | tr '[:upper:]' '[:lower:]')"
 [[ "$PIN" =~ ^[0-9a-f]{64}$ ]] || { echo 'Invalid Android signing certificate SHA-256' >&2; exit 1; }
 TOOLS="$(find "$SDK/build-tools" -name apksigner -type f | sort -V | tail -n1)"
 TOOLS="$(dirname "$TOOLS")"
@@ -89,7 +89,7 @@ for library in "$WORK"/lib/arm64-v8a/*.so; do
 done
 "$TOOLS/zipalign" -c -P 16 4 "$APK"
 python3 "$(dirname "$0")/android-jni-verify.py" "$APK" --dexdump "$TOOLS/dexdump" \
-  --jni-zero-package livekit.org.jni_zero "${FCM[@]}"
+  --jni-zero-package livekit.org.jni_zero ${FCM[@]+"${FCM[@]}"}
 python3 - "$APK" <<'PY'
 import sys, zipfile
 with zipfile.ZipFile(sys.argv[1]) as apk:

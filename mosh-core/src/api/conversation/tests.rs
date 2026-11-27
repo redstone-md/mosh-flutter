@@ -13,7 +13,8 @@ use super::{
     BridgeAttachmentPayload, BridgeConversationKind, BridgeConversationRef,
 };
 use crate::api::conversation_bridge::ConversationBridgeErrorKind;
-use crate::moss_ffi::{clear_moss_keystore, MOSS_TEST_LOCK};
+use crate::moss_ffi::{clear_moss_keystore, fail_next_test_publish_on, MOSS_TEST_LOCK};
+use crate::outbound_delivery::MessageDeliveryStatus;
 use crate::private_dm_runtime::StartSessionRequest;
 
 /// A ref to a conversation that exists in no runtime, per kind.
@@ -280,6 +281,67 @@ fn the_shared_actions_drive_a_real_dm_session() {
     assert_eq!(error.kind, ConversationBridgeErrorKind::MissingConversation);
 
     disarm_shared_keystore();
+}
+
+/// Marks the child process that runs the retry admission scenario.
+const RETRY_WORKER: &str = "MOSH_RETRY_ADMISSION_WORKER";
+
+/// Retry is user work: like send, it wakes a node the background owner
+/// suspended. It runs in a child process, because the background owner
+/// lasts for the process and changes transfer admission for later tests.
+#[test]
+fn retry_wakes_a_suspended_transport() {
+    if std::env::var_os(RETRY_WORKER).is_some() {
+        return retry_after_suspension();
+    }
+    let status = std::process::Command::new(std::env::current_exe().unwrap())
+        .args([
+            "--exact",
+            "api::conversation::tests::retry_wakes_a_suspended_transport",
+            "--nocapture",
+        ])
+        .env(RETRY_WORKER, "1")
+        .status()
+        .unwrap();
+    assert!(status.success());
+}
+
+fn retry_after_suspension() {
+    let _guard = MOSS_TEST_LOCK
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    let directory = crate::test_temp_directory::TempDirectory::new("mosh-retry-admission");
+    crate::api::shared_runtime::set_app_data_dir(directory.path().to_string_lossy().into_owned())
+        .unwrap();
+    let name = crate::api::channel::join(crate::channel_runtime::JoinChannelRequest {
+        name: "retry-admission".into(),
+        display_name: "Alice".into(),
+        listen_port: 43391,
+        static_peer: None,
+    })
+    .unwrap()
+    .name;
+    let channel = conv_ref(BridgeConversationKind::Channel, &name);
+    {
+        let _deferred = fail_next_test_publish_on(&format!("public-channel/{name}"), "deferred");
+        send(channel.clone(), "sent after waking".into()).unwrap();
+    }
+    let message_id = crate::api::channel::poll(name.clone()).unwrap().messages[0]
+        .message_id
+        .clone()
+        .unwrap();
+
+    crate::api::background::set_background_execution(false, false).unwrap();
+    assert!(!crate::api::background::network_permitted());
+    retry(channel, message_id).unwrap();
+
+    let message = &crate::api::channel::poll(name).unwrap().messages[0];
+    assert_eq!(
+        message.delivery_status,
+        Some(MessageDeliveryStatus::Sent),
+        "retry published on a suspended node: {:?}",
+        message.delivery_error
+    );
 }
 
 /// Disarms the keystore the shared resources armed, restoring the baseline

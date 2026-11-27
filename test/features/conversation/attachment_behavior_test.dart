@@ -74,6 +74,49 @@ void main() {
         image);
   });
 
+  // Regression (CodeAnt PR #6): a press on a paused picture's preview opened
+  // it, starting its download past the button that waits for another one.
+  testWidgets('a paused picture waits for another transfer on its preview too',
+      (tester) async {
+    var opened = 0;
+    await pumpScreen(
+        tester,
+        Scaffold(
+            body: Center(
+          child: AttachmentCard(
+              descriptor: AttachmentDescriptor(
+                attachmentId: 'photo',
+                contentHash: 'h-photo',
+                fileName: 'photo.png',
+                mime: 'image/png',
+                totalSize: BigInt.from(4096),
+                thumbnailB64:
+                    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0l'
+                    'EQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
+              ),
+              view: testAttachmentView(
+                  attachmentId: 'photo', state: AttachmentState.paused),
+              own: false,
+              busy: true,
+              onDownload: (_) {},
+              onCancel: (_) {},
+              onOpen: (_) => opened++),
+        )));
+
+    // A corner of the preview, away from the resume control at its centre.
+    await tester.tapAt(
+        tester.getTopLeft(find.bySemanticsLabel('Open photo.png')) +
+            const Offset(8, 8));
+
+    expect(opened, 0);
+    // Regression (CodeAnt PR #201): a screen reader still announced the
+    // inert preview as a button it could press.
+    final semantics = tester.ensureSemantics();
+    expect(tester.getSemantics(find.bySemanticsLabel('Open photo.png')),
+        isSemantics(isButton: true, hasEnabledState: true, isEnabled: false));
+    semantics.dispose();
+  });
+
   testWidgets(
       'unknown transfer progress is indeterminate on both file surfaces',
       (tester) async {

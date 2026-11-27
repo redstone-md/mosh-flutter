@@ -159,6 +159,13 @@ void main() {
     await expectLater(controller.saveName('a' * 65), throwsFormatException);
   });
 
+  test('a name is limited in code points, the unit the core checks', () async {
+    await container.read(firstRunProfileProvider.future);
+    final controller = container.read(firstRunProfileProvider.notifier);
+    await controller.saveName('😀' * 64);
+    await expectLater(controller.saveName('😀' * 65), throwsFormatException);
+  });
+
   test('cannot advance until a name is saved', () async {
     await container.read(firstRunProfileProvider.future);
     await expectLater(

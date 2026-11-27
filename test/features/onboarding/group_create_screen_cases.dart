@@ -1,5 +1,7 @@
 // Group name validation, create/autocopy/result/reset, inline failure and
 // Open group navigation. Common Back behavior lives in start_actions_test.
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -7,6 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mosh/src/features/conversation/group_screen.dart';
 import 'package:mosh/src/features/onboarding/group_create_step.dart';
 import 'package:mosh/src/features/onboarding/invite_result.dart';
+import 'package:mosh/src/features/shared/inline_error.dart';
 
 import '../../support/scriptable_bridge.dart';
 import '../../support/scriptable_gateway.dart';
@@ -128,6 +131,60 @@ void main() {
     expect(find.byType(SnackBar), findsNothing);
     expect(find.byType(InviteResult), findsNothing);
     expect(throwing.countOf(BridgeMethod.listGroups), listed);
+  });
+
+  // Regression (CodeAnt PR #8): a busy clipboard after the group was made
+  // showed an error over the created group, and Create again made another.
+  testWidgets('a refused auto-copy still shows the group just created',
+      (tester) async {
+    final bridge = ScriptableBridge();
+    await pumpGroupStep(tester, bridge: bridge);
+    tester.binding.defaultBinaryMessenger
+        .setMockMethodCallHandler(SystemChannels.platform, (call) async {
+      if (call.method == 'Clipboard.setData') {
+        throw PlatformException(code: 'clipboard busy');
+      }
+      return null;
+    });
+    addTearDown(() => tester.binding.defaultBinaryMessenger
+        .setMockMethodCallHandler(SystemChannels.platform, null));
+
+    await createNamed(tester, 'friends');
+
+    expect(find.byType(InviteResult), findsOneWidget);
+    expect(find.text('mosh://group/fake-group-friends'), findsOneWidget);
+    expect(find.widgetWithText(OutlinedButton, 'Copied'), findsNothing);
+    expect(bridge.countOf(BridgeMethod.createGroup), 1);
+  });
+
+  // Regression (CodeAnt PR #201): leaving the result while its auto-copy was
+  // still pending reported the group that exists as not created once the
+  // copy failed.
+  testWidgets('a copy failing after Create another reports no failure',
+      (tester) async {
+    await pumpGroupStep(tester);
+    final copying = Completer<void>();
+    tester.binding.defaultBinaryMessenger
+        .setMockMethodCallHandler(SystemChannels.platform, (call) async {
+      if (call.method == 'Clipboard.setData') await copying.future;
+      return null;
+    });
+    addTearDown(() => tester.binding.defaultBinaryMessenger
+        .setMockMethodCallHandler(SystemChannels.platform, null));
+
+    await tester.enterText(_nameField, 'friends');
+    await tester.pump();
+    await tester.tap(_createButton);
+    await tester.pump();
+    await tester.tap(find.widgetWithText(TextButton, 'Create another group'));
+    await tester.pump();
+    copying.completeError(PlatformException(code: 'clipboard busy'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(InlineError), findsNothing);
+    await tester.enterText(_nameField, 'family');
+    await tester.pump();
+    expect(tester.widget<FilledButton>(_createButton).onPressed, isNotNull);
   });
 
   testWidgets('Open group lands on the group just created', (tester) async {

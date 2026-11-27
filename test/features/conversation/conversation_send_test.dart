@@ -13,8 +13,11 @@ import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/features/conversation/conversation_composer.dart';
 import 'package:mosh/src/features/conversation/conversation_controller.dart';
 import 'package:mosh/src/features/shared/voice_composer.dart' show VoiceSend;
+import 'package:mosh/src/state/gateway_provider.dart';
 
 import '../../support/conversation_cases.dart';
+import '../../support/pump_route.dart';
+import '../../support/scriptable_bridge.dart';
 import '../../support/scriptable_gateway.dart';
 
 Finder _composerField() => find.descendant(
@@ -62,6 +65,34 @@ void main() {
 
     expect(gateway.lastCall(GatewayMethod.sendAttachment), isNotNull);
     expect(clip.existsSync(), isFalse);
+  });
+
+  // Regression (CodeAnt PR #6): the router reuses the chat screen between two
+  // DMs, so chat A's unsent draft stayed in the composer and went to chat B.
+  testWidgets('a draft stays in the chat it was typed in', (tester) async {
+    final a = conversationCases(dmId: 'dm-a').first;
+    final b = conversationCases(dmId: 'dm-b').first;
+    final gateway = ScriptableGateway();
+    final router = await pumpRoute(tester, a.route, overrides: [
+      gatewayProvider.overrideWithValue(gateway),
+      bridgeFacadeProvider.overrideWithValue(
+          ScriptableBridge(conversations: gateway.conversations)),
+      a.snapshotOverride(),
+      b.snapshotOverride(),
+    ]);
+    await _type(tester, 'for a only');
+
+    router.go(b.route);
+    await tester.pumpAndSettle();
+    expect(_composer(tester).text, '');
+    await _type(tester, 'for b');
+    await _tapSend(tester);
+    expect(gateway.argValues<String>(GatewayMethod.send, 'body'), ['for b']);
+    expect(gateway.lastCall(GatewayMethod.send)?.target, b.target);
+
+    router.go(a.route);
+    await tester.pumpAndSettle();
+    expect(_composer(tester).text, 'for a only');
   });
 
   for (final testCase in conversationCases()) {

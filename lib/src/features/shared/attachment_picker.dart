@@ -108,9 +108,12 @@ class AttachmentPicker extends StatelessWidget {
       onError(AttachmentPickError.previewUnavailable);
       return;
     }
-    // The pre-read size check above guarantees picked != null here; the
-    // null branch is defensive against a picker that lies about size.
-    if (picked != null) onPick(picked);
+    // Null only when the file outgrew the size the picker reported.
+    if (picked != null) {
+      onPick(picked);
+    } else {
+      onError(AttachmentPickError.tooLarge);
+    }
   }
 
   @override

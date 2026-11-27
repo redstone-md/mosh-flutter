@@ -64,8 +64,8 @@ class _GroupCreateStepState extends ConsumerState<GroupCreateStep> {
   // createInvite uses, ADR 0010), copies the returned invite URI to the
   // clipboard, and stores the GroupCreated so the InviteResult branch
   // renders. Stays on this step -- the user shares the invite before
-  // navigating away; the card's Open button is the way in. Mirrors
-  // ChatCreateStep's busy + reset-copied + try/finally pattern.
+  // navigating away; the card's Open button is the way in. Busy covers the
+  // creation only, so leaving the result never waits on the clipboard.
   Future<void> _onCreate() async {
     if (_busy || !_named) return;
     final label = _labelController.text.trim();
@@ -75,8 +75,9 @@ class _GroupCreateStepState extends ConsumerState<GroupCreateStep> {
       _copied = false;
       _error = null;
     });
+    final GroupCreated created;
     try {
-      final created = await ref.read(bridgeFacadeProvider).createGroup(
+      created = await ref.read(bridgeFacadeProvider).createGroup(
             request: CreateGroupRequest(
               label: label,
               displayName: settings.displayName,
@@ -87,18 +88,30 @@ class _GroupCreateStepState extends ConsumerState<GroupCreateStep> {
       await ref
           .read(conversationListProvider(ConversationKind.group).notifier)
           .refresh();
-      await Clipboard.setData(ClipboardData(text: created.inviteUri));
-      if (!mounted) return;
-      setState(() {
-        _created = created;
-        _copied = true;
-      });
     } catch (e) {
       // The inline error is the one source of truth (no SnackBar), and its
       // wording comes from the bridge kind when the seam threw one.
       if (mounted) setState(() => _error = ConversationActionError.of(e));
+      return;
     } finally {
       if (mounted) setState(() => _busy = false);
+    }
+    if (!mounted) return;
+    setState(() => _created = created);
+    await _copyCreated(created);
+  }
+
+  // The group exists now: a busy clipboard only leaves it uncopied, and the
+  // result's Copy button is still there. Marks it copied only while that
+  // result is still the one showing.
+  Future<void> _copyCreated(GroupCreated created) async {
+    try {
+      await Clipboard.setData(ClipboardData(text: created.inviteUri));
+    } on PlatformException {
+      return;
+    }
+    if (mounted && identical(_created, created)) {
+      setState(() => _copied = true);
     }
   }
 

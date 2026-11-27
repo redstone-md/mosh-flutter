@@ -87,8 +87,10 @@ String _decodeImage(Uint8List bytes) {
   }
   final image = decoder!.decodeFrame(0);
   if (image == null) throw const FormatException(_invalidQrImage);
+  // zxing reads each int as 0xAARRGGBB; on a little-endian host that is the
+  // byte order B, G, R, A.
   final pixels =
-      image.convert(numChannels: 4).getBytes(order: img.ChannelOrder.abgr);
+      image.convert(numChannels: 4).getBytes(order: img.ChannelOrder.bgra);
   final source = RGBLuminanceSource(
       image.width,
       image.height,

@@ -49,7 +49,7 @@ impl ReadMark {
     fn starting_after<M: ConversationMessage>(log: &[M]) -> Self {
         let newest = log.iter().filter_map(ConversationMessage::sent_at_ms).max();
         Self {
-            floor_ms: newest.map_or_else(now_ms, |sent| sent + 1),
+            floor_ms: newest.map_or_else(now_ms, |sent| sent.saturating_add(1)),
             seen: 0,
         }
     }

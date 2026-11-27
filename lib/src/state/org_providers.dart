@@ -11,14 +11,30 @@ final orgsProvider = AsyncNotifierProvider<OrgsNotifier, List<OrgSnapshot>>(
 );
 
 class OrgsNotifier extends AsyncNotifier<List<OrgSnapshot>> {
-  @override
-  Future<List<OrgSnapshot>> build() async =>
-      _poll(ref.watch(bridgeFacadeProvider));
+  /// Counts listings, the first one and every refresh, so a late one can
+  /// tell that a newer one started after it.
+  int _listings = 0;
 
-  /// Re-run after a mutation (join/leave/inviteMembersToGroup). Riverpod
-  /// invalidation is already race-safe via guard.
+  /// The first listing. A refresh that started meanwhile and has already
+  /// landed holds the newer list, so this one hands that back instead of its
+  /// own result.
+  @override
+  Future<List<OrgSnapshot>> build() async {
+    final bridge = ref.watch(bridgeFacadeProvider);
+    final listing = ++_listings;
+    final polled = await AsyncValue.guard(() => _poll(bridge));
+    final superseded = listing != _listings && !state.isLoading;
+    return (superseded ? state : polled).requireValue;
+  }
+
+  /// Re-run after a mutation (join/leave/inviteMembersToGroup). Only the
+  /// latest listing lands, so an older one finishing late cannot restore a
+  /// stale list.
   Future<void> refresh() async {
-    state = await AsyncValue.guard(() => _poll(ref.read(bridgeFacadeProvider)));
+    final listing = ++_listings;
+    final next =
+        await AsyncValue.guard(() => _poll(ref.read(bridgeFacadeProvider)));
+    if (listing == _listings) state = next;
   }
 
   Future<List<OrgSnapshot>> _poll(BridgeFacade bridge) async {

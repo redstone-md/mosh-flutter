@@ -122,8 +122,11 @@ final class SystemCalls: NSObject {
     }
   }
 
+  /// Drops a call CallKit refused. CallKit never activates its audio then,
+  /// so libwebrtc gets its own audio handling back for the app's call.
   private func forget(_ id: String) {
     calls[id] = nil
+    CallKitAudio.shared.sync()
   }
 
   private func send(_ method: String, _ arguments: [String: Any]) {

@@ -68,11 +68,11 @@ export function createApp({ store, pushers, clientIp, now = Date.now }: AppOptio
     const token = device && tokenFor(device, request.wake);
     if (!device || !token) return c.json({ error: "nothing to wake" }, 404);
     const limit = request.wake.kind === "call" ? callWakes : messageWakes;
-    const slot = `${request.handle}:${request.wake.kind}`;
-    if (!limit.allow(slot)) return c.json({ error: "woken recently" }, 429);
+    const refund = limit.allow(`${request.handle}:${request.wake.kind}`);
+    if (!refund) return c.json({ error: "woken recently" }, 429);
     const result = await sendWake(pushers, device, token, request.wake);
     // Only a delivered push spends the slot, so a sender may retry at once.
-    if (result !== "sent") limit.refund(slot);
+    if (result !== "sent") refund();
     if (result === "gone") {
       await store.forgetToken(device.handle, token);
       return c.json({ error: "nothing to wake" }, 404);

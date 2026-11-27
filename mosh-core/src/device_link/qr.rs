@@ -8,6 +8,10 @@ use super::types::{DeviceDescriptor, DeviceLinkError, DeviceLinkErrorKind, Resul
 const QR_PREFIX: &str = "mosh://device-link/";
 const QR_VERSION: u32 = 2;
 pub(crate) const QR_LIFETIME_SECONDS: u64 = 300;
+/// How far the trusted device's clock may run ahead of the joining one. The
+/// QR carries an expiry from the trusted clock, and the trusted device keeps
+/// enforcing that expiry for its own request.
+const CLOCK_SKEW_SECONDS: u64 = 300;
 const MAX_QR_BYTES: usize = 2048;
 const CODE_CONTEXT: &[u8] = b"mosh-device-code-v2\0";
 const LEGACY_CODE_CONTEXT: &[u8] = b"mosh-device-code-v1\0";
@@ -61,7 +65,9 @@ impl PairingQr {
             return Err(Self::invalid());
         }
         self.validate_stored()?;
-        if self.expires_at <= now || self.expires_at > now + QR_LIFETIME_SECONDS {
+        if self.expires_at <= now
+            || self.expires_at > now + QR_LIFETIME_SECONDS + CLOCK_SKEW_SECONDS
+        {
             return Err(DeviceLinkError::new(DeviceLinkErrorKind::Expired));
         }
         Ok(())

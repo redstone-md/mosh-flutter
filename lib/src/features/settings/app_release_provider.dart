@@ -62,8 +62,8 @@ class GitHubReleaseFeed {
   static final Uri releasesUrl = Uri.parse(
       'https://api.github.com/repos/redstone-md/mosh-flutter/releases?per_page=10');
 
-  /// The newest published build, pre-releases included. Rows are ordered by
-  /// creation date, so the highest version wins rather than the top row.
+  /// The newest published build, pre-releases included: the highest version
+  /// among the ten most recently created releases, not the top row.
   Future<PublishedRelease> latest() async {
     final decoded = jsonDecode(await (_read ?? _readOverHttp)(releasesUrl));
     if (decoded is! List<Object?>) {
@@ -170,9 +170,9 @@ Future<String> _readOverHttp(Uri url) async {
   }
 }
 
-/// True when [candidate] names a newer build than [installed]. Pre-release and
-/// build suffixes are ignored, and a build ahead of the feed is not a
-/// downgrade prompt.
+/// True when [candidate] names a newer build than [installed], in semver
+/// precedence: a stable build outranks its own pre-releases, build suffixes
+/// are ignored, and a build ahead of the feed is not a downgrade prompt.
 bool isNewerRelease(String candidate, String installed) {
   final published = _versionNumbers(candidate);
   final current = _versionNumbers(installed);
@@ -183,7 +183,49 @@ bool isNewerRelease(String candidate, String installed) {
     final right = part < current.length ? current[part] : 0;
     if (left != right) return left > right;
   }
-  return false;
+  return _comparePrerelease(_prerelease(candidate), _prerelease(installed)) > 0;
+}
+
+/// The pre-release identifiers of [version], empty for a stable build.
+List<String> _prerelease(String version) {
+  final core = version.split('+').first;
+  final dash = core.indexOf('-');
+  return dash < 0 ? const [] : core.substring(dash + 1).split('.');
+}
+
+/// Semver pre-release order: no identifiers (stable) ranks highest; otherwise
+/// identifiers compare left to right and a shorter list that ties ranks lower.
+int _comparePrerelease(List<String> left, List<String> right) {
+  if (left.isEmpty || right.isEmpty) {
+    return (left.isEmpty ? 1 : 0) - (right.isEmpty ? 1 : 0);
+  }
+  for (var i = 0; i < math.min(left.length, right.length); i++) {
+    final order = _compareIdentifier(left[i], right[i]);
+    if (order != 0) return order;
+  }
+  return left.length.compareTo(right.length);
+}
+
+/// Numeric identifiers compare as numbers of any size and rank below
+/// alphanumeric ones.
+int _compareIdentifier(String left, String right) {
+  final (a, b) = (_numeric.hasMatch(left), _numeric.hasMatch(right));
+  if (a && b) return _compareDigits(left, right);
+  if (a) return -1;
+  if (b) return 1;
+  return left.compareTo(right);
+}
+
+final _numeric = RegExp(r'^\d+$');
+final _leadingZeros = RegExp('^0+(?=.)');
+
+/// Orders two digit strings by value without parsing them: the longer one
+/// is larger once leading zeros are gone, and equal lengths order as text.
+int _compareDigits(String left, String right) {
+  final a = left.replaceFirst(_leadingZeros, '');
+  final b = right.replaceFirst(_leadingZeros, '');
+  final byLength = a.length.compareTo(b.length);
+  return byLength != 0 ? byLength : a.compareTo(b);
 }
 
 /// Numeric parts of a version; anything unparseable counts as zero, so a

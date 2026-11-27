@@ -83,13 +83,21 @@ class _MediaCard extends StatelessWidget {
     final (:bytes, size: mediaSize) = decodeMiniature(thumb);
     final failed = attachment.failed;
     final transfer = action?.opens == false ? action : null;
+    // A press opens it, unless opening has to wait for another transfer:
+    // a transfer step its button may not take yet leaves the preview inert.
+    final press = action;
+    final onTap = press == null || !press.opens && press.onPressed != null
+        ? onOpen
+        : press.onPressed;
     return Semantics(
       label: l.attachmentOpenAria(descriptor.fileName),
       image: true,
       button: true,
+      // An inert preview reads as a disabled button, like any control
+      // whose press has to wait.
+      enabled: onTap != null,
       child: GestureDetector(
-        // A press opens it, unless opening has to wait for another transfer.
-        onTap: action?.opens == true ? action!.onPressed : onOpen,
+        onTap: onTap,
         // The reserved height follows the width the bubble leaves.
         child: LayoutBuilder(
           builder: (context, constraints) => Container(

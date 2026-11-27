@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 
@@ -23,7 +25,9 @@ class DeviceLinkQr extends StatelessWidget {
               .floor()
               .clamp(1, _preferredModulePixels);
       final size = qr.moduleCount * modulePixels + 2 * _padding;
-      final left = ((constraints.maxWidth - size) / 2).floorToDouble();
+      // A box narrower than the code gets no inset; the code shrinks to fit.
+      final left =
+          math.max(0.0, ((constraints.maxWidth - size) / 2).floorToDouble());
       return Padding(
           padding: EdgeInsets.only(left: left),
           child: Align(

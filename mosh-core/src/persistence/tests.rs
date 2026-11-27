@@ -245,9 +245,7 @@ fn open_with_dek_round_trips_session_across_reopen_without_keychain() {
     }
 
     // Reopen the SAME path with the SAME injected DEK: the row must
-    // decrypt and round-trip. A wrong DEK here would surface as a redb
-    // Crypto decrypt failure (the mismatch the inject path defers to
-    // read time).
+    // decrypt and round-trip.
     {
         let p = Persistence::open_with_dek(path, dek).expect("reopen open_with_dek");
         let sessions = p.list_sessions().expect("sessions should list");
@@ -256,6 +254,36 @@ fn open_with_dek_round_trips_session_across_reopen_without_keychain() {
             "persisted session must round-trip and decrypt under the injected DEK: {sessions:?}"
         );
     }
+}
+
+/// A foreign DEK must not open an existing database and write under itself.
+#[test]
+fn open_with_dek_rejects_a_foreign_key_for_an_existing_database() {
+    let temp = tempfile_db();
+    drop(Persistence::open_with_dek(&temp.0, [42u8; 32]).expect("first open"));
+
+    let reopened = Persistence::open_with_dek(&temp.0, [7u8; 32]);
+
+    assert!(matches!(reopened, Err(PersistenceError::Crypto(_))));
+}
+
+/// A database from before the READY marker is still checked: by its
+/// identity, which every used database holds.
+#[test]
+fn open_with_dek_rejects_a_foreign_key_for_a_database_without_the_marker() {
+    let temp = tempfile_db();
+    let store = Persistence::open_with_dek(&temp.0, [42u8; 32]).expect("first open");
+    store.put_moss_identity(b"identity").expect("identity");
+    store
+        .write(|tx| {
+            Persistence::update_row(tx, MESSAGE_DELETION_TARGETS, deletion_index::READY, None)
+        })
+        .expect("drop marker");
+    drop(store);
+
+    let reopened = Persistence::open_with_dek(&temp.0, [7u8; 32]);
+
+    assert!(matches!(reopened, Err(PersistenceError::Crypto(_))));
 }
 struct TempDatabase(std::path::PathBuf);
 impl Drop for TempDatabase {

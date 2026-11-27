@@ -131,7 +131,9 @@ File _historyRedbPath() {
   if (injected != null && injected.isNotEmpty) {
     // Bridged app_data_dir: `<app_data_dir>/mosh/history.redb`, the SAME path
     // Rust opens via `resolve_data_dir(Some(<app_data_dir>))`. `mosh` is the
-    // subdir both sides append so the DB + attachments stay co-located.
+    // subdir both sides append so the DB + attachments stay co-located. When
+    // path_provider failed, the bridged dir is already `temp/mosh`, so this is
+    // `temp/mosh/mosh`, not the pre-M-5 file.
     moshDir = Directory('$injected${Platform.pathSeparator}mosh');
   } else {
     // Bridge not yet run -- fall back to the pre-M-5 temp path. This is a

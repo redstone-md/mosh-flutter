@@ -363,4 +363,6 @@ fn history_packet_process() {
     fragments_survive_restart_and_refuse_wrong_continuations(&mut Fixture::new());
     deletion::authenticated_legacy_history_can_be_erased_across_own_devices(&mut Fixture::new());
     deletion::legacy_source_preserves_verified_live_origins(&mut Fixture::new());
+    deletion::a_tombstone_for_a_live_local_message_does_not_stall_the_import(&mut Fixture::new());
+    deletion::a_tombstone_with_text_is_refused(&mut Fixture::new());
 }

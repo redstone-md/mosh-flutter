@@ -246,6 +246,9 @@ mod roster_authority;
 #[path = "runtime_tests/recovery_authority.rs"]
 mod recovery_authority;
 
+#[path = "runtime_tests/roster_lag.rs"]
+mod roster_lag;
+
 #[path = "runtime_tests/lifecycle.rs"]
 mod lifecycle;
 

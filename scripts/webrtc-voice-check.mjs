@@ -7,17 +7,43 @@
 // the call connected (Android grants the permission mid-call).
 // Linux only (PulseAudio); CI runs it for the libwebrtc engine.
 import { spawnSync } from "node:child_process";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const engine = path.resolve(process.argv[2] ?? "");
 const seconds = 15;
-const pulse = "/tmp/mosh-pa";
+// Per run, so two checks on one machine do not share sockets.
+const pulse = await mkdtemp(path.join(os.tmpdir(), "mosh-pa-"));
 
-await mkdir(pulse, { recursive: true });
-for (const side of ["a", "b"]) {
+const bench = path.join(root, "mosh-probe/media-bench");
+const outputs = [];
+try {
+  // Inside the try: if b's server fails to start, a's is still stopped.
+  for (const side of ["a", "b"]) await startPulse(side);
+  run("cargo", ["build", "--locked", "--release", "--manifest-path", path.join(bench, "Cargo.toml")]);
+  for (const scenario of [[], ["--late-microphone"]]) {
+    outputs.push(run(path.join(bench, "target/release/mosh-media-bench"),
+      ["run", "--moss", "--engine", engine, "--seconds", String(seconds), ...scenario],
+      { MOSH_BENCH_PULSE: pulse }));
+  }
+} finally {
+  for (const side of ["a", "b"]) spawnSync("pulseaudio", ["-k"], { env: pulseEnv(side) });
+  await rm(pulse, { recursive: true, force: true });
+}
+for (const output of outputs) {
+  const result = JSON.parse(output.trim().split("\n").at(-1));
+  console.log(JSON.stringify(result, null, 2));
+  // One burst may straddle the start or the end of the window.
+  if (result.bursts_heard < seconds - 2) throw new Error(`callee heard ${result.bursts_heard} of ${seconds} bursts`);
+  if (result.bursts_heard_back < seconds - 2) throw new Error(`caller heard ${result.bursts_heard_back} of ${seconds} bursts`);
+  if (!(result.mouth_to_ear_ms < 300)) throw new Error(`mouth-to-ear ${result.mouth_to_ear_ms} ms`);
+}
+
+/** Starts one side's PulseAudio server with its microphone and speaker sinks. */
+async function startPulse(side) {
   await writeFile(path.join(pulse, `${side}.pa`), [
     `load-module module-native-protocol-unix socket=${pulse}/${side}.sock auth-anonymous=1`,
     "load-module module-null-sink sink_name=mic rate=48000 channels=1",
@@ -29,26 +55,6 @@ for (const side of ["a", "b"]) {
   await mkdir(path.join(pulse, `rt-${side}`), { recursive: true });
   run("pulseaudio", ["-n", "-F", path.join(pulse, `${side}.pa`), "--daemonize=yes", "--exit-idle-time=-1"],
     pulseEnv(side));
-}
-const bench = path.join(root, "mosh-probe/media-bench");
-const outputs = [];
-try {
-  run("cargo", ["build", "--locked", "--release", "--manifest-path", path.join(bench, "Cargo.toml")]);
-  for (const scenario of [[], ["--late-microphone"]]) {
-    outputs.push(run(path.join(bench, "target/release/mosh-media-bench"),
-      ["run", "--moss", "--engine", engine, "--seconds", String(seconds), ...scenario]));
-  }
-} finally {
-  // Their sockets are fixed paths: a server left running blocks the next check.
-  for (const side of ["a", "b"]) spawnSync("pulseaudio", ["-k"], { env: pulseEnv(side) });
-}
-for (const output of outputs) {
-  const result = JSON.parse(output.trim().split("\n").at(-1));
-  console.log(JSON.stringify(result, null, 2));
-  // One burst may straddle the start or the end of the window.
-  if (result.bursts_heard < seconds - 2) throw new Error(`callee heard ${result.bursts_heard} of ${seconds} bursts`);
-  if (result.bursts_heard_back < seconds - 2) throw new Error(`caller heard ${result.bursts_heard_back} of ${seconds} bursts`);
-  if (!(result.mouth_to_ear_ms < 300)) throw new Error(`mouth-to-ear ${result.mouth_to_ear_ms} ms`);
 }
 
 function run(command, args, env = {}) {

@@ -65,10 +65,13 @@ class MessageSelection extends ChangeNotifier {
     _drag = _Drag(anchor, !_selected.contains(anchor), Set.of(_selected));
   }
 
-  /// Applies the anchor's action to the range ending at [id].
+  /// Applies the anchor's action to the range ending at [id]; frozen while
+  /// the selection's deletion runs.
   void dragTo(String id) {
     final drag = _drag;
-    if (drag == null || drag.last == id || !_order.contains(id)) return;
+    if (_busy || drag == null || drag.last == id || !_order.contains(id)) {
+      return;
+    }
     drag.last = id;
     _selected
       ..clear()

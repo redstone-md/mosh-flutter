@@ -245,3 +245,38 @@ fn the_caller_outlasts_the_callee_no_answer_window() {
     session.pump_call_signaling(rang + callee + DECLINE_DELIVERY_MS);
     assert!(session.call.is_some(), "the caller still rings");
 }
+
+// An answer late in the ring still has to wait for the caller's selection.
+// That wait gets its own budget from the moment of the answer, instead of
+// inheriting whatever was left of the ring and ending as unanswered.
+#[test]
+fn a_late_answer_is_not_ended_as_unanswered() {
+    let (_net, mut alice, mut bob) = memory_pair();
+    let invite = invite(&mut alice);
+    accept(&mut bob, &invite);
+    connect(&mut alice, &mut bob, &invite.session_id);
+    let call = alice.call_start(&invite.session_id).expect("call starts");
+    bob.drain_inbound();
+    let budget = CallPhase::Ringing.ring_budget_ms().unwrap();
+    {
+        let session = bob
+            .sessions
+            .get_mut(&invite.session_id)
+            .expect("Bob session should exist");
+        let ringing = session.call.as_mut().expect("Bob rings");
+        ringing.offer_first_ms -= budget - 1_000;
+    }
+
+    bob.call_accept(&invite.session_id, &call.call_id)
+        .expect("Bob answers a second before the ring ends");
+    let session = bob
+        .sessions
+        .get_mut(&invite.session_id)
+        .expect("Bob session should exist");
+    session.pump_call_signaling(now_ms() + 2_000);
+    assert_eq!(
+        session.call.as_ref().map(|call| call.phase),
+        Some(CallPhase::Accepting),
+        "the answered call waits for the caller's selection"
+    );
+}

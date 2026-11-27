@@ -212,9 +212,13 @@ impl ChannelRuntime {
     pub fn poll(&mut self, name: &str) -> Result<ChannelSnapshot, ChannelRuntimeError> {
         self.drain_inbound()?;
         self.channels.persist_tail_logged(KIND);
-        let normalized = normalize_name(name)?;
-        let mut snapshot = self.channel_ref(&normalized)?.snapshot();
-        snapshot.unread = self.channels.unread(&normalized);
+        self.snapshot(&normalize_name(name)?)
+    }
+
+    /// One joined channel as the screen shows it, unread count included.
+    fn snapshot(&mut self, normalized: &str) -> Result<ChannelSnapshot, ChannelRuntimeError> {
+        let mut snapshot = self.channel_ref(normalized)?.snapshot();
+        snapshot.unread = self.channels.unread(normalized);
         Ok(snapshot)
     }
 

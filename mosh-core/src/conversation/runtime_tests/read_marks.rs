@@ -138,6 +138,25 @@ fn a_conversation_with_history_counts_what_is_recovered_after_it() {
 }
 
 #[test]
+fn held_history_stamped_at_the_end_of_time_stays_read() {
+    let scratch = Scratch::open("read-overflow");
+    let mut runtime = scratch.runtime();
+    let mut restored = TestSession::new(CONVERSATION);
+    for (id, at) in [("held", now_ms() - 60_000), ("forged", u64::MAX)] {
+        let message = restored
+            .log
+            .stamp(TestMessage::new("bob", "hi").at(at).with_id(id));
+        restored.log.push(message);
+    }
+    runtime.insert(CONVERSATION.into(), restored);
+
+    assert_ne!(
+        unread(&mut runtime).first_unread_message_id,
+        Some("held".into())
+    );
+}
+
+#[test]
 fn an_own_message_counts_as_own_whatever_its_record_claims() {
     let scratch = Scratch::open("read-own");
     let mut runtime = scratch.runtime();

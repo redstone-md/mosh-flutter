@@ -201,11 +201,7 @@ impl GroupSession {
                 );
                 return Ok(());
             }
-            // FIFO at cap: garbage must not lock out a later genuine entry.
-            if self.roster_lag.len() >= ROSTER_LAG_CAP {
-                self.roster_lag.remove(0);
-            }
-            self.roster_lag.push(RosterLaggedCommit {
+            self.buffer_roster_lagged(RosterLaggedCommit {
                 roster_version: claimed,
                 sender_peer_id: sender,
                 commit_b64,
@@ -219,32 +215,6 @@ impl GroupSession {
             &format!("commit from non-admin {sender} dropped"),
         );
         Ok(())
-    }
-
-    /// Re-run lag-buffered commits after a roster change. Entries whose
-    /// author became admin apply; entries still ahead of our roster stay;
-    /// entries whose claimed version we now have (author still not admin)
-    /// drop for good.
-    pub(super) fn retry_roster_lagged(&mut self) {
-        if self.roster_lag.is_empty() {
-            return;
-        }
-        let mine = self.own_roster_version();
-        let pending = std::mem::take(&mut self.roster_lag);
-        for entry in pending {
-            if self.roster_role_is_admin(&entry.sender_peer_id) {
-                if let Err(error) = self.apply_commit_sequenced(entry.commit_b64) {
-                    dlog::write(
-                        LogLevel::Warn,
-                        kinds::COMMIT,
-                        &self.group_id,
-                        &format!("lagged commit apply failed: {error}"),
-                    );
-                }
-            } else if Some(entry.roster_version) > mine {
-                self.roster_lag.push(entry);
-            }
-        }
     }
 
     /// One pass per roster version change, driven by the drain loop (poll

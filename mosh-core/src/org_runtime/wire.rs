@@ -14,23 +14,21 @@ pub(super) fn join_org_room(node: &MossNode, mesh_id: &str) -> Result<(), OrgErr
 
 /// The inverse of `join_org_room`. Unsubscribe first, then forget the key:
 /// leaving first would strand a subscription that can no longer resolve.
-pub(super) fn leave_org_room(session: &OrgSession) {
-    if let Err(error) = session
-        .node
-        .unsubscribe_room(&session.mesh_id, &session.control_channel)
-    {
+pub(super) fn leave_org_room(node: &MossNode, mesh_id: &str, org_pubkey: &str) {
+    let control_channel = format!("{ORG_CONTROL_PREFIX}{mesh_id}");
+    if let Err(error) = node.unsubscribe_room(mesh_id, &control_channel) {
         dlog::write(
             LogLevel::Warn,
             kinds::ROOM,
-            &session.org_pubkey,
+            org_pubkey,
             &format!("org could not unsubscribe its control channel: {error}"),
         );
     }
-    if let Err(error) = session.node.leave_room(&session.mesh_id) {
+    if let Err(error) = node.leave_room(mesh_id) {
         dlog::write(
             LogLevel::Warn,
             kinds::ROOM,
-            &session.org_pubkey,
+            org_pubkey,
             &format!("org could not leave its room: {error}"),
         );
     }

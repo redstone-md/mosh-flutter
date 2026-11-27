@@ -111,4 +111,28 @@ void main() {
     ));
     expect(opacities(), everyElement(1.0));
   });
+
+  // Regression (CodeAnt PR #8): turning reduced motion on mid-reveal let the
+  // reveal play out.
+  testWidgets('reduced motion turned on mid-reveal shows it at rest',
+      (tester) async {
+    Widget reveal({required bool reduced}) => MediaQuery(
+          data: MediaQueryData(disableAnimations: reduced),
+          child: const Directionality(
+            textDirection: TextDirection.ltr,
+            child: StartReveal(child: SizedBox()),
+          ),
+        );
+    await tester.pumpWidget(reveal(reduced: false));
+    await tester.pump(const Duration(milliseconds: 16));
+
+    await tester.pumpWidget(reveal(reduced: true));
+
+    expect(
+        tester
+            .widget<Opacity>(find.descendant(
+                of: find.byType(StartReveal), matching: find.byType(Opacity)))
+            .opacity,
+        1.0);
+  });
 }

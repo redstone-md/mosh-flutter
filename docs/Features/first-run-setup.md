@@ -57,7 +57,7 @@ The chat pane's [start menu](start-menu.md) remains the conversation launcher.
 
 `FirstRunStore` writes `first-run.json` in the existing application support
 directory. Version 1 has `displayName`, `step` and `completed`; names are trimmed
-and limited to 64 characters. A temporary file is flushed and renamed into place,
+and limited to 64 Unicode code points (as chat names in ADR 0039). A temporary file is flushed and renamed into place,
 and writes are serialized. Save failures keep the form available for retry;
 unknown or corrupt records do not silently become a fresh installation.
 

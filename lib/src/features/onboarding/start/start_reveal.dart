@@ -35,10 +35,11 @@ class _StartRevealState extends State<StartReveal>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    if (_controller.isAnimating || _controller.isCompleted) return;
+    if (_controller.isCompleted) return;
+    // Reduced motion turned on mid-reveal settles it at once too.
     if (MediaQuery.disableAnimationsOf(context)) {
       _controller.value = 1;
-    } else {
+    } else if (!_controller.isAnimating) {
       _controller.forward();
     }
   }

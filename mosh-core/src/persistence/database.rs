@@ -49,7 +49,8 @@ impl Persistence {
         Self::open_with_dek(path, dek)
     }
 
-    /// Open with a host-supplied DEK. A wrong key fails on decryption.
+    /// Open with a host-supplied DEK. A wrong key for a database that already
+    /// holds a node identity fails here with `PersistenceError::Crypto`.
     pub fn open_with_dek(path: &Path, dek: [u8; 32]) -> Result<Self, PersistenceError> {
         let db = Database::create(path).map_err(db_error)?;
         let store = Self {

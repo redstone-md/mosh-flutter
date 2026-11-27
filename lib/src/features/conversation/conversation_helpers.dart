@@ -149,12 +149,14 @@ String? formatClockFull(BigInt? sentAtMs, {String? locale}) {
 String avatarInitials(String name) {
   final parts = name.split(RegExp(r'[\s_-]+'));
   // Drop the empty strings that a leading/trailing/multiple separator
-  // produces, then take the first char of each surviving part.
-  final initials = parts.where((p) => p.isNotEmpty).map((p) => p[0]).join();
-  // Keep at most 2 initials. A plain UTF-16 slice is fine here: the initials
-  // are first chars of ASCII-ish device/label strings.
-  final capped = initials.length >= 2 ? initials.substring(0, 2) : initials;
-  return capped.isEmpty ? '?' : capped.toUpperCase();
+  // produces, then take the first character of each surviving part, at most
+  // two. Characters, not UTF-16 units: half an emoji cannot be painted.
+  final initials = parts
+      .where((p) => p.isNotEmpty)
+      .map((p) => p.characters.first)
+      .take(2)
+      .join();
+  return initials.isEmpty ? '?' : initials.toUpperCase();
 }
 
 /// Unread-message count badge for a DM session row: renders nothing when

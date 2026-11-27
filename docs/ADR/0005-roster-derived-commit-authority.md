@@ -19,7 +19,10 @@ valid iff its author's peer-id (from the leaf credential, ADR 0004) carries
 `role: admin` in the verifier's current verified roster. Commits carry the
 author's roster version; a commit from an unknown admin with a newer roster
 version is buffered pending roster arrival (shared machinery with epoch
-resync buffering). Creating an org group requires ≥1 admin in the initial
+resync buffering). Only an author that already holds a leaf in the group is
+buffered, with a per-sender cap, and a full buffer evicts from the sender
+holding the most entries, so neither outsiders nor flooding members can
+evict a real admin's commit. Creating an org group requires ≥1 admin in the initial
 set (UI-enforced, soft).
 
 ## Consequences

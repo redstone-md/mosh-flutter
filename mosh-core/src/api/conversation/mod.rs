@@ -102,11 +102,14 @@ pub fn send(reference: BridgeConversationRef, body: String) -> Result<(), Conver
     }
 }
 
-/// Retry a failed outbound message by its message id.
+/// Retry a failed outbound message by its message id. Like a send, it is
+/// user work: it wakes a suspended node and holds off suspension until done.
 pub fn retry(
     reference: BridgeConversationRef,
     message_id: String,
 ) -> Result<(), ConversationBridgeError> {
+    let _authority =
+        super::background::admit_user_work().map_err(ConversationBridgeError::unavailable)?;
     match reference.kind {
         BridgeConversationKind::Dm => super::private_dm::ensure_runtime()?
             .retry_message(&reference.id, &message_id)

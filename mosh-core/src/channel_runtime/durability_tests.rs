@@ -43,6 +43,48 @@ impl Fixture {
         self.runtime = ChannelRuntime::from_shared(moss, attachments, Some(self.store.clone()));
         self.runtime.rehydrate();
     }
+
+    fn join(&mut self, name: &str) -> Result<ChannelSnapshot, ChannelRuntimeError> {
+        self.runtime.join(JoinChannelRequest {
+            name: name.into(),
+            display_name: "Alice".into(),
+            listen_port: 42347,
+            static_peer: None,
+        })
+    }
+
+    fn joined(&mut self) -> Vec<String> {
+        let channels = self.runtime.list().unwrap().channels;
+        channels.into_iter().map(|channel| channel.name).collect()
+    }
+}
+
+#[test]
+fn a_refused_join_leaves_no_channel_and_can_be_repeated() {
+    let _lock = MOSS_TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+    let mut fixture = Fixture::new();
+    let fault = fixture.store.refuse_record_writes(CHANNEL_HISTORY);
+    let error = fixture.join("second-channel").unwrap_err();
+    assert!(matches!(error, ChannelRuntimeError::Persistence(_)));
+    assert_eq!(fixture.joined(), ["durable-channel"]);
+    drop(fault);
+    fixture
+        .join("second-channel")
+        .expect("the join can be repeated");
+    fixture.restart();
+    assert_eq!(fixture.joined(), ["durable-channel", "second-channel"]);
+}
+
+#[test]
+fn another_channel_refused_write_does_not_refuse_a_join() {
+    let _lock = MOSS_TEST_LOCK.lock().unwrap_or_else(|p| p.into_inner());
+    let mut fixture = Fixture::new();
+    let _fault = fixture.store.refuse_message_writes(CHANNEL_HISTORY);
+    let id = fixture.id.clone();
+    assert!(fixture.runtime.send(&id, "not saved yet".into()).is_err());
+    fixture
+        .join("second-channel")
+        .expect("an unrelated refused write must not refuse the join");
 }
 
 fn assert_attachment(snapshot: &ChannelSnapshot, attachment_id: &str) {

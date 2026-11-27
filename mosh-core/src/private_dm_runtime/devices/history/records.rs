@@ -14,13 +14,31 @@ pub(in crate::private_dm_runtime) struct TextRecord {
 }
 
 impl TextRecord {
-    pub(super) fn same_content(&self, other: &Self) -> bool {
-        let origin = |record: &Self| record.metadata.as_ref().and_then(|m| m.origin.clone());
-        self.message_id == other.message_id
-            && self.sent_at_ms == other.sent_at_ms
-            && self.from_device == other.from_device
-            && self.body == other.body
-            && (origin(self).is_none() || origin(other).is_none() || origin(self) == origin(other))
+    /// Should this record replace `local`, the live copy with its id?
+    /// `Ok(false)` keeps the local copy, an error refuses the batch.
+    ///
+    /// A tombstone matches the live copy it erased, of any kind: the body,
+    /// attachment or call event is gone, the identity is not. It carries no
+    /// deletion authority, so the live copy stays until the deletion journal
+    /// erases it (ADR 0040).
+    pub(super) fn replaces(&self, local: &ChatMessage) -> Result<bool> {
+        let local_origin = local.metadata.as_ref().and_then(|m| m.origin.as_ref());
+        let origin = self.metadata.as_ref().and_then(|m| m.origin.as_ref());
+        let same = local.message_id.as_ref() == Some(&self.message_id)
+            && local.sent_at_ms == Some(self.sent_at_ms)
+            && local.from_device == self.from_device
+            && (local_origin.is_none() || origin.is_none() || local_origin == origin);
+        if same && self.is_tombstone() {
+            return Ok(false);
+        }
+        if !same || Self::from_message(local).is_none_or(|old| old.body != self.body) {
+            return Err(invalid());
+        }
+        Ok(true)
+    }
+
+    fn is_tombstone(&self) -> bool {
+        self.metadata.as_ref().is_some_and(|m| m.deletion.is_some())
     }
     pub fn from_message(message: &ChatMessage) -> Option<Self> {
         if message.attachment.is_some() || message.call_event.is_some() {
@@ -43,13 +61,14 @@ impl TextRecord {
         Ok(())
     }
 
+    /// A tombstone never carries text; a signed record must match its origin.
     pub(super) fn validate_content(&self, context: &str) -> Result<()> {
+        if self.is_tombstone() && !self.body.is_empty() {
+            return Err(invalid());
+        }
         if let Some(origin) = self.metadata.as_ref().and_then(|m| m.origin.as_ref()) {
-            if self.metadata.as_ref().is_some_and(|m| m.deletion.is_some()) {
-                if origin.conversation != context
-                    || origin.id != self.message_id
-                    || !self.body.is_empty()
-                {
+            if self.is_tombstone() {
+                if origin.conversation != context || origin.id != self.message_id {
                     return Err(invalid());
                 }
                 origin.verify_signature().map_err(|_| invalid())?;

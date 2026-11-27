@@ -125,6 +125,14 @@ fn expired_malformed_and_future_qrs_are_rejected_at_the_protocol_boundary() {
 }
 
 #[test]
+fn a_fresh_qr_from_a_device_whose_clock_runs_ahead_is_accepted() {
+    let key = SigningKey::generate(&mut OsRng);
+    // The trusted device's clock is two minutes ahead of the joining one.
+    let qr = PairingQr::new(device(&key), 1120);
+    assert!(PairingQr::parse(&qr.uri().unwrap(), 1000).is_ok());
+}
+
+#[test]
 fn v2_confirmation_binds_the_whole_joining_descriptor() {
     let trusted = device(&SigningKey::generate(&mut OsRng));
     let joining = device(&SigningKey::generate(&mut OsRng));

@@ -11,9 +11,8 @@ impl PrivateDmSession {
         };
         let call_id = call.call_id.clone();
         if call
-            .phase
-            .ring_budget_ms()
-            .is_some_and(|budget| now.saturating_sub(call.offer_first_ms) >= budget)
+            .ring_deadline_ms()
+            .is_some_and(|deadline| now >= deadline)
         {
             let _ = self.call_end(&call_id, "no_answer");
             return;
