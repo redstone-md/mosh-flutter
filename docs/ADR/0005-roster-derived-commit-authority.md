@@ -46,7 +46,10 @@ set (UI-enforced, soft).
   if it stages against the state kept for that epoch and its signing leaf
   is a roster admin. Both branches keep the commit with the lower SHA-256;
   a client that merged the other reports `needs_rejoin` and stops acting as
-  an admin. The record is in memory, so a restart forgets it.
+  an admin. That verdict is saved in the group's session record, so it
+  survives a restart; rejoining starts a new record without it. The kept
+  epochs themselves are in memory, so a rival that arrives after a restart
+  goes unnoticed.
 - A group whose last in-group admin is revoked becomes crypto-unmanageable;
   backstop is re-creating the group from the roster (one action).
 - `AdminHandoff` remains for non-org groups only.
