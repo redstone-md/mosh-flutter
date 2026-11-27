@@ -134,8 +134,8 @@ void main() {
     await harness.pump(tester, settle: false);
     await tester.pump(const Duration(milliseconds: 100));
     await tester.pump();
-    final button = tester.widget<OutlinedButton>(find.widgetWithText(
-        OutlinedButton, 'Cancel linking and continue independently'));
+    final button = tester.widget<TextButton>(find.widgetWithText(
+        TextButton, 'Cancel linking and continue independently'));
     expect(button.onPressed, isNull);
     expect(harness.link.cancellations, 0);
     harness.link.publish(setupDeviceSnapshot(

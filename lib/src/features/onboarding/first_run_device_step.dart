@@ -64,11 +64,14 @@ class _FirstRunDeviceStepState extends ConsumerState<FirstRunDeviceStep> {
         const DevicesSettingsSection(joiningOnly: true),
       const SizedBox(height: MoshSpace.s5),
       // One primary button moves on. While a link waits for its answer the
-      // way on is to give it up, which is the quiet button.
+      // way on is to give it up, which is a text button: the card over it
+      // holds what the step is about.
       if (pending && !connected)
-        OutlinedButton(
-            onPressed: locked ? null : _continue,
-            child: Text(l.firstRunCancelLink))
+        Center(
+          child: TextButton(
+              onPressed: locked ? null : _continue,
+              child: Text(l.firstRunCancelLink)),
+        )
       else
         FilledButton(
             onPressed: locked ? null : _continue,
