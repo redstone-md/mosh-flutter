@@ -239,6 +239,10 @@ pub(super) struct PersistedGroupSession {
         skip_serializing_if = "super::wake::GroupWakeRecord::is_empty"
     )]
     pub(super) wake: super::wake::GroupWakeRecord,
+    /// This branch lost an org fork (ADR 0005). Kept across restarts so a
+    /// losing branch never acts as an admin again; a rejoin is a new record.
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub(super) forked_off: bool,
 }
 
 pub struct PrivateGroupRuntime {

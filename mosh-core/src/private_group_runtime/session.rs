@@ -56,6 +56,14 @@ impl ConversationSession for GroupSession {
         persistence.put_group_transition(&self.group_id, &record, &self.crypto.snapshot())
     }
 
+    fn record_changed(&self) -> bool {
+        self.record_dirty
+    }
+
+    fn record_written(&mut self) {
+        self.record_dirty = false;
+    }
+
     /// Until the MLS group exists the record's group id is an empty
     /// placeholder, and a group saved in that state cannot be rebuilt.
     fn record_is_final(&self) -> bool {
@@ -136,8 +144,12 @@ pub(super) struct GroupSession {
     /// (`org_commits`).
     pub(super) pending_commits: super::org_commits::PendingCommits,
     /// This branch lost an org fork: stays set until the member rejoins,
-    /// whatever later commits say, and stops it acting as an admin.
+    /// whatever later commits say, and stops it acting as an admin. Saved in
+    /// the record, so it survives a restart.
     pub(super) forked_off: bool,
+    /// The record holds state the store has not seen yet; the next tail
+    /// write saves it.
+    pub(super) record_dirty: bool,
     /// The last few merged epochs, for proving a rival commit (`org_forks`).
     pub(super) merge_witnesses: super::org_forks::MergeWitnesses,
     /// Fingerprint → wall-clock deadline of that member's typing hint. A
@@ -214,7 +226,8 @@ impl GroupSession {
             roster_lag: Vec::new(),
             last_roster_version_seen: None,
             pending_commits: Default::default(),
-            forked_off: false,
+            forked_off: record.forked_off,
+            record_dirty: false,
             merge_witnesses: Default::default(),
             typing_members: HashMap::new(),
             member_names: HashMap::new(),

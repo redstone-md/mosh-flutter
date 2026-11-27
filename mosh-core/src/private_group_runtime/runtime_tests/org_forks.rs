@@ -82,3 +82,54 @@ fn a_forged_commit_for_a_merged_epoch_does_not_force_a_rejoin() {
     );
     assert!(org.admin(0).acting_admin());
 }
+
+/// The verdict outlives a restart: a branch that lost a fork must not come
+/// back as an admin of it.
+#[test]
+fn a_lost_fork_still_needs_a_rejoin_after_a_restart() {
+    let _guard = locked();
+    let mut org = TwoAdmins::open("fork-restart", false);
+    let start = org.epoch(0);
+    let departure = org.departure();
+    org.deliver(0, departure);
+    org.pump(0, 0);
+    let ours = org.commit_at(0, start).expect("a commits the departure");
+    // `b` commits the same removal on its own, one that wins the rule.
+    let leaver = org_signing::peer_id_hex(&org.leaver_key);
+    let theirs = std::iter::repeat_with(|| {
+        let mut candidate = org.b.crypto.receive_candidate().unwrap();
+        candidate.remove_members_by_identity(&leaver).unwrap()
+    })
+    .find(|bytes| Sha256::digest(bytes) < Sha256::digest(&ours))
+    .unwrap();
+    let rival = ControlEnvelope::Commit {
+        admission_binding: None,
+        group_id: org.group_id.clone(),
+        from_fingerprint: org.peers[1].clone(),
+        commit_b64: encode(&theirs),
+        roster_version: org.admin(1).own_roster_version(),
+    };
+    let b_key = org.keys[1].clone();
+    let frame = org.signed(&b_key, &rival);
+    org.deliver(0, frame);
+    assert!(org.needs_rejoin(0), "`a` lost the fork");
+    org.restart_a();
+    assert!(org.needs_rejoin(0), "and still knows after a restart");
+    assert!(!org.admin(0).acting_admin());
+}
+
+/// Records saved before the flag existed carry no field, and the flag stays
+/// out of a record that has nothing to say.
+#[test]
+fn a_record_without_the_fork_flag_reads_as_not_forked() {
+    let _guard = locked();
+    let mut org = TwoAdmins::open("fork-record", false);
+    let record = serde_json::to_value(org.admin(0).to_persisted_record()).unwrap();
+    assert!(record.get("forked_off").is_none());
+    org.admin(0).forked_off = true;
+    let mut record = serde_json::to_value(org.admin(0).to_persisted_record()).unwrap();
+    assert_eq!(record["forked_off"], true);
+    record.as_object_mut().unwrap().remove("forked_off");
+    let old: PersistedGroupSession = serde_json::from_value(record).unwrap();
+    assert!(!old.forked_off);
+}

@@ -59,6 +59,7 @@ impl GroupSession {
         };
         if self.roster_role_is_admin(&author) {
             self.forked_off = true;
+            self.record_dirty = true;
             dlog::write(
                 LogLevel::Warn,
                 kinds::COMMIT,

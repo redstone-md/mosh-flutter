@@ -283,6 +283,19 @@ impl TwoAdmins {
         }
     }
 
+    /// Save `a` as a drain would and bring it back from its store, as a
+    /// relaunch does.
+    pub(super) fn restart_a(&mut self) {
+        self.runtime.groups.persist_tail().unwrap();
+        let moss = Arc::new(MossFfiRuntime::load_default().expect("moss should load"));
+        // Drop the old runtime first, so the group's room can open again.
+        self.runtime = PrivateGroupRuntime::from_shared(moss.clone(), temp_store(), None);
+        let store = Some(self.stores[0].clone());
+        self.runtime = PrivateGroupRuntime::from_shared(moss, temp_store(), store);
+        self.runtime.rehydrate();
+        assert!(self.runtime.groups.holds(&self.group_id), "`a` rehydrated");
+    }
+
     pub(super) fn needs_rejoin(&mut self, i: usize) -> bool {
         self.admin(i).snapshot().needs_rejoin
     }

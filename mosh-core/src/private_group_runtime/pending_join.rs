@@ -114,6 +114,7 @@ impl JoinPreparation {
             static_peer: self.request.static_peer.clone(),
             org_pubkey: self.request.org_pubkey.clone(),
             wake: Default::default(),
+            forked_off: false,
         }
     }
 }

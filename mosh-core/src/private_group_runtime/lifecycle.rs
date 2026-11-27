@@ -69,6 +69,7 @@ impl PrivateGroupRuntime {
             static_peer,
             org_pubkey: request.org_pubkey,
             wake: Default::default(),
+            forked_off: false,
         };
         let session = GroupSession::new(
             record,
