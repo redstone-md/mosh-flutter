@@ -1,6 +1,5 @@
 package app.mosh.mosh;
 
-import android.media.AudioDeviceInfo;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.ToIntFunction;
@@ -8,6 +7,15 @@ import java.util.function.ToIntFunction;
 /** Android's selected communication output determines its microphone. */
 final class MoshCallAudioPolicy {
     private static final String DEFAULT_INPUT = "android:communication-input";
+
+    // android.media.AudioDeviceInfo types, inlined by javac anyway, so this
+    // policy compiles and runs under a plain JVM (android-context-check).
+    private static final int TYPE_BUILTIN_EARPIECE = 1;
+    private static final int TYPE_BUILTIN_SPEAKER = 2;
+    private static final int TYPE_WIRED_HEADSET = 3;
+    private static final int TYPE_WIRED_HEADPHONES = 4;
+    private static final int TYPE_BLUETOOTH_SCO = 7;
+    private static final int TYPE_USB_HEADSET = 22;
 
     /** The switch that reaches an output before Android 12's communication devices. */
     enum LegacyRoute { SPEAKER, BLUETOOTH, HANDSET }
@@ -33,12 +41,12 @@ final class MoshCallAudioPolicy {
         boolean handset = false;
         for (T output : outputs) {
             int kind = type.applyAsInt(output);
-            if (kind == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER) {
+            if (kind == TYPE_BUILTIN_SPEAKER) {
                 choices.add(output);
-            } else if (kind == AudioDeviceInfo.TYPE_BLUETOOTH_SCO && !bluetooth) {
+            } else if (kind == TYPE_BLUETOOTH_SCO && !bluetooth) {
                 bluetooth = true;
                 choices.add(output);
-            } else if (!handset && (wired ? isWired(kind) : kind == AudioDeviceInfo.TYPE_BUILTIN_EARPIECE)) {
+            } else if (!handset && (wired ? isWired(kind) : kind == TYPE_BUILTIN_EARPIECE)) {
                 handset = true;
                 choices.add(output);
             }
@@ -47,14 +55,14 @@ final class MoshCallAudioPolicy {
     }
 
     static LegacyRoute legacyRoute(int type) {
-        if (type == AudioDeviceInfo.TYPE_BUILTIN_SPEAKER) return LegacyRoute.SPEAKER;
-        if (type == AudioDeviceInfo.TYPE_BLUETOOTH_SCO) return LegacyRoute.BLUETOOTH;
+        if (type == TYPE_BUILTIN_SPEAKER) return LegacyRoute.SPEAKER;
+        if (type == TYPE_BLUETOOTH_SCO) return LegacyRoute.BLUETOOTH;
         return LegacyRoute.HANDSET;
     }
 
     private static boolean isWired(int type) {
-        return type == AudioDeviceInfo.TYPE_WIRED_HEADSET
-            || type == AudioDeviceInfo.TYPE_WIRED_HEADPHONES
-            || type == AudioDeviceInfo.TYPE_USB_HEADSET;
+        return type == TYPE_WIRED_HEADSET
+            || type == TYPE_WIRED_HEADPHONES
+            || type == TYPE_USB_HEADSET;
     }
 }

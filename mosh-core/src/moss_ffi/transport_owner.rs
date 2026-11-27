@@ -48,6 +48,19 @@ impl Deref for HandleLease<'_> {
 }
 
 impl MossNode {
+    /// Whether this node still listens on `channel` in `mesh_id`.
+    #[cfg(test)]
+    pub(crate) fn subscribed_to_room(&self, mesh_id: &str, channel: &str) -> bool {
+        let state = self
+            .native
+            .read()
+            .unwrap_or_else(|error| error.into_inner());
+        state
+            .registrations
+            .subscriptions
+            .contains(&(mesh_id.to_string(), channel.to_string()))
+    }
+
     pub(super) fn handle(&self) -> Result<HandleLease<'_>, MossFfiError> {
         let state = self
             .native

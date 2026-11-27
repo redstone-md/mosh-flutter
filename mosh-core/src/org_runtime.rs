@@ -321,15 +321,18 @@ impl OrgRuntime {
         }
     }
 
-    /// Take a reference to the shared node and put this org's room on it.
-    /// Rolls the reference back if the room work fails, so an org that never
-    /// joined cannot pin the node up forever.
-    /// The inverse of [`Self::open_org_room`].
+    /// The inverse of [`Self::open_org_room`]. The room stays while another
+    /// listed org still gossips on the same mesh.
     fn close_org_room(&self, node: &MossNode, mesh_id: &str, org_pubkey: &str) {
-        leave_org_room(node, mesh_id, org_pubkey);
+        if !self.orgs.values().any(|org| org.mesh_id == mesh_id) {
+            leave_org_room(node, mesh_id, org_pubkey);
+        }
         self.shared_node.release();
     }
 
+    /// Take a reference to the shared node and put this org's room on it.
+    /// Rolls the reference back if the room work fails, so an org that never
+    /// joined cannot pin the node up forever.
     fn open_org_room(
         &self,
         mesh_id: &str,

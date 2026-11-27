@@ -1,11 +1,12 @@
 use super::*;
 use crate::message_deletion::DeletionRecord;
 
-const READY: &str = "\0ready-v1";
+pub(super) const READY: &str = "\0ready-v1";
 
 impl Persistence {
     /// Builds the deletion index once. The encrypted READY marker doubles as
-    /// the open-time key check: a foreign DEK fails to decrypt it.
+    /// the open-time key check: a foreign DEK fails to decrypt it, or the node
+    /// identity in a database written before the marker.
     pub(super) fn initialize_deletion_index(
         &self,
         tx: &redb::WriteTransaction,
@@ -17,6 +18,11 @@ impl Persistence {
         };
         if let Some(marker) = ready {
             return marker.map(drop);
+        }
+        // A database from before the marker: its node identity checks the key.
+        let identity = tx.open_table(MOSS_IDENTITY).map_err(db_error)?;
+        if let Some(row) = identity.get(MOSS_IDENTITY_KEY).map_err(db_error)? {
+            decrypt_blob(&self.dek, row.value())?;
         }
         let rows = tx.open_table(MESSAGE_DELETIONS).map_err(db_error)?;
         for row in rows.iter().map_err(db_error)? {
