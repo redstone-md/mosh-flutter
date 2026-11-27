@@ -8,7 +8,7 @@ import 'connection_settings_section.dart';
 import 'privacy_settings_section.dart';
 import 'profile_settings_section.dart';
 import 'settings_navigation.dart';
-import 'settings_page_header.dart';
+import 'package:mosh/src/features/shared/page_header.dart';
 import 'voice_settings_section.dart';
 
 /// One bounded scroller per section, under its page header.
@@ -41,7 +41,7 @@ class SettingsContent extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              SettingsPageHeader(
+              PageHeader(
                   title: section.label(l),
                   onBack: wide ? null : onBack,
                   backTooltip: l.settingsBackToSections),

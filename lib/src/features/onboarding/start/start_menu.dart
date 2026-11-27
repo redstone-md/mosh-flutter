@@ -6,7 +6,7 @@ import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/app/mosh_theme.dart' show MoshColors;
 import 'package:mosh/src/features/conversation/conversation_tools.dart'
     show isMobileBreakpoint;
-import 'package:mosh/src/features/settings/settings_page_header.dart';
+import 'package:mosh/src/features/shared/page_header.dart';
 import 'package:mosh/src/features/shared/rail_back_button.dart';
 
 import 'start_list.dart';
@@ -53,7 +53,7 @@ class StartMenu extends StatelessWidget {
             if (isMobileBreakpoint(context))
               Padding(
                 padding: const EdgeInsets.only(bottom: MoshSpace.s2),
-                child: SettingsPageHeader(
+                child: PageHeader(
                   title: l.shellNewSession,
                   backTooltip: l.backToConversations,
                   onBack: () => backToRail(context),

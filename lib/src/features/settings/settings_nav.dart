@@ -7,7 +7,7 @@ import 'package:mosh/src/app/mosh_theme.dart';
 import 'package:mosh/src/features/shared/focus_ring.dart';
 
 import 'settings_navigation.dart';
-import 'settings_page_header.dart';
+import 'package:mosh/src/features/shared/page_header.dart';
 
 /// The Settings navigation card: the sections of settings. On the desktop it
 /// is the side list, with the way back to the chats it stands in for; in a
@@ -58,7 +58,7 @@ class SettingsNav extends StatelessWidget {
             ),
           ),
         ] else
-          SettingsPageHeader(
+          PageHeader(
               title: l.settingsTitle,
               onBack: onExit,
               backTooltip: l.settingsBackToChats),
