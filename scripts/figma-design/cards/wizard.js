@@ -79,7 +79,10 @@ const LINKS = {
     // Only the phone has a camera to point at the other screen. No way to read the QR is the primary one: in setup that is the button under the card.
     if (Device === 'Phone') add(c, labelButton(Device, 'Scan with camera', { Kind: 'Outlined', glyph: 'scan' }), { fillW: true });
     add(c, labelButton(Device, 'Choose QR image', { Kind: 'Outlined', glyph: 'image' }), { fillW: true });
-    add(c, field(Device, { Label: 'Link from your trusted device', Placeholder: 'mosh://device-link/…' }), { fillW: true });
+    // The link is sent with the button beside its field, level with the well under the label.
+    const paste = add(c, box('paste', { dir: 'H', gap: 2, align: 'MAX' }), { fillW: true });
+    add(paste, field(Device, { Label: 'Paste the link from your trusted device', Placeholder: 'mosh://device-link/…' }), { fillW: true });
+    add(paste, action('forward', Device, { Kind: 'Tonal' })).name = 'send link';
   },
   'Show code': (c, Device) => {
     header(c, ...CONNECT, 'Enter this code on your trusted device to approve this one');
@@ -150,8 +153,12 @@ const STEPS = {
     add(tips, text('For example', 'labelMedium', 'onSurfaceMuted'));
     ['news', 'dev', 'community'].forEach((Label) => add(tips, setProps(inst('Suggestion chip', { State: 'Default', Device }), { Label: '#' + Label })));
   },
-  'Link a device': (s, Device) => {
-    add(s, inst('Link card', { Kind: 'Show code', Device }), { fillW: true });
+  // The new device has read the QR: it shows its code, and can still leave the link and go on alone.
+  'Setup device code': (s, Device) => {
+    add(s, inst('Setup progress', { Step: '2', Device }));
+    question(s, 'Set up this device', 'Start here if this is your first device, or connect it to the Mosh you already use.');
+    add(s, setProps(inst('Link card', { Kind: 'Show code', Device }), { Cancel: false }), { fillW: true });
+    add(s, labelButton(Device, 'Cancel linking and continue independently', { Kind: 'Text' }));
   },
 };
 display(await grid('Wizard step', axis('Kind', Object.keys(STEPS)), DEVICES, ({ Kind, Device }) => {
@@ -170,7 +177,7 @@ const SCANS = {
 display(await grid('Scanner', ONE, axis('State', Object.keys(SCANS)), ({ State }) => {
   const [glyph, title, line] = SCANS[State];
   const s = box('Scanner', { component: true, dir: 'V', pad: [1, 4, 4, 4], w: PHONE_SCREEN, h: 844, fill: BENEATH, clip: true });
-  add(s, setProps(inst('Page header', { Device: 'Phone' }), { Title: 'Scan the QR', 'Show line': false }), { fillW: true });
+  add(s, setProps(inst('Page header', { Device: 'Phone' }), { Title: 'Scan QR with camera', 'Show line': false }), { fillW: true });
   const view = add(s, box('view', { dir: 'V', gap: 3, justify: 'CENTER' }), { fillW: true, fillH: true });
   const foot = add(s, cardSurface('foot', { dir: 'V', gap: 1, pad: 4 }), { fillW: true });
   if (glyph) {

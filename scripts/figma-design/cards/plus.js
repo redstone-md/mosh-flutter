@@ -16,14 +16,14 @@ function actions(c, buttons) {
   r.layoutWrap = 'WRAP'; space(r, 'counterAxisSpacing', 2);
   buttons.forEach((b) => add(r, b));
 }
-/** What is bought and for how much, with the choice of currency beside it (under it on the phone, where the price needs the line), and the way to buy or to get a purchase back. */
-function offer(c, Device) {
+/** What is bought and for how much, with the choice of currency beside it (under it on the phone, where the price needs the line), and the way to [buy] or to get a purchase back. */
+function offer(c, Device, buy = 'Buy Mosh+') {
   const r = add(c, box('offer', Device === 'Phone' ? { dir: 'V', gap: 3, align: 'MIN' } : { dir: 'H', gap: 3 }), { fillW: true });
   const col = add(r, box('text', { dir: 'V', align: 'MIN' }), { fillW: true });
   para(col, OFFER, 'titleLarge', 'onSurface', 'price');
   para(col, 'One payment, no automatic charges', 'bodySmall', 'onSurfaceVariant', 'terms');
   add(r, currencies(Device));
-  actions(c, [labelButton(Device, 'Buy Mosh+'), labelButton(Device, 'Recover purchase', { Kind: 'Text' })]);
+  actions(c, [labelButton(Device, buy), labelButton(Device, 'Recover purchase', { Kind: 'Text' })]);
 }
 /** The line the payment details fold under. */
 function fold(c, Device, State = 'Closed') {
@@ -43,9 +43,15 @@ const KINDS = {
     offer(c, Device);
     fold(c, Device, 'Open');
     const d = add(c, box('details', { dir: 'V', gap: 2, pad: [0, 3], align: 'MIN' }), { fillW: true });
-    for (const [Label, Value] of [['Network', 'Solana Mainnet'], ['Token mint', 'EPjFWdd5…wyTDt1v'], ['Recipient', '11111111…11111111']]) add(d, setProps(inst('Value row', { Device }), { Label, Value }), { fillW: true });
+    add(d, setProps(inst('Value row', { Device }), { Label: 'Network', Value: 'Solana Mainnet' }), { fillW: true });
+    // An address is checked character by character, so it is shown whole, on lines of its own.
+    for (const [label, address] of [['Token mint', 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v'], ['Recipient', '11111111111111111111111111111111']]) {
+      const fact = add(d, box(label, { dir: 'V', align: 'MIN' }), { fillW: true });
+      para(fact, label, 'bodyMedium', 'onSurfaceVariant', 'label');
+      para(fact, address, 'bodyMedium', 'onSurface', 'address');
+    }
     para(d, 'Renewal adds 30 days after the paid term. A first purchase starts once the payment is verified and rounds up to a UTC day. Underpayments do not activate Mosh+, and overpayments add no extra time. Network fees are extra and require SOL in the paying wallet.', 'bodySmall', 'onSurfaceVariant', 'terms');
-    para(d, 'Billing does not receive your Mosh account. It can link purchases in the same renewal series and see wallet payments. The badge and its visibility sync with your linked devices.', 'bodySmall', 'onSurfaceVariant', 'privacy');
+    para(d, 'Billing does not receive your Mosh account. It can link purchases in the same renewal series and see wallet payments. Small groups of buyers can still be correlated. The badge and its visibility sync with your linked devices.', 'bodySmall', 'onSurfaceVariant', 'privacy');
     actions(d, ['Purchase terms', 'Payment support'].map((l) => labelButton(Device, l, { Kind: 'Text' })));
   },
   'Awaiting payment': (c, Device) => {
@@ -57,7 +63,7 @@ const KINDS = {
     fold(c, Device);
   },
   Recovery: (c, Device) => {
-    para(c, 'Only the wallet that paid can recover its remaining periods. This restores Mosh+ to this account, without chats or account keys.', 'bodyMedium', 'onSurfaceVariant', 'about');
+    para(c, 'Only the wallet that paid can recover its remaining periods. This restores Mosh+ to this account, without chats or account keys. Each purchase permits one additional certificate; old certificates keep their original expiry.', 'bodyMedium', 'onSurfaceVariant', 'about');
     add(c, setProps(inst('Code plate'), { Label: 'Device code', Code: 'R4KD-92QX' }), { fillW: true });
     scan(c, 'Scan with your phone’s Camera app, open the page in your wallet browser and compare the device code before confirming');
     actions(c, [labelButton(Device, 'Copy recovery link', { Kind: 'Outlined', glyph: 'copy' }), labelButton(Device, 'Open recovery page', { Kind: 'Outlined', glyph: 'open_external' }), labelButton(Device, 'Refresh status', { Kind: 'Text', glyph: 'refresh' })]);
@@ -67,7 +73,8 @@ const KINDS = {
     add(s, icon('success', 'success'));
     para(s, 'Mosh+ valid until 2026-12-18 23:55 UTC', 'titleSmall', 'onSurface', 'until');
     add(c, setProps(inst('Switch row', { Value: 'On', State: 'Default', Device }), { Title: 'Show my Mosh+ badge', Subtitle: 'One setting for all conversations. Previously shared proof may remain with other people.' }), { fillW: true });
-    actions(c, [labelButton(Device, 'Add 30 days', { Kind: 'Outlined' })]);
+    add(c, inst('Divider', { Orientation: 'Horizontal' }), { fillW: true });
+    offer(c, Device, 'Add 30 days');
     fold(c, Device);
   },
 };
