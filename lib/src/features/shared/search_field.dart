@@ -59,9 +59,13 @@ class SearchField extends StatelessWidget {
               borderRadius: MoshShapes.pillCorners,
               borderSide:
                   BorderSide(color: colors.focusRing, width: MoshBorder.thick)),
+          // The decorator keeps 4 px of its own before the text, so the
+          // mark's padding ends 4 px short of the 8 px between the two.
+          prefixIconConstraints:
+              BoxConstraints(minHeight: MoshControl.height(theme.platform)),
           prefixIcon: const Padding(
             padding: EdgeInsetsDirectional.only(
-                start: MoshSpace.s3, end: MoshSpace.s2),
+                start: MoshSpace.s3, end: MoshSpace.s1),
             child: Icon(MoshIcons.search, size: MoshSpace.s5),
           ),
           suffixIcon: _suffix(context),

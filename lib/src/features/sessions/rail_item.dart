@@ -24,9 +24,10 @@ const double kRailPadding = MoshSpace.s2;
 /// Padding above and below the chat list.
 const double kRailEdge = MoshSpace.s4;
 
-/// Widest default width of the expanded rail pane; below it the default
-/// follows the window, and a drag can widen the pane further.
-const double kRailWidth = 348;
+/// Widest default width of the expanded rail pane: a 324 px row and the
+/// list's side padding. Below it the default follows the window, and a drag
+/// can widen the pane further.
+const double kRailWidth = 340;
 
 /// The Chat row card: the avatar in [leading], the name, when the last
 /// message came and what it says, with the unread count beside it. The open

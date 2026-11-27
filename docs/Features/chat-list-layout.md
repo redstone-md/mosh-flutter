@@ -10,7 +10,7 @@ navigation.
   handle with a resize cursor. Its line lights up on hover, focus and drag.
   The list follows the pointer from the press. Its width stays between 268px
   and 480px, and the conversation keeps at least 320px. Without a chosen
-  width the list takes 28% of the window, capped at 348px.
+  width the list takes 28% of the window, capped at 340px.
 - **Collapsing.** A drag below the midpoint between the narrowest list and the
   strip collapses the list to an 80px avatar strip. A drag out of the strip
   expands it again. The titlebar button, a double click on the handle and
