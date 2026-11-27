@@ -33,5 +33,8 @@ and commit after their delay only if it has not landed.
 - A kick waits at most one fallback delay per admin ranked above the one
   that commits it. Admins whose rosters or trees disagree can still both
   kick; the fork rule from ADR 0005 sends one branch to rejoin.
+- A joiner's KeyPackage (an accepted invitation, or a rejoin after a fork)
+  is admitted the same way: the designated admin at once, the others after
+  their delay and only if nobody admitted it first.
 - A default `#general` is just the first ad-hoc group created at org setup;
   no special mechanics to maintain.
