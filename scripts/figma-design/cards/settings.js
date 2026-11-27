@@ -3,7 +3,6 @@
 // start menu's StartRow and section label; the head of a settings screen; LinkedDeviceList with its device,
 // id and revocation rows.
 card('Settings', 'A settings screen is a column of cards, one subject to a card. The card names its subject beside a small plate with its icon, and puts the one control that matters most at the right of that header. What explains the control is folded under a line that opens. The navigation rows lead to the sections, and on the phone they are the whole first screen. A device row tells this device from the others, and a device being removed says how far the removal has got.');
-const CARD_W = { Desktop: 560, Phone: ROW.Phone };
 const disclosures = await grid('Disclosure', axis('State', ['Closed', 'Hover', 'Focus', 'Open']), DEVICES, ({ State, Device }) => {
   const d = box('Disclosure', { component: true, dir: 'H', gap: 2, pad: [0, 2, 0, 3], w: 320, hk: controlHeight(Device), r: 'small', clip: true });
   add(d, text('What is sent', 'labelLarge', 'onSurfaceVariant', { name: 'label', truncate: true }), { fillW: true });
@@ -42,13 +41,11 @@ const CONTENTS = {
   },
   'Switch': (c, Device) => {
     header(c, 'bug', ...CRASH, inst('Switch', { Value: 'Off', State: 'Default', Device }));
-    add(c, inst('Divider', { Orientation: 'Horizontal' }), { fillW: true });
-    add(c, inst('Disclosure', { State: 'Closed', Device }), { fillW: true });
+    fold(c, Device);
   },
   'Switch and details': (c, Device) => {
     header(c, 'bug', ...CRASH, inst('Switch', { Value: 'On', State: 'Default', Device }));
-    add(c, inst('Divider', { Orientation: 'Horizontal' }), { fillW: true });
-    add(c, inst('Disclosure', { State: 'Open', Device }), { fillW: true });
+    fold(c, Device, 'Open');
     para(add(c, box('details', { dir: 'V', pad: [0, 3] }), { fillW: true }), SENT, 'bodySmall', 'onSurfaceVariant', 'details');
   },
   Loading: (c) => {

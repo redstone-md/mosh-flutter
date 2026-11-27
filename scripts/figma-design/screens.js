@@ -24,25 +24,28 @@ function screen(name, Device, bar = 'With state') {
 /** What fills a screen under the title bar: a row of panels, or with dir 'V' a column. o as for box(). */
 const stretch = (parent, name, o = {}) => add(parent, box(name, { dir: 'H', align: 'MIN', ...o }), { fillW: true, fillH: true });
 /**
- * The settings screen [name] with the section at [at] of the navigation open; returns the column its page is laid in.
+ * The settings screen [name] with [section] open in the navigation, its first one when none is named; returns the column its page is laid in.
  * The desktop's has the navigation beside the page, the phone's is the page alone.
  */
-function settingsPage(name, Device, at = 0) {
+function settingsPage(name, Device, section) {
   const phone = Device === 'Phone', f = screen(name, Device);
   if (phone) return stretch(f, 'page', { dir: 'V', gap: 6, pad: [1, 4, 4, 4] });
   const row = stretch(f, 'panels'), nav = add(row, inst('Settings navigation', { Device }), { fillH: true });
   // The navigation opens on its first section: the one asked for takes the mark from it.
   const rows = nav.findAll((n) => n.type === 'INSTANCE' && n.name === 'Navigation row');
-  if (at) for (const [i, State] of [[0, 'Default'], [at, 'Selected']]) rows[i].swapComponent(variant('Navigation row', { State, Device }));
+  const open = rows.find((r) => r.findOne((n) => n.name === 'label').characters === section) ?? rows[0];
+  if (open !== rows[0]) for (const [r, State] of [[rows[0], 'Default'], [open, 'Selected']]) r.swapComponent(variant('Navigation row', { State, Device }));
   return stretch(row, 'page', { dir: 'V', gap: 6, pad: [8, 10] });
 }
 /** As wide as the phone's page; on the desktop a card keeps its own width. */
 const pageWide = (Device) => (Device === 'Phone' ? { fillW: true } : {});
-/** A settings screen that shows one [card] under the header of its section [Title]. */
-function cardPage(name, Device, at, Title, card) {
-  const col = settingsPage(name, Device, at);
-  add(col, setProps(inst('Page header', { Device }), { Title, 'Show line': false }), pageWide(Device));
-  return add(col, card, pageWide(Device));
+/** A settings screen per kind of the card [set], on both devices, each under the header of [section]. screens: [name, Kind] pairs. */
+function cardPages(section, set, screens) {
+  for (const [name, Kind] of screens) for (const Device of ['Desktop', 'Phone']) {
+    const col = settingsPage(name, Device, section);
+    add(col, setProps(inst('Page header', { Device }), { Title: section, 'Show line': false }), pageWide(Device));
+    add(col, inst(set, { Kind, Device }), pageWide(Device));
+  }
 }
 /** Ends a screen script: places the screens of every script in columns, the desktop's above the phone's, and names the ones built. */
 async function done() {

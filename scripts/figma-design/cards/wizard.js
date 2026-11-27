@@ -37,8 +37,7 @@ prop(links, 'Label', 'TEXT', 'Read QR', 'label');
 prop(links, 'Number', 'TEXT', '1', 'number');
 /** The three steps of linking a device as [first] names the first of them, [at] the current one. The phone sets them closer, so the three keep to one line. */
 function linkSteps(parent, Device, first, at) {
-  const r = add(parent, box('link steps', { dir: 'H', gap: Device === 'Phone' ? 2 : 4 }), { fillW: true });
-  r.layoutWrap = 'WRAP'; space(r, 'counterAxisSpacing', 2);
+  const r = wrapRow(parent, 'link steps', Device === 'Phone' ? 2 : 4);
   [first, 'Confirm code', 'Link devices'].forEach((Label, i) => add(r, setProps(inst('Link step', { State: stateOf(i, at) }), { Label, Number: String(i + 1) })));
 }
 // A QR is read by a camera, so it keeps dark modules on a light plate in either theme: the inverse surface and its ink.
@@ -69,7 +68,6 @@ const codes = await grid('Code plate', ONE, ONE, () => {
 prop(codes, 'Label', 'TEXT', 'Confirmation code', 'label');
 prop(codes, 'Code', 'TEXT', 'K7Q2 M9XD 4PLA', 'code');
 const field = (Device, values = {}) => setProps(inst('Text field', { State: 'Default', Device }), values);
-const LINK_W = { Desktop: 560, Phone: ROW.Phone };
 const CONNECT = ['qr', 'Connect this device'], LINK = ['devices', 'Link another device'];
 // Per kind: what the card holds over its way out. The new device reads the QR and shows the code; the trusted one shows the QR and takes the code.
 const LINKS = {
@@ -106,7 +104,7 @@ const LINKS = {
   },
 };
 const linkCards = display(await grid('Link card', axis('Kind', Object.keys(LINKS)), DEVICES, ({ Kind, Device }) => {
-  const c = cardSurface('Link card', { component: true, dir: 'V', gap: 4, pad: cardPad(Device), w: LINK_W[Device], align: 'MIN' });
+  const c = cardSurface('Link card', { component: true, dir: 'V', gap: 4, pad: cardPad(Device), w: CARD_W[Device], align: 'MIN' });
   LINKS[Kind](c, Device);
   add(c, labelButton(Device, 'Cancel link', { Kind: 'Text' })).name = 'cancel';
   return c;

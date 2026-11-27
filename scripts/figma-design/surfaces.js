@@ -23,6 +23,19 @@ const BENEATH = 'surfaceContainerLowest';
 const surface = (name, level, o = {}) => box(name, { ...(LEVEL[level] ?? fail('level ' + level)), ...o });
 /** A panel drawn as a card inside the background: the panel's tone with a quiet edge. */
 const cardSurface = (name, o = {}) => surface(name, 'panel', { stroke: 'outlineVariant', r: 'extraLarge', ...o });
+// Width of a card of settings: the desktop's column, and the phone's screen inside its margins.
+const CARD_W = { Desktop: 560, Phone: ROW.Phone };
+/** A row in [parent] that runs on to a second line where it is too narrow for what it holds. */
+function wrapRow(parent, name, gap) {
+  const r = add(parent, box(name, { dir: 'H', gap }), { fillW: true });
+  r.layoutWrap = 'WRAP'; space(r, 'counterAxisSpacing', 2);
+  return r;
+}
+/** The line in a card that what explains it folds under, below a divider. Label: what the line says, when not the Disclosure's own. */
+function fold(c, Device, State = 'Closed', Label) {
+  add(c, inst('Divider', { Orientation: 'Horizontal' }), { fillW: true });
+  return add(c, setProps(inst('Disclosure', { State, Device }), Label ? { Label } : {}), { fillW: true });
+}
 /** Padding of a card, as a space key. */
 const cardPad = (Device) => (Device === 'Phone' ? 4 : 5);
 /** A plate set into a card to hold one thing apart (a device, a code): a tone up, with corners concentric to the card's. */

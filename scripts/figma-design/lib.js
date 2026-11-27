@@ -363,13 +363,14 @@ function filterChips(Device) {
   ['All', 'Personal', 'Groups', 'Channels'].forEach((l, i) => add(row, setProps(inst('Filter chip', { Selected: i ? 'No' : 'Yes', State: 'Default', Device }), { Label: l })));
   return row;
 }
-/** The All / Files switch of a search; files: Files is the lit one. */
-function segmented(Device, files = false) {
+/** A choice of one out of [labels], the one at [lit] chosen; a label in [icons] shows its glyph. */
+function segmentChoice(Device, labels, lit = 0, icons = []) {
   const control = box('Segmented control', { dir: 'H', pad: 1, gap: 1, r: 'full', fill: 'surfaceContainerLowest' });
-  add(control, setProps(inst('Segment', { Selected: files ? 'No' : 'Yes', State: 'Default', Device }), { Label: 'All' }));
-  add(control, setProps(inst('Segment', { Selected: files ? 'Yes' : 'No', State: 'Default', Device }), { Label: 'Files', Icon: true }));
+  labels.forEach((Label, i) => add(control, setProps(inst('Segment', { Selected: i === lit ? 'Yes' : 'No', State: 'Default', Device }), icons.includes(Label) ? { Label, Icon: true } : { Label })));
   return control;
 }
+/** The All / Files switch of a search; files: Files is the lit one. */
+const segmented = (Device, files = false) => segmentChoice(Device, ['All', 'Files'], files ? 1 : 0, ['Files']);
 /** Names the file or media card [card]. A name too long for it is cut in the middle: its start, an ellipsis and its last characters, extension included. */
 function nameFile(card, name) {
   const label = card.findOne((n) => n.type === 'TEXT' && n.visible && n.name.startsWith('name') && n.name !== 'name end');
