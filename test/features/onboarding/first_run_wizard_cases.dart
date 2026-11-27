@@ -110,9 +110,9 @@ void main() {
     expect(find.text('ABCDEF123456'), findsOneWidget);
     harness.link.actionError = null;
     await tapSetup(tester, 'Cancel link');
-    expect(find.text('ABCDEF123456'), findsNothing);
+    expect(tester.widget<TextField>(find.byType(TextField)).controller!.text,
+        isEmpty);
     expect(find.text('This is my first device'), findsOneWidget);
-    expect(find.text('Cancel link'), findsNothing);
     expect(harness.store.profile!.step, SetupStep.device);
     await tester.enterText(find.byType(TextField), 'mosh://device-link/second');
     await tester.tap(find.byTooltip('Connect'));

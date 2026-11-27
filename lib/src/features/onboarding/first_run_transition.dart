@@ -7,9 +7,10 @@ const setupStepDuration = Duration(milliseconds: 240);
 const setupStepExitDuration = Duration(milliseconds: 120);
 const setupStepCurve = Cubic(.23, 1, .32, 1);
 
-/// Places the wizard in its viewport. [centred], the step it opens with
-/// stands in the middle, and from then on its top stays where it is, so the progress does
-/// not move when a taller or a shorter step takes the place of the first.
+/// Places the wizard in its viewport. When [centred], the step it opens
+/// with stands in the middle, and from then on its top stays where it is, so
+/// the progress does not move when a taller or a shorter step takes the
+/// place of the first.
 /// A step too tall for the room under that top raises it, and one taller
 /// than the window scrolls.
 ///

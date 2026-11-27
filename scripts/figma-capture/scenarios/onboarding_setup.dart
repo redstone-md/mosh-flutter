@@ -89,13 +89,14 @@ Future<FirstRunHarness> _setup(WidgetTester tester, Size size,
   return harness;
 }
 
-Future<void> _openLinkInput(WidgetTester tester) async {
+/// Types a device link into the card's field.
+Future<void> _typeLink(WidgetTester tester) async {
   await tester.enterText(find.byType(TextField), _link);
   await tester.pumpAndSettle();
 }
 
 Future<void> _submitLink(WidgetTester tester) async {
-  await _openLinkInput(tester);
+  await _typeLink(tester);
   await tester.ensureVisible(find.byTooltip('Connect'));
   await tester.tap(find.byTooltip('Connect'));
 }
@@ -159,7 +160,7 @@ final List<FigmaScene> setupScenes = [
   FigmaScene('device-link-input', 'Onboarding / Device / Paste link',
       (tester, size) async {
     await _setup(tester, size, step: SetupStep.device);
-    await _openLinkInput(tester);
+    await _typeLink(tester);
   }),
   FigmaScene('device-link-connecting', 'Onboarding / Device / Connecting',
       (tester, size) async {

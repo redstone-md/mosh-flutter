@@ -91,6 +91,6 @@ keep their bridge calls.
 
 ## Checks
 
-`test/features/onboarding/` covers the layout per width, hover, focus,
-every step through the menu, and the normalized channel
+`test/features/onboarding/` covers the layout per width, hover, focus and
+reduced motion, every step through the menu, and the normalized channel
 route.

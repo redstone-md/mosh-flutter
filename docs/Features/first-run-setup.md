@@ -180,7 +180,8 @@ enlarged text, keyboard input or expanded device-link states. The outer frame
 stays stationary and keeps its insets even while the content scrolls. The
 minimum-height constraint permits growth without fixed text heights or
 intrinsic measurement. Regression tests
-require all three default steps to fit at 1280×680 and 900×700 in Russian, and
+require the name and network steps to fit at 1280×680 and 900×700 in Russian
+(the device step holds the link card and may scroll there), and
 verify equal insets, content centering, internal scrolling, image resizing,
 name preservation and keyboard access.
 

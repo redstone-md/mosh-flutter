@@ -16,6 +16,8 @@
   "firstRunNameTitle": "Choose your name",
   "firstRunNameQuestion": "What should people call you?",
   "firstRunNameBody": "Your name is shown to the people you talk to. You can change it later.",
+  "firstRunNameLabel": "Display name",
+  "firstRunNamePlaceholder": "Your display name",
   "firstRunNameHint": "You can change this name later in Settings.",
   "firstRunNameScope": "This name is used for new conversations. Existing conversations keep their names.",
   "firstRunNameRequired": "Enter a name to continue.",
@@ -72,11 +74,10 @@
   "@setupSectionTitle": {
     "description": "Title of the session setup section"
   },
-  "setupDisplayNameLabel": "Display name",
+  "setupDisplayNameLabel": "Your display name",
   "@setupDisplayNameLabel": {
     "description": "Label for the display name field"
   },
-  "setupDisplayNamePlaceholder": "Your display name",
   "setupStaticPeerLabel": "Static peer (optional)",
   "@setupStaticPeerLabel": {
     "description": "Label for the static peer field"

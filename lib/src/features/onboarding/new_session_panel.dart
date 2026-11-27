@@ -57,33 +57,7 @@ class _NewSessionPanelState extends ConsumerState<NewSessionPanel> {
     // On a phone the menu's header stands close under the screen's top; a
     // step keeps the padding of the Wizard step card over its Back.
     final stepTop = isMobileBreakpoint(context) ? MoshSpace.s3 : 0.0;
-    final steps = [
-      StartStep(
-        title: l.onboardTileChatTitle,
-        subtitle: l.onboardChatStepBody,
-        onBack: _backToMenu,
-        child: ChatCreateStep(onOpened: _openChat),
-      ),
-      StartStep(
-        title: l.onboardTileGroupTitle,
-        subtitle: l.onboardGroupStepBody,
-        onBack: _backToMenu,
-        child: const GroupCreateStep(),
-      ),
-      StartStep(
-        title: l.onboardTileJoinTitle,
-        subtitle: l.onboardJoinStepBody,
-        onBack: _backToMenu,
-        // Deep links still open /join full-screen.
-        child: const OnboardJoinStep(),
-      ),
-      StartStep(
-        title: l.onboardTileChannelTitle,
-        subtitle: l.onboardChannelStepLead,
-        onBack: _backToMenu,
-        child: const ChannelJoinStep(),
-      ),
-    ];
+    final steps = _steps(l);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: <Widget>[
@@ -108,4 +82,33 @@ class _NewSessionPanelState extends ConsumerState<NewSessionPanel> {
       ],
     );
   }
+
+  /// The four steps the menu leads to, in the order of [OnboardStep].
+  List<Widget> _steps(AppLocalizations l) => [
+        StartStep(
+          title: l.onboardTileChatTitle,
+          subtitle: l.onboardChatStepBody,
+          onBack: _backToMenu,
+          child: ChatCreateStep(onOpened: _openChat),
+        ),
+        StartStep(
+          title: l.onboardTileGroupTitle,
+          subtitle: l.onboardGroupStepBody,
+          onBack: _backToMenu,
+          child: const GroupCreateStep(),
+        ),
+        StartStep(
+          title: l.onboardTileJoinTitle,
+          subtitle: l.onboardJoinStepBody,
+          onBack: _backToMenu,
+          // Deep links still open /join full-screen.
+          child: const OnboardJoinStep(),
+        ),
+        StartStep(
+          title: l.onboardTileChannelTitle,
+          subtitle: l.onboardChannelStepLead,
+          onBack: _backToMenu,
+          child: const ChannelJoinStep(),
+        ),
+      ];
 }

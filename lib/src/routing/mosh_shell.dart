@@ -214,8 +214,9 @@ class ChatPaneWelcome extends StatelessWidget {
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
-            final side =
-                constraints.maxWidth < 400 ? MoshSpace.s4 : MoshSpace.s8;
+            final side = mobile || constraints.maxWidth < 400
+                ? MoshSpace.s4
+                : MoshSpace.s8;
             const vertical = MoshSpace.s12;
             return Align(
               alignment: mobile ? Alignment.topCenter : Alignment.center,

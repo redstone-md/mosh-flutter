@@ -102,6 +102,7 @@ class _FirstRunWizardState extends ConsumerState<FirstRunWizard> {
           const SizedBox(height: MoshSpace.s5),
           switch (step) {
             SetupStep.name => DisplayNameForm(
+                inSetup: true,
                 showAvatar: false,
                 showSaveConfirmation: false,
                 note: const SetupPrivacyNote(),
