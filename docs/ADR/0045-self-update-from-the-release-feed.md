@@ -69,9 +69,13 @@ because that shorthand means "the most recent non-prerelease" and the release
 workflow publishes `-rc` tags as pre-releases: About would stay silent about one
 until the stable build arrived. Rows are compared by version rather than by the
 date they were published, with semver precedence: a stable version outranks its
-own release candidates and build suffixes are ignored. The highest published
-version wins, an installed `1.2.3-rc.1` is offered the stable `1.2.3`, and an
-installed build is never told it is older than it is.
+own release candidates and build suffixes are ignored. The check reads one page,
+the ten most recently created releases, and the highest version on it wins.
+Versions only move forward, so the newest build is on that page unless ten
+other releases came after it; the repository also publishes libwebrtc builds as
+pre-releases, which take rows on the page but never win. An installed
+`1.2.3-rc.1` is offered the stable `1.2.3`, and an installed build is never told
+it is older than it is.
 
 Only a build from the GitHub release feed updates itself (2026-10-28,
 [IVO-152](https://linear.app/ivoxygen/issue/IVO-152)). A store build — Microsoft

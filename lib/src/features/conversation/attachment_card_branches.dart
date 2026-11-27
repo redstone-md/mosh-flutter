@@ -93,6 +93,9 @@ class _MediaCard extends StatelessWidget {
       label: l.attachmentOpenAria(descriptor.fileName),
       image: true,
       button: true,
+      // An inert preview reads as a disabled button, like any control
+      // whose press has to wait.
+      enabled: onTap != null,
       child: GestureDetector(
         onTap: onTap,
         // The reserved height follows the width the bubble leaves.

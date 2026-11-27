@@ -44,4 +44,41 @@ void main() {
 
     expect(container.read(orgsProvider).value, [joined]);
   });
+
+  // Regression (CodeAnt PR #201): the first listing, started before a
+  // mutation, finished after the refresh that followed it and put its stale
+  // list or its failure back.
+  group('a first listing that finishes late does not replace a refresh', () {
+    Future<ProviderContainer> refreshedDuringBuild(
+        void Function(Completer<List<OrgSnapshot>> first) finish) async {
+      final bridge = _HeldOrgs();
+      final container = ProviderContainer(
+          overrides: [bridgeFacadeProvider.overrideWithValue(bridge)]);
+      addTearDown(container.dispose);
+      container.listen(orgsProvider, (_, __) {});
+      final refreshed = container.read(orgsProvider.notifier).refresh();
+      bridge.listings[1].complete([cannedOrgSnapshot(orgPubkey: 'org-joined')]);
+      await refreshed;
+      finish(bridge.listings.first);
+      await pumpEventQueue();
+      return container;
+    }
+
+    test('with its own list', () async {
+      final container =
+          await refreshedDuringBuild((first) => first.complete(const []));
+
+      expect(
+          container.read(orgsProvider).value?.single.orgPubkey, 'org-joined');
+    });
+
+    test('with a failure', () async {
+      final container = await refreshedDuringBuild(
+          (first) => first.completeError(StateError('offline')));
+
+      final orgs = container.read(orgsProvider);
+      expect(orgs.hasError, isFalse);
+      expect(orgs.value?.single.orgPubkey, 'org-joined');
+    });
+  });
 }
