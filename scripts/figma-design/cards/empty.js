@@ -1,7 +1,9 @@
 // What a conversation shows when it has nothing to show
 // (conversation_screen_body._ConversationEmpty and its load error), beside the
-// notices of an empty chat list (RailNotice), which the Chat list card owns as List notice.
-card('Empty and error state', 'An empty place says what will appear in it and what to do next, in the same voice as the rest of the app and without a drawing to fill the room. When loading failed it says what is safe, and offers to try again. The chat list’s own notices are the List notice of the Chat list card; here they stand beside the conversation’s so the two read as one family.');
+// notices of an empty chat list (RailNotice), which the Chat list card owns as List notice;
+// what takes the whole screen when Mosh has nothing else to show yet (MoshLockScreen,
+// FirstRunGate's read error); and where a dragged file lands (chat_drop_zone._DropOverlay).
+card('Empty and error state', 'An empty place says what will appear in it and what to do next, in the same voice as the rest of the app and without a drawing to fill the room. The same holds when the whole screen is the notice: Mosh locked, or a setup it could not read. When loading failed it says what is safe, and offers to try again. The chat list’s own notices are the List notice of the Chat list card; here they stand beside the conversation’s so the two read as one family.');
 // Per kind: title, line, and the action when there is one.
 const EMPTY = {
   'New chat': ['No messages yet', 'Messages you send here are end-to-end encrypted'],
@@ -18,3 +20,32 @@ display(await grid('Conversation empty', axis('Kind', Object.keys(EMPTY)), DEVIC
   return e;
 }));
 await examples('The chat list: no chats, nothing found, could not load', ['No chats', 'No results', 'Could not load'].map((Kind) => inst('List notice', { Kind, Device: 'Desktop' })), 'MIN');
+
+// Per kind: mark and its ink, title, line, the action with its glyph, and a second, quiet action.
+const NOTICES = {
+  Locked: ['lock', 'onSurfaceVariant', 'Mosh is locked', 'Biometric authentication was canceled. Tap Retry to unlock your conversations.', ['Retry', 'refresh']],
+  Unlocking: [null, null, 'Unlocking Mosh…'],
+  'Not secured': ['shield_warning', 'onSurfaceVariant', 'Device not secured', 'Mosh requires a screen lock (PIN, pattern or biometric) to protect your conversations. Set one in the system settings, then reopen Mosh.'],
+  'Setup not read': ['error', 'error', 'Could not read your setup', 'Your setup or existing conversations could not be read. Retry, and if the problem continues, restart Mosh.', ['Retry', 'refresh'], 'Share app log'],
+};
+display(await grid('Screen notice', axis('Kind', Object.keys(NOTICES)), DEVICES, ({ Kind, Device }) => {
+  const [glyph, ink, title, line, act, more] = NOTICES[Kind];
+  const n = surface('Screen notice', 'background', { component: true, dir: 'V', gap: 4, pad: [12, 4], w: Device === 'Phone' ? PHONE_SCREEN : 480 });
+  // While Mosh works there is nothing to read a mark for: the spinner stands in its place.
+  add(n, glyph ? icon(glyph, ink, 10) : inst('Circular progress', { Size: 'Large' }));
+  const col = add(n, box('text', { dir: 'V', gap: 2 }), { fillW: true });
+  para(col, title, 'headlineSmall', 'onSurface', 'title').textAlignHorizontal = 'CENTER';
+  if (line) para(col, line, 'bodyMedium', 'onSurfaceVariant', 'line').textAlignHorizontal = 'CENTER';
+  if (act) add(n, labelButton(Device, act[0], { glyph: act[1] }));
+  if (more) add(n, labelButton(Device, more, { Kind: 'Text', glyph: 'share' }));
+  return n;
+}));
+// Only the desktop has a pointer to drag a file with. The feed under the zone goes dark, and the dashed edge says where the file lands.
+await grid('Drop zone', ONE, ONE, () => {
+  const d = box('Drop zone', { component: true, dir: 'V', gap: 2, w: FEED.Desktop, h: 320, r: 'large', clip: true, stroke: 'primary', sw: 'thick', justify: 'CENTER' });
+  d.dashPattern = [8, 8];
+  dim(d);
+  add(d, icon('attach', 'primary', 8));
+  add(d, text('Drop a file to share it', 'titleSmall', 'onSurface'));
+  return d;
+});

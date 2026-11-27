@@ -29,7 +29,7 @@ import { createRequire } from 'node:module';
 import { check, guarded, parse, read, run } from './run.mjs';
 
 // In build order: a card may use the components of the cards before it.
-const CARDS = ['icons', 'button', 'icon-button', 'text-field', 'select', 'switch', 'chips', 'avatar', 'badges', 'progress', 'slider-divider', 'attachment', 'voice', 'message', 'feed', 'thread', 'composer', 'chat-row', 'chat-list', 'org', 'search', 'dialog', 'menu', 'banner', 'toast', 'title-bar', 'settings', 'details', 'wizard', 'empty', 'media-viewer', 'call-controls', 'call', 'call-mini', 'levels'];
+const CARDS = ['icons', 'button', 'icon-button', 'text-field', 'select', 'switch', 'chips', 'avatar', 'badges', 'progress', 'slider-divider', 'attachment', 'voice', 'message', 'feed', 'thread', 'composer', 'chat-row', 'chat-list', 'org', 'search', 'dialog', 'menu', 'banner', 'toast', 'title-bar', 'settings', 'details', 'wizard', 'plus', 'empty', 'media-viewer', 'call-controls', 'call', 'call-mini', 'levels'];
 /** icons.json maps an icon's role in the controls to its Phosphor name; returns the role's 24 px SVG. */
 function iconSvg() {
   const phosphor = createRequire(import.meta.url)('@iconify-json/ph/icons.json');

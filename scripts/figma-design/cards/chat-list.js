@@ -59,7 +59,7 @@ const invited = list('Invitations', 'Desktop', (rows) => {
   add(rows, inst('Divider', { Orientation: 'Horizontal' }), { fillW: true });
   CHATS.slice(0, 2).forEach((c) => add(rows, chat({ ...c, State: 'Default' }, 'Desktop'), { fillW: true }));
 });
-const notice = (Kind, query) => list(Kind, 'Desktop', (rows) => add(rows, inst('List notice', { Kind, Device: 'Desktop' }), { fillW: true }), query);
+const listNotice = (Kind, query) => list(Kind, 'Desktop', (rows) => add(rows, inst('List notice', { Kind, Device: 'Desktop' }), { fillW: true }), query);
 const QUERY = 'ma', matches = (c) => (c.Title + ' ' + c.Preview).toLowerCase().includes(QUERY);
 const found = list('Search results', 'Desktop', (rows) => CHATS.filter(matches).forEach((c) => add(rows, chat({ ...c, State: 'Default' }, 'Desktop'), { fillW: true })), QUERY);
 // The collapsed list is a column of 48 px buttons, the size the phone uses, beside 64 px rows.
@@ -75,5 +75,5 @@ function collapsed(failed) {
   add(l, action('settings', 'Phone', { Kind: 'Tonal' }));
   return l;
 }
-await examples('Invitations, search results, no results, no chats, could not load', [invited, found, notice('No results', 'cabin'), notice('No chats'), notice('Could not load')], 'MIN');
+await examples('Invitations, search results, no results, no chats, could not load', [invited, found, listNotice('No results', 'cabin'), listNotice('No chats'), listNotice('Could not load')], 'MIN');
 await examples('Collapsed, and collapsed when the list could not be loaded', [collapsed(false), collapsed(true)], 'MIN');

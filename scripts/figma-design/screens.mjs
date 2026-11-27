@@ -11,7 +11,7 @@
 import { check, guarded, parse, run } from './run.mjs';
 
 // In the order their columns stand in the section.
-const SCREENS = ['chats', 'group', 'start', 'setup', 'settings', 'call', 'dialog', 'media'];
+const SCREENS = ['chats', 'group', 'start', 'setup', 'settings', 'link', 'plus', 'call', 'dialog', 'media'];
 const { names, audit } = parse(process.argv.slice(2), SCREENS);
 const built = [];
 for (const SCREEN_SCRIPT of audit ? [] : SCREENS.filter((s) => !names.length || names.includes(s))) {
