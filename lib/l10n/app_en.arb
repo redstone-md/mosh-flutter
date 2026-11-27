@@ -552,7 +552,7 @@
   "@onboardTileChatTitle": {
     "description": "Title of the private-chat onboarding tile"
   },
-  "onboardTileChatDesc": "A secure one-to-one conversation.",
+  "onboardTileChatDesc": "A secure one-to-one conversation",
   "@onboardTileChatDesc": {
     "description": "Description of the private-chat onboarding tile"
   },
@@ -560,7 +560,7 @@
   "@onboardTileGroupTitle": {
     "description": "Title of the new-group onboarding tile"
   },
-  "onboardTileGroupDesc": "A closed group for your team or friends.",
+  "onboardTileGroupDesc": "A closed group for your team or friends",
   "@onboardTileGroupDesc": {
     "description": "Description of the new-group onboarding tile"
   },
@@ -568,7 +568,7 @@
   "@onboardTileJoinTitle": {
     "description": "Title of the join-with-link onboarding tile"
   },
-  "onboardTileJoinDesc": "Join with an invite a contact sent you.",
+  "onboardTileJoinDesc": "Use an invite a contact sent you",
   "@onboardTileJoinDesc": {
     "description": "Description of the join-with-link onboarding tile"
   },
@@ -576,7 +576,7 @@
   "@onboardTileChannelTitle": {
     "description": "Title of the public-channel onboarding tile"
   },
-  "onboardTileChannelDesc": "An open room anyone can read. Not encrypted.",
+  "onboardTileChannelDesc": "Open to anyone, not encrypted",
   "@onboardTileChannelDesc": {
     "description": "Description of the public-channel onboarding tile"
   },

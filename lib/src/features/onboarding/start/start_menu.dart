@@ -27,8 +27,9 @@ class StartMenu extends StatelessWidget {
   final VoidCallback onPickJoin;
   final VoidCallback onPickChannel;
 
-  /// Width of the menu on the desktop: a 440 px row and the menu's padding.
-  static const maxWidth = 472.0;
+  /// Width of the menu's cards on the desktop: a 440 px row inside the
+  /// card's edge. A narrower pane gives the cards all it has.
+  static const maxWidth = 440.0 + 2 * MoshBorder.thin;
 
   @override
   Widget build(BuildContext context) {
