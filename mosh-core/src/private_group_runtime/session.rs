@@ -137,8 +137,8 @@ pub(super) struct GroupSession {
     /// This branch lost an org fork: stays set until the member rejoins,
     /// whatever later commits say, and stops it acting as an admin.
     pub(super) forked_off: bool,
-    /// The last few merged epochs, for proving a rival commit (`org_commits`).
-    pub(super) merge_witnesses: super::org_commits::MergeWitnesses,
+    /// The last few merged epochs, for proving a rival commit (`org_forks`).
+    pub(super) merge_witnesses: super::org_forks::MergeWitnesses,
     /// Fingerprint → wall-clock deadline of that member's typing hint. A
     /// refresh inside the window renews the entry; silence lets it lapse.
     pub(super) typing_members: HashMap<String, u64>,
