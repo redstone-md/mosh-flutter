@@ -206,13 +206,26 @@ int _comparePrerelease(List<String> left, List<String> right) {
   return left.length.compareTo(right.length);
 }
 
-/// Numeric identifiers compare as numbers and rank below alphanumeric ones.
+/// Numeric identifiers compare as numbers of any size and rank below
+/// alphanumeric ones.
 int _compareIdentifier(String left, String right) {
-  final (a, b) = (int.tryParse(left), int.tryParse(right));
-  if (a != null && b != null) return a.compareTo(b);
-  if (a != null) return -1;
-  if (b != null) return 1;
+  final (a, b) = (_numeric.hasMatch(left), _numeric.hasMatch(right));
+  if (a && b) return _compareDigits(left, right);
+  if (a) return -1;
+  if (b) return 1;
   return left.compareTo(right);
+}
+
+final _numeric = RegExp(r'^\d+$');
+final _leadingZeros = RegExp('^0+(?=.)');
+
+/// Orders two digit strings by value without parsing them: the longer one
+/// is larger once leading zeros are gone, and equal lengths order as text.
+int _compareDigits(String left, String right) {
+  final a = left.replaceFirst(_leadingZeros, '');
+  final b = right.replaceFirst(_leadingZeros, '');
+  final byLength = a.length.compareTo(b.length);
+  return byLength != 0 ? byLength : a.compareTo(b);
 }
 
 /// Numeric parts of a version; anything unparseable counts as zero, so a
