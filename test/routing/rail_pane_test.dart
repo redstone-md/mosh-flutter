@@ -1,4 +1,4 @@
-// IVO-16: the desktop chat list resizes from the divider, collapses to an
+// IVO-16: the desktop chat list resizes from its edge, collapses to an
 // avatar strip and expands back to the width chosen before, across
 // restarts too.
 import 'package:flutter/gestures.dart' show PointerDeviceKind;
@@ -46,7 +46,7 @@ void main() {
     expect(railWidthFor(400, 581), kRailMinWidth);
   });
 
-  testWidgets('dragging the divider resizes the list and saves on release',
+  testWidgets('dragging the edge resizes the list and saves on release',
       (tester) async {
     final store = MemoryRailLayoutStore();
     await pumpRail(tester, store: store);

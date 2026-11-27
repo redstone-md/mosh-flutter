@@ -171,7 +171,7 @@ class _RailPaneState extends ConsumerState<RailPane> {
   }
 }
 
-/// The 9px grip over the divider: a resize cursor, a line that lights up
+/// The 9px grip over the list's edge: a resize cursor, a line that lights up
 /// while hovered, focused or dragged, and a slider for screen readers.
 class _ResizeHandle extends StatefulWidget {
   const _ResizeHandle({
