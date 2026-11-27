@@ -11,8 +11,7 @@ import 'package:mosh/src/platform/desktop_chrome_scope.dart';
 import 'package:mosh/src/features/conversation/conversation_tools.dart';
 import 'package:mosh/src/features/conversation/active_peer_status_drawer.dart';
 import 'package:mosh/src/features/onboarding/new_session_panel.dart';
-import 'package:mosh/l10n/app_localizations.dart';
-import 'package:mosh/src/features/shared/rail_back_button.dart';
+import 'package:mosh/src/app/mosh_dimensions.dart';
 import 'package:mosh/src/features/sessions/rail_compact.dart'
     show expandChatList;
 import 'package:mosh/src/routing/mosh_title_bar.dart';
@@ -205,36 +204,32 @@ class ChatPaneWelcome extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final mobile = isMobileBreakpoint(context);
+    // On mobile this pane fills the window and the rail is offstage: it is
+    // a screen of its own, which starts at the top under the menu's header
+    // with the way back to the conversation list. Desktop centres it,
+    // chrome-less, in the right half of the two-pane shell.
     return Scaffold(
-      // On mobile this pane fills the window and the rail is offstage, so
-      // without a header there is no way back to the conversation list --
-      // the panel's own Back only returns to its step menu. Desktop keeps
-      // the pane chrome-less: it is the right half of the two-pane shell.
-      appBar: mobile
-          ? AppBar(
-              leading: railBackButton(context),
-              title: Text(AppLocalizations.of(context)!.shellNewSession),
-            )
-          : null,
       // Side padding follows the pane, not the window: at 581px the
       // desktop pane is only ~312px wide.
       body: SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
-            final vertical = mobile ? 24.0 : 48.0;
-            return Center(
+            final side = constraints.maxWidth < 400 ? MoshSpace.s4 : 32.0;
+            return Align(
+              alignment: mobile ? Alignment.topCenter : Alignment.center,
               child: SingleChildScrollView(
-                padding: EdgeInsetsDirectional.symmetric(
-                  horizontal: constraints.maxWidth < 400 ? 16 : 32,
-                  vertical: vertical,
-                ),
+                padding: mobile
+                    ? EdgeInsets.fromLTRB(
+                        side, MoshSpace.s1, side, MoshSpace.s4)
+                    : EdgeInsets.symmetric(horizontal: side, vertical: 48),
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: 1240),
                   child: NewSessionPanel(
-                    // A short pane (a phone with the keyboard up) can have
-                    // less height than the padding.
+                    // The desktop keeps the menu and a step in one centred
+                    // frame; a short pane can have less height than the
+                    // padding.
                     minHeight:
-                        math.max(0, constraints.maxHeight - vertical * 2),
+                        mobile ? 0 : math.max(0, constraints.maxHeight - 96),
                   ),
                 ),
               ),

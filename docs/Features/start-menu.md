@@ -6,7 +6,9 @@
 > rows grouped by who can read the conversation, each group a panel with a
 > quiet edge. A row is the Start row card and takes the state layers of any
 > control. A step is Back, a centred question with its lead, and the form on
-> a card. The Mosh mark, the welcome subtitle, the two-column layout, the
+> a card. On a phone the menu is a screen of its own: it starts at the top
+> under a page header whose arrow leads back to the chat list, and a step's
+> Back leads to the menu. The Mosh mark, the welcome subtitle, the two-column layout, the
 > step illustrations in `assets/start/` and the row's hover lift are gone;
 > what below describes them is the history of the earlier layout. Pages,
 > their kept state and the reveal are unchanged.
