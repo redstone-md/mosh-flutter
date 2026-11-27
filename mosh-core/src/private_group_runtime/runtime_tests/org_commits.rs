@@ -85,3 +85,35 @@ fn the_fallback_still_removes_the_leaver_after_an_unrelated_commit() {
     assert_eq!(org.epoch(0), start + 2);
     assert!(!org.admin(0).crypto.member_identities().contains(&leaver));
 }
+
+/// A roster that cannot be read for a moment is no answer: queued work
+/// waits for the next pump instead of being dropped for good.
+#[test]
+fn a_failed_roster_read_keeps_queued_commits() {
+    let _guard = locked();
+    // `b` is designated and hears nothing, so `a` holds both changes.
+    let mut org = TwoAdmins::open("unreadable", true);
+    let start = org.epoch(0);
+    let leaver = org_signing::peer_id_hex(&org.leaver_key);
+    let departure = org.departure();
+    org.deliver(0, departure);
+    let joiner = org.joiner_key.clone();
+    let (frame, package) = org.key_package(&joiner);
+    org.deliver(0, frame);
+    org.pump(0, 0);
+    org.stores[0]
+        .put_org_roster(&org_key_hex(), b"unreadable")
+        .unwrap();
+    org.pump(0, DELAY);
+    assert_eq!(org.epoch(0), start, "nothing commits without a roster");
+    org.put_roster(1, true);
+    org.pump(0, DELAY);
+    assert_eq!(
+        org.epoch(0),
+        start + 2,
+        "both changes survive the failed read"
+    );
+    let crypto = &org.admin(0).crypto;
+    assert!(!crypto.member_identities().contains(&leaver));
+    assert!(crypto.key_package_signer_is_member(&package).unwrap());
+}

@@ -99,7 +99,8 @@ impl GroupSession {
         &mut self,
         proposal_b64: &str,
     ) -> Result<(), PrivateGroupError> {
-        if !self.acting_admin() {
+        // A roster that cannot be read now is no answer; the pump asks again.
+        if matches!(self.try_acting_admin(), Ok(false)) {
             return Ok(());
         }
         let signer = self.crypto.self_removal_signer(&decode(proposal_b64)?)?;
@@ -114,12 +115,12 @@ impl GroupSession {
         admission: Admission,
     ) -> Result<(), PrivateGroupError> {
         match self.committer_rank(Some(&admission.identity)) {
-            Some(0) => self.admit(admission),
-            Some(_) => {
+            Ok(Some(0)) => self.admit(admission),
+            Ok(None) => Ok(()),
+            Ok(Some(_)) | Err(_) => {
                 self.schedule_commit(OrgCommit::Admit(admission));
                 Ok(())
             }
-            None => Ok(()),
         }
     }
 
@@ -141,14 +142,15 @@ impl GroupSession {
 
     /// Commit every pending change whose turn has come. One that another
     /// admin committed first is dropped: the leaf has left our tree, or the
-    /// joiner's KeyPackage holds one.
+    /// joiner's KeyPackage holds one. A failed roster read keeps the change
+    /// for the next pump, since it says nothing about whose turn it is.
     pub(super) fn pump_commits(&mut self, now: u64) {
         let epoch = self.crypto.epoch();
         for mut pending in std::mem::take(&mut self.pending_commits) {
             match self.turn_due(&mut pending, now) {
-                Some(true) => self.commit_change(pending.change),
-                Some(false) => self.pending_commits.push(pending),
-                None => {}
+                Ok(Some(true)) => self.commit_change(pending.change),
+                Ok(Some(false)) | Err(_) => self.pending_commits.push(pending),
+                Ok(None) => {}
             }
         }
         if self.crypto.epoch() != epoch {
@@ -158,40 +160,55 @@ impl GroupSession {
 
     /// Stamp the deadline on first sight: rank k waits k delays. None for a
     /// change that is done or not ours to commit.
-    fn turn_due(&mut self, pending: &mut PendingCommit, now: u64) -> Option<bool> {
-        if !self.joined || !self.outstanding(&pending.change) {
-            return None;
+    fn turn_due(
+        &mut self,
+        pending: &mut PendingCommit,
+        now: u64,
+    ) -> Result<Option<bool>, PrivateGroupError> {
+        if !self.joined || !self.outstanding(&pending.change)? {
+            return Ok(None);
         }
         let subject = pending.change.subject(&self.crypto);
-        let rank = self.committer_rank(subject.as_deref())?;
+        let Some(rank) = self.committer_rank(subject.as_deref())? else {
+            return Ok(None);
+        };
         let wait = rank.saturating_mul(FALLBACK_COMMIT_DELAY_MS);
-        Some(now >= *pending.deadline.get_or_insert(now.saturating_add(wait)))
+        let deadline = *pending.deadline.get_or_insert(now.saturating_add(wait));
+        Ok(Some(now >= deadline))
     }
 
     /// Still to do: the leaf is in our tree, or the joiner is still on the
     /// roster and its KeyPackage is not. A rejoiner's stale leaf has another
     /// signer, so it does not count as admitted.
-    fn outstanding(&mut self, change: &OrgCommit) -> bool {
+    fn outstanding(&mut self, change: &OrgCommit) -> Result<bool, PrivateGroupError> {
         match change {
-            OrgCommit::Remove(target) => target.present(&self.crypto),
+            OrgCommit::Remove(target) => Ok(target.present(&self.crypto)),
             OrgCommit::Admit(admission) => {
-                self.crypto
-                    .key_package_signer_is_member(&admission.package)
-                    .is_ok_and(|member| !member)
-                    && self.roster_contains(&admission.identity)
+                if self
+                    .crypto
+                    .key_package_signer_is_member(&admission.package)?
+                {
+                    return Ok(false);
+                }
+                let roster = self.org_roster_checked()?;
+                Ok(roster
+                    .members
+                    .iter()
+                    .any(|m| m.moss_peer_id == admission.identity))
             }
         }
     }
 
     /// Our place in the commit order, mirroring `successor_of` for plain
     /// groups: roster admins holding a leaf here, by peer-id, without the
-    /// member the change is about. Rank 0 is the designated committer.
-    fn committer_rank(&mut self, subject: Option<&str>) -> Option<u64> {
-        if !self.acting_admin() {
-            return None;
+    /// member the change is about. Rank 0 is the designated committer; None
+    /// means not ours, an error that the roster could not be read.
+    fn committer_rank(&mut self, subject: Option<&str>) -> Result<Option<u64>, PrivateGroupError> {
+        if !self.try_acting_admin()? {
+            return Ok(None);
         }
-        let own = self.own_peer_id()?;
-        let roster = self.org_roster()?;
+        let own = self.own_peer_id().ok_or(PrivateGroupError::NotReady)?;
+        let roster = self.org_roster_checked()?;
         let leaves = self.crypto.member_identities();
         let mut admins: Vec<&str> = roster
             .members
@@ -202,8 +219,8 @@ impl GroupSession {
             .collect();
         admins.sort_unstable();
         admins.dedup();
-        let rank = admins.iter().position(|peer_id| *peer_id == own)?;
-        u64::try_from(rank).ok()
+        let rank = admins.iter().position(|peer_id| *peer_id == own);
+        Ok(rank.and_then(|rank| u64::try_from(rank).ok()))
     }
 
     fn commit_change(&mut self, change: OrgCommit) {
