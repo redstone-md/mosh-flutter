@@ -246,20 +246,35 @@ class _CallWindowState extends State<CallWindow> {
           onMinimize: widget.onMinimize,
           fullScreen: widget.fullScreen),
       Expanded(
-          child: staged
-              ? const SizedBox.shrink()
-              : CallWho(
-                  form: form,
-                  peer: widget.peer,
-                  status: widget.status,
-                  statusFontFeatures: widget.statusFontFeatures,
-                  failed: widget.failed,
-                  onTap: widget.onOpenConversation)),
-      CallFoot(
-          form: form,
-          notice: widget.notice,
-          onDockHover: _dock,
-          controls: widget.controls),
+          child: LayoutBuilder(
+              builder: (context, box) => Column(children: [
+                    Expanded(
+                        child: staged
+                            ? const SizedBox.shrink()
+                            : CallWho(
+                                form: form,
+                                peer: widget.peer,
+                                status: widget.status,
+                                statusFontFeatures: widget.statusFontFeatures,
+                                failed: widget.failed,
+                                onTap: widget.onOpenConversation)),
+                    _foot(form, box.biggest),
+                  ]))),
     ]);
   }
+
+  /// The foot at the bottom of the [room] under the top row. A window too
+  /// low for the notice and the dock scales them down together.
+  Widget _foot(CallWindowForm form, Size room) => ConstrainedBox(
+      constraints: BoxConstraints(maxHeight: room.height),
+      child: FittedBox(
+          fit: BoxFit.scaleDown,
+          alignment: Alignment.bottomCenter,
+          child: SizedBox(
+              width: room.width,
+              child: CallFoot(
+                  form: form,
+                  notice: widget.notice,
+                  onDockHover: _dock,
+                  controls: widget.controls))));
 }
