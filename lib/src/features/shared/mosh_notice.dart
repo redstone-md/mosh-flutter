@@ -63,6 +63,7 @@ class MoshNotice extends StatelessWidget {
     this.busy = false,
     this.inline = false,
     this.radius,
+    this.maxLines,
     bool? announced,
   })  : announced = announced ?? tone == MoshNoticeTone.error,
         assert(title != null || detail != null),
@@ -92,9 +93,20 @@ class MoshNotice extends StatelessWidget {
   /// always is; a note that takes a form's place asks for it.
   final bool announced;
 
+  /// The most lines the [detail] takes before it is cut with an ellipsis;
+  /// a screen reader still hears all of it.
+  final int? maxLines;
+
   /// A line of the notice's text, which the mark and the control stand on.
   static const _line = MoshSpace.s5;
   static const _pad = MoshSpace.s4;
+
+  /// How many lines of text a notice [height] tall has room for, at the
+  /// reader's text size: what [maxLines] takes where the room is short.
+  static int linesIn(BuildContext context, double height) =>
+      ((height - _pad * 2) / MediaQuery.textScalerOf(context).scale(_line))
+          .clamp(0, 100)
+          .floor();
 
   @override
   Widget build(BuildContext context) {
@@ -143,6 +155,8 @@ class MoshNotice extends StatelessWidget {
           // Alone, the detail is the message and takes the title's line.
           if (detail != null)
             Text(detail!,
+                maxLines: maxLines,
+                overflow: maxLines == null ? null : TextOverflow.ellipsis,
                 style: title == null
                     ? text.bodyMedium?.copyWith(color: ink)
                     : text.bodySmall?.copyWith(

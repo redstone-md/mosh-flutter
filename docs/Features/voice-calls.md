@@ -17,10 +17,12 @@ shape of the frame it shows and is 16:9 until one arrives, so a phone on its
 side gives a wide picture the whole height of the screen and a phone held
 upright gives an upright one nearly all of it; the name and the time move
 to a plate beside the minimize button. The buttons stand on a dock at the
-bottom, and a warning or an error sits just above them; a window too low for
-both scales them down together. Your own camera takes a quarter of the stage's
-width in its lower right corner and keeps that share, and its distance from
-the edges, at any size. A ringing call offers only Decline and Accept. On the desktop the window also has the full screen
+bottom, and a warning or an error sits just above them. The buttons keep their
+size: in a window too low for both, the notice is cut to the lines there is
+room for and, without room for one, left out. Your own camera takes a quarter
+of the stage's width in its lower right corner and keeps that share, and its
+distance from the edges, at any size. A ringing call offers only Decline and
+Accept. On the desktop the window also has the full screen
 button.
 
 While the other side's video is showing, the dock, the name plate and the

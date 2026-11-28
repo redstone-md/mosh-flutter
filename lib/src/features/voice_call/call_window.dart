@@ -20,7 +20,8 @@ const kCallControlsRest = Duration(seconds: 3);
 /// tone. A voice call puts the person in the middle; with video the picture
 /// takes that place, as large as the window lets it be without cutting it,
 /// and the name moves to a plate in the corner. The buttons stay on their
-/// dock at the bottom, with a [notice] just above them.
+/// dock at the bottom, with a [notice] just above them; a window too low
+/// for both cuts the notice short and keeps the buttons at their size.
 ///
 /// While the other side's video is showing, everything laid over it but
 /// your own camera leaves after [kCallControlsRest] without a pointer move,
@@ -246,25 +247,18 @@ class _CallWindowState extends State<CallWindow> {
           onMinimize: widget.onMinimize,
           fullScreen: widget.fullScreen),
       Expanded(
-          child: LayoutBuilder(
-              builder: (context, box) => Column(children: [
-                    Expanded(
-                        child: staged
-                            ? const SizedBox.shrink()
-                            : CallWho(
-                                form: form,
-                                peer: widget.peer,
-                                status: widget.status,
-                                statusFontFeatures: widget.statusFontFeatures,
-                                failed: widget.failed,
-                                onTap: widget.onOpenConversation)),
-                    CallFoot(
-                        form: form,
-                        room: box.biggest,
-                        notice: widget.notice,
-                        onDockHover: _dock,
-                        controls: widget.controls),
-                  ]))),
+          child: CallMiddle(
+              notice: widget.notice,
+              who: staged
+                  ? null
+                  : CallWho(
+                      form: form,
+                      peer: widget.peer,
+                      status: widget.status,
+                      statusFontFeatures: widget.statusFontFeatures,
+                      failed: widget.failed,
+                      onTap: widget.onOpenConversation))),
+      CallFoot(form: form, onDockHover: _dock, controls: widget.controls),
     ]);
   }
 }

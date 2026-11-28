@@ -3,6 +3,7 @@ import 'dart:ui' show PointerDeviceKind;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show LogicalKeyboardKey;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mosh/src/features/voice_call/call_button.dart';
 import 'package:mosh/src/features/voice_call/call_media_view.dart';
 import 'package:mosh/src/features/voice_call/call_video_stage.dart';
 import 'package:mosh/src/features/voice_call/call_video_textures.dart';
@@ -205,6 +206,23 @@ void main() {
       expect(shown.width, closeTo(stage.width, 0.01), reason: reason);
       expect(shown.height, closeTo(stage.height, 0.01), reason: reason);
       expect(tester.takeException(), isNull, reason: reason);
+    }
+  });
+
+  testWidgets(
+      'a window too low for the notice cuts it short, then leaves it out, '
+      'and keeps the buttons at their size', (tester) async {
+    const warning = 'Camera unavailable. Voice remains available.';
+    for (final (height, shown) in [(200.0, true), (160.0, false)]) {
+      await _open(tester, _call(cameraFailed: true, remoteCamera: false),
+          size: Size(340, height));
+      expect(tester.takeException(), isNull, reason: '$height px overflows');
+      expect(find.text(warning), shown ? findsOneWidget : findsNothing);
+      final buttons = find.byType(CallButton);
+      expect(buttons, findsNWidgets(4));
+      for (final button in buttons.evaluate()) {
+        expect(button.size, const Size.square(48), reason: '$height px');
+      }
     }
   });
 }

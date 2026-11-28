@@ -113,8 +113,8 @@ class CallDock extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = MoshColors.of(context);
-    // A Container, so the plate's edge takes room of its own around the
-    // padding, as it does on the card.
+    // The edge takes room of its own around the padding, which a Container
+    // gives it and a DecoratedBox would not.
     return Container(
       decoration: MoshLevel.popup
           .decoration(colors)

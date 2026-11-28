@@ -199,66 +199,78 @@ class CallWho extends StatelessWidget {
   }
 }
 
-/// The foot of the open call: its buttons on their dock and, just above
-/// them, where the button it is about is, the [notice]. A [room] too low
-/// for both scales them down together.
+/// What the open call has between its top row and its dock: the person of
+/// a voice call ([who]) and under it, just above the button it is about,
+/// the [notice]. The buttons never give up their size, so in a window too
+/// low for the whole notice it keeps the lines there is room for, and
+/// without room for one line it is left out.
+class CallMiddle extends StatelessWidget {
+  const CallMiddle({super.key, this.who, this.notice});
+
+  final Widget? who;
+  final CallNotice? notice;
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(builder: (context, box) {
+        final notice = this.notice;
+        final lines = notice == null
+            ? 0
+            : MoshNotice.linesIn(context, box.maxHeight - _noticeGap);
+        return Column(children: [
+          Expanded(child: who ?? const SizedBox.shrink()),
+          if (notice != null && lines > 0) _notice(notice, lines),
+        ]);
+      });
+
+  Widget _notice(CallNotice notice, int lines) => Padding(
+      padding:
+          const EdgeInsets.fromLTRB(MoshSpace.s4, 0, MoshSpace.s4, _noticeGap),
+      // As wide as its text, up to the width of a dialog.
+      child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 400),
+          child: IntrinsicWidth(
+              child: MoshNotice(
+                  tone: notice.tone,
+                  icon: notice.icon,
+                  detail: notice.text,
+                  maxLines: lines,
+                  // It appears mid-call, away from where the user looks.
+                  announced: true,
+                  radius: MoshRadius.largeIncreased))));
+
+  /// Between the notice and the dock under it.
+  static const _noticeGap = MoshSpace.s3;
+}
+
+/// The foot of the open call: its buttons on their dock.
 class CallFoot extends StatelessWidget {
   const CallFoot(
       {super.key,
       required this.form,
-      required this.room,
       required this.controls,
-      required this.onDockHover,
-      this.notice});
+      required this.onDockHover});
 
   final CallWindowForm form;
 
-  /// What the window has under the top row.
-  final Size room;
-
   /// The call's buttons, drawn larger on a phone held upright.
   final List<CallControl> controls;
-  final CallNotice? notice;
 
   /// Whether the pointer came over the dock or left it.
   final ValueChanged<bool> onDockHover;
 
   @override
   Widget build(BuildContext context) {
-    return ConstrainedBox(
-        constraints: BoxConstraints(maxHeight: room.height),
-        child: FittedBox(
-            fit: BoxFit.scaleDown,
-            alignment: Alignment.bottomCenter,
-            child: SizedBox(width: room.width, child: _foot())));
-  }
-
-  Widget _foot() {
     final upright = form == CallWindowForm.upright;
     return Padding(
       padding: EdgeInsets.fromLTRB(
           MoshSpace.s4, 0, MoshSpace.s4, upright ? MoshSpace.s8 : MoshSpace.s5),
-      child: Column(spacing: MoshSpace.s3, children: [
-        if (notice case final notice?)
-          // As wide as its text, up to the width of a dialog.
-          ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 400),
-              child: IntrinsicWidth(
-                  child: MoshNotice(
-                      tone: notice.tone,
-                      icon: notice.icon,
-                      detail: notice.text,
-                      // It appears mid-call, away from where the user looks.
-                      announced: true,
-                      radius: MoshRadius.largeIncreased))),
-        MouseRegion(
-            onEnter: (_) => onDockHover(true),
-            onExit: (_) => onDockHover(false),
-            // A window narrower than the dock scales it down.
-            child: FittedBox(
-                fit: BoxFit.scaleDown,
-                child: CallDock(large: upright, controls: controls))),
-      ]),
+      child: MouseRegion(
+          onEnter: (_) => onDockHover(true),
+          onExit: (_) => onDockHover(false),
+          // A window narrower than the dock scales it down.
+          child: FittedBox(
+              fit: BoxFit.scaleDown,
+              child: CallDock(large: upright, controls: controls))),
     );
   }
 }

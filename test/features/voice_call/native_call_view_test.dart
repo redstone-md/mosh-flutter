@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mosh/src/features/voice_call/call_button.dart';
 import 'package:mosh/src/features/voice_call/call_media_view.dart';
 import 'package:mosh/src/features/voice_call/call_view.dart';
 import 'package:mosh/src/features/voice_call/call_view_state.dart';
@@ -89,6 +90,9 @@ void main() {
           settle: false);
       await tester.pump(const Duration(milliseconds: 150));
       expect(tester.takeException(), isNull);
+      for (final button in find.byType(CallButton).evaluate()) {
+        expect(button.size, const Size.square(48));
+      }
       expect(
           find.byTooltip(
               phase == CallViewPhase.active ? 'Hang up' : 'Decline call'),
