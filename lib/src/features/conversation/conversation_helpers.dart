@@ -48,6 +48,12 @@ EdgeInsets feedPadding({required bool compact}) => EdgeInsets.symmetric(
 /// and a new run starts 12 px lower.
 double messageRowSpacing(bool grouped) => grouped ? MoshSpace.s1 : MoshSpace.s3;
 
+/// Half the 4 px gap between two neighbours in the feed. A message row keeps
+/// it above and below its bubble, a divider is given it by the list, and the
+/// list's own padding is shorter by it, so the feed ends [feedPadding] from
+/// its last bubble.
+const double kFeedHalfGap = MoshSpace.s1 / 2;
+
 /// The box a delivery mark takes beside the time, whatever its glyph.
 const double kDeliveryMarkSize = MoshSpace.s4;
 
