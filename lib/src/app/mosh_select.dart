@@ -126,7 +126,13 @@ class _MoshSelectState<T> extends State<MoshSelect<T>> {
 
   Widget _button(ThemeData theme, bool isOpen, VoidCallback toggle) {
     final selected = widget.options.where((o) => o.value == widget.value);
-    final text = selected.isEmpty ? widget.label : selected.first.label;
+    // With no choice made the well says what it is for, unless the label
+    // above it already does.
+    final text = selected.isNotEmpty
+        ? selected.first.label
+        : widget.showLabel
+            ? ''
+            : widget.label;
     final well = OutlinedButton(
       focusNode: _focus,
       onPressed: widget.onChanged == null ? null : toggle,

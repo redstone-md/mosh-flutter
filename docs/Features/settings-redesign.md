@@ -32,11 +32,14 @@ Read receipts have moved to Privacy.
 
 Every section is a column of Settings cards (`scripts/figma-design/cards/settings.js`)
 under its page header, which may carry a line about the whole section. The
-page keeps 32px above and below and 40px at the sides on the desktop, 24px
-between header and cards and 12px between cards.
-A card is a panel with a quiet edge, 28px corners and, inside the edge, 20px of
-padding, 16px on a phone. A select that says so (`MoshSelect.showLabel`) draws
-its label above the well. The shared SettingsCardHeader puts a 40px icon plate beside the
+page keeps 32px above and below and 40px at the sides on the desktop; on a
+phone 4px above and 16px at the sides and the foot. Header and cards stand
+24px apart on both. Cards stand 12px apart in Sound and video, Profile and
+Privacy; Devices and the Android waiting card of Connection keep their own
+16px and 24px.
+A card is a panel with a quiet edge, 28px corners and 20px of padding, 16px on
+a phone. A select that says so (`MoshSelect.showLabel`) draws its label above
+the well. The shared SettingsCardHeader puts a 40px icon plate beside the
 title and its description, 12px apart, and the control that matters most at
 its right: the switch of an opt-in (`SettingsToggleCard`), a retry, a spinner.
 What explains a control is folded under a MoshDisclosure, the line of the
@@ -90,7 +93,9 @@ The host-architecture macOS CI lane runs RunnerTests against the compiled menu.
 
 - Microphone, desktop camera and speaker cards consume Riverpod device providers
   and persisted `audio-devices.json` choices. Changing one preserves the others.
-  Choices apply to subsequent recording or playback as before.
+  Choices apply to subsequent recording or playback as before; the cards no
+  longer say so, and the page header says that changes are saved as they are
+  made.
 - The desktop camera selector reuses the hardware selector and capture helper's
   bounded inventory without starting a call or capturing frames. Only stable
   platform IDs can be saved across restarts; devices with call-scoped IDs remain

@@ -11,8 +11,10 @@ import 'settings_navigation.dart';
 import 'package:mosh/src/features/shared/page_header.dart';
 import 'voice_settings_section.dart';
 
-/// One bounded scroller per section, under its page header: the page's
-/// margins, 32 by 40 px on the desktop, and 24 px between header and cards.
+/// One bounded scroller per section, under its page header. The page's
+/// margins are 32 px above and below and 40 px at the sides on the desktop,
+/// and 4 px above and 16 px at the sides and the foot on a phone; header and
+/// cards stand 24 px apart on both.
 class SettingsContent extends StatelessWidget {
   const SettingsContent(
       {super.key, required this.section, required this.wide, this.onBack});

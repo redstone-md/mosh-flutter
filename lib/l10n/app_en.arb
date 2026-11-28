@@ -1512,7 +1512,7 @@
     "description": "Label above the input-device dropdown in Sound settings; also names it to a screen reader and titles its sheet on a phone"
   },
   "settingsInputDeviceHint": "Used for calls and voice messages",
-  "settingsInputDeviceHintAndroid": "Used for voice messages. In calls, the microphone follows the selected audio output.",
+  "settingsInputDeviceHintAndroid": "Used for voice messages; in calls it follows the audio output",
   "@settingsInputDeviceHint": {
     "description": "Line under the title of the microphone card"
   },

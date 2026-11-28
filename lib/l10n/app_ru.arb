@@ -800,7 +800,7 @@
   "settingsInputDeviceLabel": "Микрофон",
   "settingsInputDevicePickerLabel": "Устройство ввода",
   "settingsInputDeviceHint": "Для звонков и голосовых сообщений",
-  "settingsInputDeviceHintAndroid": "Микрофон для голосовых сообщений. В звонках он выбирается вместе с устройством вывода звука.",
+  "settingsInputDeviceHintAndroid": "Для голосовых сообщений; в звонках выбирается вместе с выводом звука",
   "settingsOutputDeviceLabel": "Динамики",
   "settingsOutputDevicePickerLabel": "Устройство вывода",
   "settingsOutputDeviceHint": "Здесь звучат звонки и рингтоны",

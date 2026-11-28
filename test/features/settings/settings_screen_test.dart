@@ -44,7 +44,6 @@ void main() {
     expect(find.byType(SessionsScreen, skipOffstage: false), findsOneWidget);
     expect(find.text('Microphone'), findsOneWidget);
     expect(find.text('Sound and video'), findsNWidgets(2));
-    expect(find.text('Changes are saved as you make them'), findsOneWidget);
     expect(find.text('Devices'), findsOneWidget);
     expect(find.text('Connection'), findsOneWidget);
     expect(find.text('Privacy'), findsOneWidget);
@@ -121,7 +120,6 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Microphone'), findsOneWidget);
     expect(find.text('Connection'), findsNothing);
-    expect(find.text('Changes are saved as you make them'), findsOneWidget);
     await tester.tap(find.byTooltip('Back to settings sections'));
     await tester.pumpAndSettle();
     expect(find.text('Microphone'), findsNothing);

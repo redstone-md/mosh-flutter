@@ -24,8 +24,9 @@ class PageHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final text = Theme.of(context).textTheme;
     final phone = onBack != null;
-    final name = Column(
+    final words = Column(
       mainAxisSize: MainAxisSize.min,
+      mainAxisAlignment: MainAxisAlignment.center,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Semantics(
@@ -43,7 +44,7 @@ class PageHeader extends StatelessWidget {
         ],
       ],
     );
-    if (!phone) return name;
+    if (!phone) return words;
     // The arrow, not the edge of its target, stands on the line the text
     // under the header starts on: the row is moved out by the target's
     // margin around the arrow, and stays pressable where it is drawn.
@@ -51,14 +52,26 @@ class PageHeader extends StatelessWidget {
       offset: const Offset(-MoshSpace.s3, 0),
       child: ConstrainedBox(
         constraints: const BoxConstraints(minHeight: MoshSpace.s12),
-        child: Row(children: [
-          IconButton(
-              tooltip: backTooltip,
-              onPressed: onBack,
-              icon: const Icon(MoshIcons.back)),
-          const SizedBox(width: MoshSpace.s1),
-          Expanded(child: name),
-        ]),
+        // Beside a name alone the arrow is centred on it. With a line under
+        // the name it keeps to the top, level with the name however large the
+        // text is set, and the words are centred in the header's height.
+        child: Row(
+            crossAxisAlignment: line == null
+                ? CrossAxisAlignment.center
+                : CrossAxisAlignment.start,
+            children: [
+              IconButton(
+                  tooltip: backTooltip,
+                  onPressed: onBack,
+                  icon: const Icon(MoshIcons.back)),
+              const SizedBox(width: MoshSpace.s1),
+              Expanded(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(minHeight: MoshSpace.s12),
+                  child: words,
+                ),
+              ),
+            ]),
       ),
     );
   }

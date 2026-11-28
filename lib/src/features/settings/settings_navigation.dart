@@ -27,7 +27,7 @@ enum SettingsSection {
   /// something to say.
   String? line(AppLocalizations l) => switch (this) {
         sound => l.settingsAudioAppliesAutomatically,
-        _ => null,
+        profile || devices || connection || privacy || about => null,
       };
 }
 

@@ -64,6 +64,23 @@ void main() {
         isSemantics(label: 'Display name', isTextField: true));
     semantics.dispose();
   });
+
+  testWidgets('a select with nothing chosen says its label once',
+      (tester) async {
+    await tester.pumpWidget(MaterialApp(
+      theme: buildMoshTheme(),
+      home: Scaffold(
+        body: MoshSelect<int?>(
+            label: 'Input device',
+            showLabel: true,
+            value: null,
+            options: const [MoshSelectOption(1, 'USB microphone')],
+            onChanged: (_) {}),
+      ),
+    ));
+
+    expect(find.text('Input device'), findsOneWidget);
+  });
 }
 
 void _contracts(MoshColors c) {
