@@ -140,10 +140,9 @@ class _OrgAddMissing extends ConsumerWidget {
   }
 }
 
-/// A banner where it stands in a conversation: straight under the top bar,
-/// which keeps its own room below its content, 8 px clear of the feed or of
-/// the next banner, and set in as far
-/// as the feed's own content.
+/// A banner where it stands in a conversation, as the mockups place it: its
+/// top edge on the lower edge of what is above it, 8 px clear of the feed or
+/// of the next banner below, and set in as far as the feed's own content.
 class FeedBanner extends StatelessWidget {
   const FeedBanner(this.banner, {super.key});
 

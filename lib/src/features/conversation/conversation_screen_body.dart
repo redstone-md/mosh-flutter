@@ -102,6 +102,9 @@ class ConversationScreenBody extends ConsumerWidget {
         children: [
           Column(
             children: [
+              // Search opens under the header, above the banners: it keeps
+              // 8 px of its own on each side, a banner only below.
+              ConversationSearchRow(chrome: chrome),
               if (chatError != null)
                 FeedBanner(ChatErrorBanner(
                   message: chatError.describe(l),
@@ -116,7 +119,6 @@ class ConversationScreenBody extends ConsumerWidget {
               if ((async.value?.deletionSummary?.rejectedCount ?? BigInt.zero) >
                   BigInt.zero)
                 FeedBanner(ChatErrorBanner(message: l.messageDeletionRejected)),
-              ConversationSearchRow(chrome: chrome),
               Expanded(
                   child: _messages(
                       async, state, controller, l, sendBusy || sends.closing)),
