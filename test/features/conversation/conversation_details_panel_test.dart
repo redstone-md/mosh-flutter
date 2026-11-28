@@ -10,6 +10,9 @@ import 'package:mosh/src/features/conversation/panel_head.dart';
 import 'package:mosh/src/features/fingerprint/fingerprint_emoji.dart';
 import 'package:mosh/src/features/shared/value_row.dart';
 import 'package:mosh/src/gateway/conversation_target.dart';
+import 'package:mosh/src/rust/message_deletion/types.dart' show MessageMetadata;
+import 'package:mosh/src/rust/private_group_runtime.dart'
+    show GroupMessage, GroupNameChanged;
 import 'package:mosh/src/state/gateway_provider.dart';
 
 import '../../support/message_builders.dart';
@@ -122,6 +125,39 @@ void main() {
       expect(find.byTooltip('Admin'), admin ? findsOneWidget : findsNothing);
     }
   });
+
+  // A rename notice reaches the panel as the runtime hands it over: with no
+  // signed origin, and under the name the device had when it was sent. Only
+  // an org group comes with a roster.
+  for (final org in [true, false]) {
+    testWidgets(
+        'an unsigned rename notice leaves the admin\'s own row theirs in '
+        '${org ? 'an org group with its roster' : 'a plain group without one'}',
+        (tester) async {
+      final snapshot = GroupConversation(
+          const GroupTarget('team'),
+          TestSnapshots.group(
+              groupId: 'team',
+              deviceFingerprint: 'me',
+              displayName: 'Alex',
+              label: 'Crew',
+              orgPubkey: org ? 'org-key' : null,
+              memberPeerIds: org ? const ['peer', 'me'] : const [],
+              messages: const [
+                GroupMessage(
+                    metadata: MessageMetadata(
+                        canDeleteForEveryone: false, localOnly: true),
+                    fromDevice: 'Old laptop',
+                    fromFingerprint: 'me',
+                    body: '',
+                    nameChange: GroupNameChanged(name: 'Crew')),
+              ]));
+      await _pump(tester, AsyncData(snapshot), target: snapshot.target);
+      expect(find.text('Alex (you)'), findsOneWidget);
+      expect(find.textContaining('Old laptop'), findsNothing);
+      expect(find.byTooltip('Admin'), findsOneWidget);
+    });
+  }
 
   testWidgets(
       'connection details show the readings and lead to connection status, '

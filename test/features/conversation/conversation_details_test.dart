@@ -11,8 +11,6 @@ import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/rust/conversation/attachments.dart';
 import 'package:mosh/src/state/gateway_provider.dart';
 import 'package:mosh/src/rust/channel_runtime/types.dart' show ChannelMessage;
-import 'package:mosh/src/rust/private_group_runtime.dart'
-    show GroupMessage, GroupNameChanged;
 import 'package:mosh/src/rust/message_deletion/types.dart';
 import 'package:mosh/src/rust/message_deletion/origin.dart';
 import 'package:mosh/src/features/plus/plus_provider.dart';
@@ -168,36 +166,6 @@ void main() {
     expect(model.participants.map((p) => p.identity),
         ['alice', 'unidentified-member']);
     expect(model.participants.first.name, 'Alice');
-  });
-
-  // The admin's own rename notice carries no signed origin, so it cannot say
-  // whose it is; the roster can.
-  test('the roster, not a message, says which group row is the user\'s own',
-      () {
-    GroupConversation crew(List<GroupMessage> messages) => GroupConversation(
-        const GroupTarget('group'),
-        TestSnapshots.group(
-            groupId: 'group',
-            deviceFingerprint: 'self',
-            displayName: 'Alex',
-            memberPeerIds: ['alice', 'self'],
-            messages: messages));
-    final renamed = ConversationDetailsModel(
-        crew([
-          const GroupMessage(
-              fromDevice: 'Alex',
-              fromFingerprint: 'self',
-              body: '',
-              nameChange: GroupNameChanged(name: 'Crew')),
-          TestMessages.group(
-              fromDevice: 'Alice', fromFingerprint: 'alice', body: 'hi'),
-        ]),
-        l);
-    expect(renamed.participants.map((p) => (p.name, p.own)),
-        [('Alice', false), ('Alex', true)]);
-    final silent = ConversationDetailsModel(crew([]), l);
-    expect(silent.participants.last,
-        (identity: 'self', name: 'Alex', authenticated: true, own: true));
   });
 
   testWidgets('files reuse download actions; the panel closes from its head',

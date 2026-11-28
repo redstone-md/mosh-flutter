@@ -75,10 +75,24 @@ class ConversationDetailsModel {
           ),
       ];
     }
-    final authors = <String, ConversationParticipant>{};
+    // The user is a member of their own group whatever they wrote, so their
+    // row comes from the device and never from a message: a message proves
+    // its author by a signed origin, and a rename notice carries none. A
+    // public channel has no members, only authors, the user among them once
+    // a signed message of theirs is there.
+    final group = snapshot is GroupConversation;
+    final authors = <String, ConversationParticipant>{
+      if (group)
+        snapshot.ownFingerprint: (
+          identity: snapshot.ownFingerprint,
+          name: snapshot.ownDeviceName,
+          authenticated: true,
+          own: true
+        ),
+    };
     for (final message in snapshot.messages) {
       final identity = message.fromFingerprint;
-      if (identity != null) {
+      if (identity != null && !(group && identity == snapshot.ownFingerprint)) {
         final authenticated = message.metadata?.origin != null;
         if (!authenticated && authors[identity]?.authenticated == true) {
           continue;
@@ -93,30 +107,21 @@ class ConversationDetailsModel {
     }
     if (snapshot case GroupConversation(:final source)
         when source.memberPeerIds.isNotEmpty) {
-      return [for (final id in source.memberPeerIds) _member(id, authors[id])];
-    }
-    return authors.values.toList();
-  }
-
-  /// One row of a group's roster. The roster says who a member is, so the
-  /// user's own row is known without a message: a message proves its author
-  /// by a signed origin, and the user's own rename notice carries none.
-  /// Another member is named by what they wrote, or by their identity.
-  ConversationParticipant _member(String id, ConversationParticipant? author) =>
-      id == snapshot.ownFingerprint
-          ? (
-              identity: id,
-              name: snapshot.ownDeviceName,
-              authenticated: true,
-              own: true
-            )
-          : author ??
+      // An org group lists its roster; a member who wrote nothing is named
+      // by their identity.
+      return [
+        for (final id in source.memberPeerIds)
+          authors[id] ??
               (
                 identity: id,
                 name: shorten(id, 8),
                 authenticated: true,
                 own: false
-              );
+              )
+      ];
+    }
+    return authors.values.toList();
+  }
 
   List<ConversationMessage> get files {
     final byId = <String, ConversationMessage>{};
