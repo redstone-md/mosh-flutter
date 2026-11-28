@@ -256,10 +256,7 @@ class _ConversationMessageListViewState
                       child: ConversationUnreadDivider(key: _unreadDivider)),
                 SelectableMessageRow(
                     message: rows[index].message,
-                    // A group notice starts no run: like a divider it
-                    // keeps its own room and takes no lead-in.
-                    grouped: rows[index].grouped ||
-                        rows[index].message.nameChange != null,
+                    grouped: rows[index].grouped,
                     child: _buildRow(context, rows[index], kind, l)),
               ]);
         },

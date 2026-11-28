@@ -42,8 +42,13 @@ class SelectableMessageRow extends StatelessWidget {
     final selecting = selection?.active ?? false;
     final selected = id != null && selection!.isSelected(id);
     final side = feedPadding(compact: isMobileBreakpoint(context)).left;
+    // A group notice is no bubble of a run: like a divider it keeps the
+    // feed's gap and its own room, and takes no lead-in.
+    final leadIn = message.nameChange != null
+        ? 0.0
+        : messageRowSpacing(grouped) - 2 * _band;
     return Padding(
-      padding: EdgeInsets.only(top: messageRowSpacing(grouped) - 2 * _band),
+      padding: EdgeInsets.only(top: leadIn),
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: selecting && id != null ? () => _pick(selection!, id) : null,
