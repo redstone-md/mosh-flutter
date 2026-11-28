@@ -166,7 +166,7 @@
   "@chatEmptyBody": {
     "description": "Body shown when a chat has no messages"
   },
-  "chatComposerPlaceholder": "Write a message…",
+  "chatComposerPlaceholder": "Write a message",
   "@chatComposerPlaceholder": {
     "description": "Placeholder for the message composer"
   },
@@ -1806,9 +1806,9 @@
  "description": "aria-label for a non-self roster member row; {name} is the member (React OrgSection.tsx)",
     "placeholders": { "name": { "type": "String" } }
   },
-  "orgMemberYouAria": "{name} (you)",
-  "@orgMemberYouAria": {
- "description": "aria-label for the self member row; {name} is the member (React OrgSection.tsx)",
+  "chatDetailsOwnName": "{name} (you)",
+  "@chatDetailsOwnName": {
+ "description": "The user's own row among a conversation's participants; {name} is their display name",
     "placeholders": { "name": { "type": "String" } }
   },
   "orgNewGroupAria": "New org group in {name}",
