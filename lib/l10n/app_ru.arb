@@ -175,7 +175,7 @@
   "groupNoticeBody": "Сообщения защищены сквозным шифрованием. Новые участники не видят прошлые сообщения.",
   "groupEmptyTitle": "В этой группе пока нет сообщений.",
   "groupEmptyBody": "Когда участники присоединятся по приглашению, админ их допускает, и они расшифровывают сообщения с этого момента.",
-  "groupAdminBadge": "админ",
+  "groupAdminBadge": "Админ",
   "groupLeaveLabel": "Покинуть группу",
   "groupCopyInvite": "Копировать приглашение",
   "groupCopyInviteDone": "Приглашение скопировано",
@@ -247,7 +247,7 @@
   "channelBroadcastBadge": "Трансляция",
   "channelNoticeTitle": "Публичный канал",
   "channelHeaderLine": "Публичный канал, без шифрования",
-  "channelNoticeBody": "Сквозное шифрование выключено для публичных каналов. Любой, кто присоединится к этому каналу, может читать сообщения.",
+  "channelNoticeBody": "Любой, кто присоединится к этому каналу, сможет его читать. Сообщения здесь не защищены сквозным шифрованием.",
   "channelEmptyTitle": "В этом канале пока нет сообщений.",
   "channelEmptyBody": "Скажите привет. Любой, кто подписан на этот канал, увидит ваше сообщение.",
   "orgRevokedBadge": "Больше не в {org}",
@@ -255,7 +255,7 @@
   "orgMissingOne": "участник из списка не в этой группе",
   "orgMissingMany": "участников из списка не в этой группе",
   "orgRejoinNeededTitle": "Группа рассинхронизирована",
-  "orgRejoinNeededBody": "Внутри группы произошла рассинхронизация. Попросите администратора пригласить вас заново.",
+  "orgRejoinNeededBody": "Попросите администратора пригласить вас заново",
   "diagnosticsDiagnostics": "Диагностика",
   "attachmentProgressOf": "{percent}% из {size}",
   "@attachmentProgressOf": {
@@ -589,9 +589,9 @@
       }
     }
   },
-  "groupScreenMlsStateSuffix": " · MLS {state}",
-  "@groupScreenMlsStateSuffix": {
-    "description": "MLS-state suffix appended to the GroupScreen AppBar subtitle (mirrors React ' · MLS {state}'), with the MLS connection state",
+  "groupMlsState": "MLS {state}",
+  "@groupMlsState": {
+    "description": "The group's MLS state as it reads in the line under the group's name in the top bar, after the role and the member count",
     "placeholders": {
       "state": {
         "type": "String"

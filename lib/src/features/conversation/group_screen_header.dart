@@ -97,17 +97,14 @@ class _GroupScreenHeaderState extends ConsumerState<GroupScreenHeader> {
   }
 }
 
-/// The role appears once, alongside membership and actual MLS state.
-String _groupSubtitle(GroupSnapshot group, AppLocalizations l) {
-  final memberPart = l.membersCount(group.memberCount.toInt());
-  final adminPrefix = group.isAdmin ? '${l.groupAdminBadge}, ' : '';
-  final summary =
-      '$adminPrefix$memberPart${l.groupScreenMlsStateSuffix(group.state)}';
-  if (group.nameStatus?.error != null) {
-    return '$summary · ${l.chatNameRejected}';
-  }
-  if (group.nameStatus?.pending == true) {
-    return '$summary · ${l.chatNameWaiting}';
-  }
-  return summary;
-}
+/// The Top bar card's line for a group: the user's role, the membership and
+/// the actual MLS state, then what became of a rename that has not landed.
+String _groupSubtitle(GroupSnapshot group, AppLocalizations l) => [
+      if (group.isAdmin) l.groupAdminBadge,
+      l.membersCount(group.memberCount.toInt()),
+      l.groupMlsState(group.state),
+      if (group.nameStatus?.error != null)
+        l.chatNameRejected
+      else if (group.nameStatus?.pending == true)
+        l.chatNameWaiting,
+    ].join(', ');

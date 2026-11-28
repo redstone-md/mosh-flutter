@@ -119,7 +119,7 @@ void main() {
     for (final admin in [true, false]) {
       final snapshot = _group(admin: admin);
       await _pump(tester, AsyncData(snapshot), target: snapshot.target);
-      expect(find.byTooltip('admin'), admin ? findsOneWidget : findsNothing);
+      expect(find.byTooltip('Admin'), admin ? findsOneWidget : findsNothing);
     }
   });
 

@@ -498,7 +498,7 @@
   "@groupEmptyBody": {
     "description": "Body shown when a group has no messages"
   },
-  "groupAdminBadge": "admin",
+  "groupAdminBadge": "Admin",
   "@groupAdminBadge": {
     "description": "Badge marking a group admin"
   },
@@ -789,7 +789,7 @@
   "@channelHeaderLine": {
     "description": "Line under a public channel's name in the bar at the top of the conversation and in its details: the one kind of conversation that is not end-to-end encrypted says so"
   },
-  "channelNoticeBody": "End-to-end encryption is disabled for public channels. Anyone who joins this channel can read messages.",
+  "channelNoticeBody": "Anyone who joins this channel can read it. Messages here are not end-to-end encrypted.",
   "@channelNoticeBody": {
     "description": "Body of the public-channel notice"
   },
@@ -826,7 +826,7 @@
   "@orgRejoinNeededTitle": {
     "description": "Title of the rejoin-needed notice"
   },
-  "orgRejoinNeededBody": "The group is out of sync. Ask an administrator to invite you again.",
+  "orgRejoinNeededBody": "Ask an administrator to invite you again",
   "@orgRejoinNeededBody": {
     "description": "Body of the rejoin-needed notice"
   },
@@ -1207,9 +1207,9 @@
       }
     }
   },
-  "groupScreenMlsStateSuffix": " · MLS {state}",
-  "@groupScreenMlsStateSuffix": {
-    "description": "MLS-state suffix appended to the GroupScreen AppBar subtitle (mirrors React ' · MLS {state}'), with the MLS connection state",
+  "groupMlsState": "MLS {state}",
+  "@groupMlsState": {
+    "description": "The group's MLS state as it reads in the line under the group's name in the top bar, after the role and the member count",
     "placeholders": {
       "state": {
         "type": "String"

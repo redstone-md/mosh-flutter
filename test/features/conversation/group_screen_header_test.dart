@@ -48,7 +48,7 @@ void main() {
         (tester) async {
       await _pumpGroup(tester, _snapshot(admin: true, nameStatus: status));
       expect(
-          find.textContaining('admin, 2 members · MLS Active'), findsOneWidget);
+          find.textContaining('Admin, 2 members, MLS Active'), findsOneWidget);
       expect(
           find.textContaining(status.pending
               ? 'Name change waiting to send'
@@ -63,7 +63,7 @@ void main() {
           (tester) async {
         await _pumpGroup(tester, _snapshot(admin: admin, members: count));
         final members = '$count ${count == 1 ? 'member' : 'members'}';
-        expect(find.text('${admin ? 'admin, ' : ''}$members · MLS Active'),
+        expect(find.text('${admin ? 'Admin, ' : ''}$members, MLS Active'),
             findsOneWidget);
       });
     }
