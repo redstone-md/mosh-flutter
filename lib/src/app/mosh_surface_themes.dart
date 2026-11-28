@@ -10,8 +10,7 @@ AppBarTheme _appBarTheme(
       backgroundColor: c.surface,
       foregroundColor: c.onSurface,
       actionsIconTheme: IconThemeData(
-          color: c.onSurface,
-          size: MoshControl.touch(platform) ? MoshSpace.s6 : MoshSpace.s5),
+          color: c.onSurface, size: MoshControl.iconSize(platform)),
       elevation: 0,
       scrolledUnderElevation: 0,
       toolbarHeight: MoshSpace.s16,

@@ -48,8 +48,9 @@ EdgeInsets feedPadding({required bool compact}) => EdgeInsets.symmetric(
 /// and a new run starts 12 px lower.
 double messageRowSpacing(bool grouped) => grouped ? MoshSpace.s1 : MoshSpace.s3;
 
-/// Half the 4 px gap between two neighbours in the feed. A message row keeps
-/// it above and below its bubble, a divider is given it by the list, and the
+/// Half the 4 px gap every neighbour in the feed keeps from the next; a row
+/// that starts a run adds its lead-in to it. A message row keeps the half
+/// above and below its bubble, a divider is given it by the list, and the
 /// list's own padding is shorter by it, so the feed ends [feedPadding] from
 /// its last bubble.
 const double kFeedHalfGap = MoshSpace.s1 / 2;
