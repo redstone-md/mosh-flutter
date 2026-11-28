@@ -82,6 +82,20 @@ ChannelMessage channelMsg(
         String id, String from, String fp, String body, BigInt sent,
         {AttachmentDescriptor? attachment}) =>
     ChannelMessage(
+        // As the runtime hands them over: the user's own message carries the
+        // signed origin that proves it theirs.
+        metadata: fp == meFp
+            ? MessageMetadata(
+                canDeleteForEveryone: true,
+                localOnly: false,
+                isOwn: true,
+                origin: MessageOrigin(
+                    conversation: 'channel:$channelName',
+                    id: id,
+                    contentHash: 'hash-$id',
+                    author: fp,
+                    signature: 'signature-$id'))
+            : null,
         fromDevice: from,
         fromFingerprint: fp,
         body: body,

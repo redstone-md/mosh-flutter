@@ -25,6 +25,7 @@ import 'package:mosh/src/rust/channel_runtime/types.dart';
 import 'package:mosh/src/rust/conversation/attachments.dart';
 import 'package:mosh/src/rust/conversation/read_marks.dart';
 import 'package:mosh/src/rust/conversation/recovery.dart';
+import 'package:mosh/src/rust/message_deletion/origin.dart';
 import 'package:mosh/src/rust/message_deletion/types.dart';
 import 'package:mosh/src/rust/outbound_delivery.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
