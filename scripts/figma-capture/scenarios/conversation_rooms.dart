@@ -66,6 +66,7 @@ GroupSnapshot groupSnapshot({
       mesh: TestSnapshots.mesh(meshId: 'mesh-coast', peerCount: 4),
       events: const [],
       needsRejoin: needsRejoin,
+      orgPubkey: orgCoast,
       memberPeerIds: const [meFp, leoFp, mayaFp, priyaFp],
       typingMembers: [
         if (typing)

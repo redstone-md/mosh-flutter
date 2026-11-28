@@ -38,7 +38,7 @@ final _roomScenes = <FigmaScene>[
                   count: 3,
                   busy: false,
                   missingPeerIds: ['p1', 'p2', 'p3'],
-                  orgPubkey: 'org-coast')),
+                  orgPubkey: orgCoast)),
         ]);
   }),
   scene('group-peer', 'Conversation / Group / Message a member',

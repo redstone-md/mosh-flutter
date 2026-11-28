@@ -57,6 +57,9 @@ const priyaFp = '5b80f2e4a1c97d36';
 const dmId = 'maya';
 const groupId = 'weekend';
 const groupName = 'Weekend plans';
+
+/// The org the group belongs to: only a group of an org comes with a roster.
+const orgCoast = 'org-coast';
 const channelName = 'photography';
 
 /// Midnight today; scene times hang off it so the dividers read
