@@ -196,7 +196,7 @@ void main() {
             phase: CallViewPhase.active,
             audioReady: true,
             muted: true));
-    expect(find.text('0:05 · Muted'), findsOneWidget);
+    expect(find.text('0:05, muted'), findsOneWidget);
     expect(find.byTooltip('Unmute'), findsOneWidget);
     await tester.pumpWidget(const SizedBox.shrink());
   });

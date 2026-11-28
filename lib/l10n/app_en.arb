@@ -1556,7 +1556,7 @@
   "@callIncomingAriaLabel": {
     "description": "aria-label for the incoming-call modal (React IncomingCallModal.tsx aria-label)"
   },
-  "callIncomingStatus": "Incoming voice call...",
+  "callIncomingStatus": "Incoming voice call",
   "@callIncomingStatus": {
     "description": "Status text under the peer label in the incoming-call modal (React IncomingCallModal.tsx .call-modal-status)"
   },
@@ -1572,7 +1572,7 @@
   "@callOutgoingAriaLabel": {
     "description": "aria-label for the outgoing-call modal (React OutgoingCallModal.tsx aria-label)"
   },
-  "callOutgoingStatus": "Calling...",
+  "callOutgoingStatus": "Calling…",
   "@callOutgoingStatus": {
     "description": "Status text under the peer label in the outgoing-call modal while the peer has not answered (React OutgoingCallModal.tsx .call-modal-status)"
   },
@@ -2219,7 +2219,8 @@
   "callLocalPreview": "Your camera preview",
   "callRemoteVideo": "Video from {peer}",
   "@callRemoteVideo": {"placeholders": {"peer": {"type": "String"}}},
-  "callAudioConnecting": "Connecting audio…",
+  "callAudioConnecting": "{clock}, connecting audio…",
+  "@callAudioConnecting": {"description": "How an answered call is going while its audio connects; clock is the time since the answer.", "placeholders": {"clock": {"type": "String"}}},
   "callExpand": "Expand call",
   "callIncomingNotification": "Incoming call from {peer}",
   "@callIncomingNotification": {
@@ -2239,7 +2240,8 @@
   "callCameraStarting": "Starting camera…",
   "callCameraUnavailable": "Camera unavailable. Voice remains available.",
   "callMicrophoneUnavailable": "Microphone unavailable. You can still listen.",
-  "callReconnecting": "Reconnecting…",
+  "callReconnecting": "{clock}, reconnecting…",
+  "@callReconnecting": {"description": "How a call is going while its connection is restored; clock is the time since the answer.", "placeholders": {"clock": {"type": "String"}}},
   "callWaitingForVideo": "Waiting for video…",
   "callDevices": "Call devices",
   "callMicrophone": "Microphone",
@@ -2362,7 +2364,8 @@
   "callFloatingVideo": "Move or expand call video",
   "callAccept": "Accept",
   "callDecline": "Decline",
-  "callMuted": "Muted",
+  "callMuted": "{clock}, muted",
+  "@callMuted": {"description": "The line of a minimized call whose microphone is muted; clock is the time since the answer.", "placeholders": {"clock": {"type": "String"}}},
   "settingsBackgroundTitle": "Background availability",
   "settingsBackgroundEnabled": "Stay available in the background",
   "settingsBackgroundOff": "Background waiting is off.",

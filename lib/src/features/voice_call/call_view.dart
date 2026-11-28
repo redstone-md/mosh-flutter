@@ -161,7 +161,7 @@ class _CallViewState extends State<CallView> {
     }
     final muted =
         widget.call.phase == CallViewPhase.active && widget.call.muted;
-    return CallLine(muted ? "$status · ${l.callMuted}" : status,
+    return CallLine(muted ? l.callMuted(status) : status,
         fontFeatures: figures);
   }
 
@@ -175,10 +175,8 @@ class _CallViewState extends State<CallView> {
           : l.callOutgoingStatus;
     }
     final clock = formatCallClock(BigInt.from(widget.now() - call.startedAtMs));
-    if (call.media?.reconnecting == true) {
-      return "$clock · ${l.callReconnecting}";
-    }
-    return call.audioReady ? clock : "$clock · ${l.callAudioConnecting}";
+    if (call.media?.reconnecting == true) return l.callReconnecting(clock);
+    return call.audioReady ? clock : l.callAudioConnecting(clock);
   }
 
   CallNotice? _notice(AppLocalizations l) {

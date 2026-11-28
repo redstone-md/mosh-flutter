@@ -174,7 +174,7 @@ void main() {
     expect(ring.starts, 2);
     bridge.release(BridgeMethod.callAccept);
     await _frames(tester);
-    expect(find.text('Calling...'), findsOneWidget);
+    expect(find.text('Calling…'), findsOneWidget);
     expect(ring.stops, 1);
     await tester.tap(find.byTooltip('Cancel call'));
     await _frames(tester);

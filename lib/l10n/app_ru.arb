@@ -816,12 +816,12 @@
   "callLogEndedLabel": "Звонок завершён"
   ,
   "callIncomingAriaLabel": "Входящий звонок",
-  "callIncomingStatus": "Входящий голосовой звонок...",
+  "callIncomingStatus": "Входящий голосовой звонок",
   "callIncomingAccept": "Принять звонок",
   "callIncomingDecline": "Отклонить звонок"
   ,
   "callOutgoingAriaLabel": "Исходящий звонок",
-  "callOutgoingStatus": "Звоним...",
+  "callOutgoingStatus": "Звоним…",
   "callOutgoingCancel": "Отменить звонок"
   ,
   "callActiveAriaLabel": "Активный звонок",
@@ -1164,7 +1164,7 @@
   "callLocalPreview": "Предпросмотр вашей камеры",
   "callRemoteVideo": "Видео от {peer}",
   "@callRemoteVideo": {"placeholders": {"peer": {"type": "String"}}},
-  "callAudioConnecting": "Подключаем звук…",
+  "callAudioConnecting": "{clock}, подключаем звук…",
   "callExpand": "Развернуть звонок",
   "callIncomingNotification": "Входящий звонок от {peer}",
   "@callIncomingNotification": {
@@ -1184,7 +1184,7 @@
   "callCameraStarting": "Подключение камеры…",
   "callCameraUnavailable": "Камера недоступна. Голосовой звонок продолжается.",
   "callMicrophoneUnavailable": "Микрофон недоступен. Вы можете слушать собеседника.",
-  "callReconnecting": "Восстанавливаем соединение…",
+  "callReconnecting": "{clock}, восстанавливаем соединение…",
   "callWaitingForVideo": "Ожидаем видео…",
   "callDevices": "Устройства звонка",
   "callMicrophone": "Микрофон",
@@ -1304,7 +1304,7 @@
   "callFloatingVideo": "Переместить или раскрыть видео звонка",
   "callAccept": "Принять",
   "callDecline": "Отклонить",
-  "callMuted": "Микрофон выключен",
+  "callMuted": "{clock}, микрофон выключен",
   "settingsBackgroundTitle": "Работа в фоне",
   "settingsBackgroundEnabled": "Оставаться на связи в фоне",
   "settingsBackgroundOff": "Фоновое ожидание выключено.",

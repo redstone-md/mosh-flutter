@@ -94,7 +94,7 @@ void main() {
     expect(window.fullScreen, isFalse);
     expect(_chats, findsOneWidget);
     expect(_inTitleBar(find.text('Alice')), findsOneWidget);
-    expect(_inTitleBar(find.text('Calling...')), findsOneWidget);
+    expect(_inTitleBar(find.text('Calling…')), findsOneWidget);
     expect(_inTitleBar(find.byTooltip('Cancel call')), findsOneWidget);
     await tester.pumpWidget(const SizedBox.shrink());
   });
@@ -146,7 +146,7 @@ void main() {
       'an incoming call rings in a card that leaves the chats usable and '
       'opens on a press on the person', (tester) async {
     await _pump(tester, _ringing);
-    expect(find.text('Incoming voice call...'), findsOneWidget);
+    expect(find.text('Incoming voice call'), findsOneWidget);
     expect(_chats, findsOneWidget,
         reason: 'ringing must not take the window from the user');
     expect(_inTitleBar(find.text('Alice')), findsNothing,

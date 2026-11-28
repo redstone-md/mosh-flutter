@@ -226,7 +226,7 @@ void main() {
           settle: false);
       await tester.pump(const Duration(milliseconds: 50));
       expect(find.text('Alice'), findsOneWidget);
-      expect(find.text('Calling...'), findsOneWidget);
+      expect(find.text('Calling…'), findsOneWidget);
     },
   );
 

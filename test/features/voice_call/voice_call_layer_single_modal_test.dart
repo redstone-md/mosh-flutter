@@ -84,14 +84,14 @@ void main() {
     session.snapshot =
         _snapshot(outgoingCall: const OutgoingCall(callId: 'call-1'));
     await pumpLayer(tester);
-    expect(find.text('Calling...'), findsOneWidget);
+    expect(find.text('Calling…'), findsOneWidget);
 
     session.snapshot = _snapshot(activeCall: _active);
     await _poll(tester, container);
     await _poll(tester, container);
     await _poll(tester, container);
 
-    expect(find.text('Calling...'), findsNothing);
+    expect(find.text('Calling…'), findsNothing);
     expect(find.byType(CallView), findsOneWidget);
   });
 
@@ -101,7 +101,7 @@ void main() {
         pendingCall: const PendingCall(
             answerPending: false, callId: 'call-1', fromDevice: 'Alice'));
     await pumpLayer(tester);
-    expect(find.text('Incoming voice call...'), findsOneWidget);
+    expect(find.text('Incoming voice call'), findsOneWidget);
 
     session.snapshot = _snapshot(activeCall: _active);
     await tester.tap(find.byTooltip(
@@ -111,7 +111,7 @@ void main() {
     await _poll(tester, container);
     await _poll(tester, container);
 
-    expect(find.text('Incoming voice call...'), findsNothing);
+    expect(find.text('Incoming voice call'), findsNothing);
     expect(find.byType(CallView), findsOneWidget);
   });
 }
