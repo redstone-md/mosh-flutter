@@ -200,16 +200,21 @@ class CallWho extends StatelessWidget {
 }
 
 /// The foot of the open call: its buttons on their dock and, just above
-/// them, where the button it is about is, the [notice].
+/// them, where the button it is about is, the [notice]. A [room] too low
+/// for both scales them down together.
 class CallFoot extends StatelessWidget {
   const CallFoot(
       {super.key,
       required this.form,
+      required this.room,
       required this.controls,
       required this.onDockHover,
       this.notice});
 
   final CallWindowForm form;
+
+  /// What the window has under the top row.
+  final Size room;
 
   /// The call's buttons, drawn larger on a phone held upright.
   final List<CallControl> controls;
@@ -220,6 +225,15 @@ class CallFoot extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    return ConstrainedBox(
+        constraints: BoxConstraints(maxHeight: room.height),
+        child: FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.bottomCenter,
+            child: SizedBox(width: room.width, child: _foot())));
+  }
+
+  Widget _foot() {
     final upright = form == CallWindowForm.upright;
     return Padding(
       padding: EdgeInsets.fromLTRB(

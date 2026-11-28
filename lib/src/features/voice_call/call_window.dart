@@ -258,23 +258,13 @@ class _CallWindowState extends State<CallWindow> {
                                 statusFontFeatures: widget.statusFontFeatures,
                                 failed: widget.failed,
                                 onTap: widget.onOpenConversation)),
-                    _foot(form, box.biggest),
+                    CallFoot(
+                        form: form,
+                        room: box.biggest,
+                        notice: widget.notice,
+                        onDockHover: _dock,
+                        controls: widget.controls),
                   ]))),
     ]);
   }
-
-  /// The foot at the bottom of the [room] under the top row. A window too
-  /// low for the notice and the dock scales them down together.
-  Widget _foot(CallWindowForm form, Size room) => ConstrainedBox(
-      constraints: BoxConstraints(maxHeight: room.height),
-      child: FittedBox(
-          fit: BoxFit.scaleDown,
-          alignment: Alignment.bottomCenter,
-          child: SizedBox(
-              width: room.width,
-              child: CallFoot(
-                  form: form,
-                  notice: widget.notice,
-                  onDockHover: _dock,
-                  controls: widget.controls))));
 }
