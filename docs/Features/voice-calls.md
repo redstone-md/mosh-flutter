@@ -95,7 +95,10 @@ when Mosh is stopped, or guarantee calls after dismissing/locking its Activity.
   Automatic setup-failure completion uses the same serialized terminal path.
   The main window retains its navigation and dialog Escape shortcuts.
 - The microphone button follows the engine's microphone state, and muting is
-  the engine's microphone choice. A setup error retains hang-up controls when
+  the engine's microphone choice. While the device lists no microphone the
+  button is disabled, since a press could bring none; a microphone the system
+  refused keeps its button, which asks again. The camera button stays enabled
+  after a camera failure for the same reason: a press starts the camera again. A setup error retains hang-up controls when
   signaling also fails.
 - Incoming calls time out after 30 seconds; the caller rings for 45, so the
   callee's no-answer decline reaches it first. Answer, decline, cancel and end stop

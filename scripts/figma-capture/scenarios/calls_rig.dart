@@ -104,10 +104,11 @@ native.Snapshot callMedia(
         videoHeight: camera ? 720 : 0,
         videoFps: camera ? 30 : 0,
         packetsDropped: BigInt.zero,
-        inputs: _inputs,
+        // Without a microphone the device lists none.
+        inputs: microphoneAvailable ? _inputs : const [],
         outputs: _outputs,
         cameras: _cameras,
-        input: 'usb-mic',
+        input: microphoneAvailable ? 'usb-mic' : null,
         output: 'headphones',
         localVideo: camera ? _hd : _none,
         remoteVideo: remoteFrames ? _hd : _none);

@@ -84,8 +84,8 @@ void main() {
     _media('active-muted', 'Muted', callMedia(microphone: false)),
     _media('active-mic-unavailable', 'Microphone unavailable',
         callMedia(microphone: false, microphoneAvailable: false),
-        note: 'What a refused or missing microphone leaves; the permission '
-            'prompt itself is the operating system\'s.'),
+        note: 'What a missing microphone leaves. A refused one keeps its '
+            'button, which asks the operating system again.'),
     _media(
         'active-reconnecting', 'Reconnecting', callMedia(reconnecting: true)),
     _media('active-waiting-video', 'Waiting for video',

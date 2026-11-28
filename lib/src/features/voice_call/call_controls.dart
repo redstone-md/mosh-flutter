@@ -61,16 +61,21 @@ class CallControls {
       controls.nonNulls.toList();
 }
 
-CallControl _microphone(CallViewState call, AppLocalizations l,
-        void Function(CallViewAction) act) =>
-    CallControl(
-        icon: call.muted ? MoshIcons.micOff : MoshIcons.mic,
-        tooltip: call.muted ? l.callActiveUnmute : l.callActiveMute,
-        tone: call.muted ? CallTone.lit : CallTone.neutral,
-        toggled: !call.muted,
-        onPressed: call.busy || (call.media == null && !call.audioReady)
-            ? null
-            : () => act(CallViewAction.mute));
+/// The microphone's switch. It cannot be pressed until the call has audio
+/// to switch, nor while the device has no microphone at all: a press could
+/// bring none. One the system refused keeps its button, which asks again.
+CallControl _microphone(
+    CallViewState call, AppLocalizations l, void Function(CallViewAction) act) {
+  final media = call.media;
+  final absent = media == null ? !call.audioReady : media.inputs.isEmpty;
+  return CallControl(
+      icon: call.muted ? MoshIcons.micOff : MoshIcons.mic,
+      tooltip: call.muted ? l.callActiveUnmute : l.callActiveMute,
+      // Lit marks a choice; an absent microphone is not one.
+      tone: call.muted && !absent ? CallTone.lit : CallTone.neutral,
+      toggled: !call.muted,
+      onPressed: call.busy || absent ? null : () => act(CallViewAction.mute));
+}
 
 CallControl _camera(
     CallViewState call, AppLocalizations l, void Function(CallViewAction) act) {

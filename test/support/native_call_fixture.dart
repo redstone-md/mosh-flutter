@@ -12,6 +12,9 @@ native.Snapshot nativeCallSnapshot(
         bool camera = false,
         bool remoteCamera = true,
         bool cameraFailed = false,
+        List<native.Device> inputs = const [
+          native.Device(id: 'mic', name: 'Microphone', stable: true)
+        ],
         native.Surface localVideo = const native.Surface(width: 0, height: 0),
         native.Surface remoteVideo =
             const native.Surface(width: 0, height: 0)}) =>
@@ -33,7 +36,7 @@ native.Snapshot nativeCallSnapshot(
         videoHeight: 0,
         videoFps: 0,
         packetsDropped: BigInt.zero,
-        inputs: const [],
+        inputs: inputs,
         outputs: const [],
         cameras: const [],
         localVideo: localVideo,

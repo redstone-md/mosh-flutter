@@ -3,6 +3,7 @@ import 'dart:ui' show PointerDeviceKind;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show LogicalKeyboardKey;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/features/voice_call/call_button.dart';
 import 'package:mosh/src/features/voice_call/call_media_view.dart';
 import 'package:mosh/src/features/voice_call/call_video_stage.dart';
@@ -10,6 +11,7 @@ import 'package:mosh/src/features/voice_call/call_video_textures.dart';
 import 'package:mosh/src/features/voice_call/call_view.dart';
 import 'package:mosh/src/features/voice_call/call_view_state.dart';
 import 'package:mosh/src/features/voice_call/call_window_parts.dart';
+import 'package:mosh/src/rust/native_call/types.dart' as native;
 
 import '../../support/native_call_fixture.dart';
 import '../../support/pump.dart';
@@ -224,5 +226,24 @@ void main() {
         expect(button.size, const Size.square(48), reason: '$height px');
       }
     }
+  });
+
+  testWidgets(
+      'a device without a microphone disables its button, and a refused '
+      'microphone keeps the button that asks again', (tester) async {
+    CallViewState muted(native.Snapshot media) => CallViewState(
+        sessionId: 'dm',
+        callId: 'call',
+        peer: 'Alice',
+        phase: CallViewPhase.active,
+        muted: true,
+        audioReady: true,
+        media: CallMediaView.fromSnapshot(media));
+    final unmute = find.widgetWithIcon(IconButton, MoshIcons.micOff);
+    await _open(tester, muted(nativeCallSnapshot(inputs: const [])));
+    expect(tester.widget<IconButton>(unmute).onPressed, isNull);
+    final actions = await _open(tester, muted(nativeCallSnapshot()));
+    await tester.tap(find.byTooltip('Unmute'));
+    expect(actions, [CallViewAction.mute]);
   });
 }
