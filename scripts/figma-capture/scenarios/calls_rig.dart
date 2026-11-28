@@ -18,6 +18,7 @@ import 'package:mosh/src/rust/private_dm_runtime/contracts.dart';
 import 'package:mosh/src/state/native_call_owner_provider.dart';
 
 import '../../../test/features/routing/shell_harness.dart';
+import '../../../test/support/desktop_window_platform.dart';
 import '../../../test/support/gateway_snapshots.dart';
 import '../../../test/support/message_builders.dart';
 import '../../../test/support/native_call_fixture.dart';
@@ -31,29 +32,23 @@ const _me = 'Alex';
 const _peer = 'Maya Chen';
 final _time = DateTime(2026, 10, 3, 9, 41);
 
-/// The main window, without its platform channel: with it the app is framed
+/// The main window over the test window channel. With it the app is framed
 /// as on desktop (the title bar stays above the open call) and the call host
 /// behaves as there (incoming calls ring in the mini view, the expanded call
-/// offers full screen). Windows, as the harness renders desktop scenes.
+/// offers full screen). macOS draws the window's buttons itself, so the bar
+/// is the mockups' one, without them.
 class _Window extends DesktopWindowController {
-  _Window() : super(platform: TargetPlatform.windows);
+  _Window() : super(platform: TargetPlatform.macOS);
 
   @override
   Future<void> setFullScreen(bool fullScreen) async =>
       fullScreen ? onWindowEnterFullScreen() : onWindowLeaveFullScreen();
 }
 
-/// The desktop's window; what its title bar asks of the platform goes
-/// unanswered.
-_Window _framed(WidgetTester tester) {
-  final messenger = tester.binding.defaultBinaryMessenger;
-  messenger.setMockMethodCallHandler(
-      DesktopWindowController.channel, (_) async => null);
+_Window _framed() {
+  DesktopWindowPlatform().install();
   final window = _Window();
-  addTearDown(() {
-    window.dispose();
-    messenger.setMockMethodCallHandler(DesktopWindowController.channel, null);
-  });
+  addTearDown(window.dispose);
   return window;
 }
 
@@ -223,7 +218,7 @@ Future<void> openCall(WidgetTester tester, Size size,
   }
   script?.call(bridge);
   mockCallVideoPlugin(tester);
-  final window = size == FigmaDevice.desktop.size ? _framed(tester) : null;
+  final window = size == FigmaDevice.desktop.size ? _framed() : null;
   await pumpShellApp(tester,
       gateway: gateway,
       bridge: bridge,
