@@ -62,12 +62,13 @@ class CallVideoStage extends StatelessWidget {
                       color: MoshColors.of(context).surfaceContainerLowest,
                       child: Stack(
                           fit: StackFit.expand,
-                          children: _layers(context, pictures,
+                          children: _layers(context, pictures, box.biggest,
                               remoteStage: remoteStage)))))),
     );
   }
 
-  List<Widget> _layers(BuildContext context, CallVideoPictures pictures,
+  List<Widget> _layers(
+      BuildContext context, CallVideoPictures pictures, Size stage,
       {required bool remoteStage}) {
     final remote = pictures.remote;
     final preview = pictures.local;
@@ -84,7 +85,7 @@ class CallVideoStage extends StatelessWidget {
             child: Semantics(
                 label: peer, child: const Icon(MoshIcons.person, size: 32))),
       if (remoteStage && preview != null)
-        _preview(context, preview, l.callLocalPreview),
+        _preview(context, preview, l.callLocalPreview, stage),
     ];
   }
 
@@ -104,30 +105,35 @@ class CallVideoStage extends StatelessWidget {
                             color: MoshColors.of(context).onSurfaceVariant)),
                   ]))));
 
-  /// The preview is a quarter-width inset over remote video, inside its
-  /// padding, else the whole stage.
+  /// The preview is the inset over remote video, else the whole stage.
   static CallVideoSurfaces _surfaces(
       BuildContext context, Size stage, bool remoteStage) {
     final ratio = MediaQuery.devicePixelRatioOf(context);
     native.Surface surface(Size size) => native.Surface(
         width: (size.width * ratio).ceil(),
         height: (size.height * ratio).ceil());
-    final inset = _previewPadding.deflateSize(stage);
     return CallVideoSurfaces(
         local: surface(remoteStage
-            ? Size(inset.width * _previewShare, inset.height)
+            ? Size(stage.width * _previewShare,
+                stage.height - _previewInset(stage) * 2)
             : stage),
         remote: surface(stage));
   }
 
-  Widget _preview(
-          BuildContext context, CallVideoPicture picture, String label) =>
+  /// How far your own camera stands from the edges of a [stage]: it keeps
+  /// its share of the stage as the preview does, 8 px on a 480 px one.
+  static double _previewInset(Size stage) => stage.width / 60;
+
+  /// Your own camera over the other side's video: a quarter of the
+  /// [stage]'s width, in its lower right corner.
+  Widget _preview(BuildContext context, CallVideoPicture picture, String label,
+          Size stage) =>
       Align(
         alignment: Alignment.bottomRight,
         child: Padding(
-            padding: _previewPadding,
-            child: FractionallySizedBox(
-                widthFactor: _previewShare,
+            padding: EdgeInsets.all(_previewInset(stage)),
+            child: SizedBox(
+                width: stage.width * _previewShare,
                 child: AspectRatio(
                     aspectRatio: picture.aspectRatio,
                     child: DecoratedBox(
@@ -160,5 +166,4 @@ class CallVideoStage extends StatelessWidget {
 }
 
 const _previewShare = .25;
-const _previewPadding = EdgeInsets.all(MoshSpace.s2);
 const _previewCorners = BorderRadius.all(Radius.circular(MoshRadius.small));

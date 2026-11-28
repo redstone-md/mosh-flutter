@@ -123,14 +123,14 @@ void main() {
     pictures.value = const CallVideoPictures(
         local: _preview, remote: CallVideoPicture(8, 640, 360));
     await tester.pump();
-    expect(reported, [_surfaces((312, 688), (1280, 720))],
+    expect(reported, [_surfaces((320, 678), (1280, 720))],
         reason: 'a new frame size in the same layout reports nothing new');
     await show([640, 160]);
     await tester.pump();
     expect(reported, hasLength(1), reason: 'the larger stage still covers');
     await show([160]);
     await tester.pump();
-    expect(reported.last, _surfaces((72, 148), (320, 180)));
+    expect(reported.last, _surfaces((80, 170), (320, 180)));
     pictures.value = const CallVideoPictures(local: _preview);
     await show([160]);
     await tester.pump();
@@ -141,7 +141,8 @@ void main() {
   });
 }
 
-/// The preview is a quarter of the stage inside its 8 px padding.
+/// The preview is a quarter of the stage's width, a sixtieth of that width
+/// from its edges.
 CallVideoSurfaces _surfaces((int, int) local, (int, int) remote) =>
     CallVideoSurfaces(
         local: native.Surface(width: local.$1, height: local.$2),

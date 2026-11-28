@@ -192,13 +192,13 @@ Future<void> _nativeEvent(
 }
 
 /// The open call's 400x225 stage, as wide as the phone's screen, and the
-/// floating view's 196x111 one, each with a quarter-width preview inside
-/// 8 px padding, at a device pixel ratio of one.
+/// floating view's 196x111 one, each with a quarter-width preview a sixtieth
+/// of the stage's width from its edges, at a device pixel ratio of one.
 const _full = {
-  'local': [96, 209],
+  'local': [100, 212],
   'remote': [400, 225],
 };
 const _minimized = {
-  'local': [45, 95],
+  'local': [49, 104],
   'remote': [196, 111],
 };
