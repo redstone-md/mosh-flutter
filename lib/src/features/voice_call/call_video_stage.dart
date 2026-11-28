@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:mosh/src/app/mosh_dimensions.dart';
@@ -113,40 +115,50 @@ class CallVideoStage extends StatelessWidget {
         width: (size.width * ratio).ceil(),
         height: (size.height * ratio).ceil());
     return CallVideoSurfaces(
-        local: surface(remoteStage
-            ? Size(stage.width * _previewShare,
-                stage.height - _previewInset(stage) * 2)
-            : stage),
+        local: surface(remoteStage ? _previewPlace(stage).room : stage),
         remote: surface(stage));
   }
 
-  /// How far your own camera stands from the edges of a [stage]: it keeps
-  /// its share of the stage as the preview does, 8 px on a 480 px one.
-  static double _previewInset(Size stage) => stage.width / 60;
+  /// Where your own camera stands over the other side's video: how far from
+  /// the edges of the [stage], and the room it has there, a share of the
+  /// stage's width and the height its inset leaves. Both grow with the
+  /// stage. A stage too flat for the inset leaves no height, never less.
+  static ({double inset, Size room}) _previewPlace(Size stage) {
+    final inset = stage.width * _previewInsetShare;
+    return (
+      inset: inset,
+      room: Size(
+          stage.width * _previewShare, math.max(0, stage.height - inset * 2)),
+    );
+  }
 
-  /// Your own camera over the other side's video: a quarter of the
-  /// [stage]'s width, in its lower right corner.
+  /// Your own camera in the lower right corner of the [stage].
   Widget _preview(BuildContext context, CallVideoPicture picture, String label,
-          Size stage) =>
-      Align(
-        alignment: Alignment.bottomRight,
-        child: Padding(
-            padding: EdgeInsets.all(_previewInset(stage)),
-            child: SizedBox(
-                width: stage.width * _previewShare,
-                child: AspectRatio(
-                    aspectRatio: picture.aspectRatio,
-                    child: DecoratedBox(
-                        position: DecorationPosition.foreground,
-                        decoration: BoxDecoration(
-                            borderRadius: _previewCorners,
-                            border: Border.all(
-                                color: MoshColors.of(context).outlineVariant)),
-                        child: ClipRRect(
-                            borderRadius: _previewCorners,
-                            child:
-                                _picture(picture, label, mirrored: true)))))),
-      );
+      Size stage) {
+    final place = _previewPlace(stage);
+    return Align(
+      alignment: Alignment.bottomRight,
+      child: Padding(
+          padding: EdgeInsets.all(place.inset),
+          child: _previewFrame(context, picture, label, place.room.width)),
+    );
+  }
+
+  Widget _previewFrame(BuildContext context, CallVideoPicture picture,
+          String label, double width) =>
+      SizedBox(
+          width: width,
+          child: AspectRatio(
+              aspectRatio: picture.aspectRatio,
+              child: DecoratedBox(
+                  position: DecorationPosition.foreground,
+                  decoration: BoxDecoration(
+                      borderRadius: _previewCorners,
+                      border: Border.all(
+                          color: MoshColors.of(context).outlineVariant)),
+                  child: ClipRRect(
+                      borderRadius: _previewCorners,
+                      child: _picture(picture, label, mirrored: true)))));
 
   Widget _picture(CallVideoPicture picture, String label,
           {required bool mirrored}) =>
@@ -165,5 +177,10 @@ class CallVideoStage extends StatelessWidget {
                       child: Texture(textureId: picture.id)))));
 }
 
-const _previewShare = .25;
+/// Your own camera's share of the stage's width.
+const _previewShare = 1 / 4;
+
+/// Its distance from the stage's edges, as a share of that width: 8 px on
+/// the Call video stage card's 480 px.
+const _previewInsetShare = 1 / 60;
 const _previewCorners = BorderRadius.all(Radius.circular(MoshRadius.small));

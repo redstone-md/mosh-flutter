@@ -139,6 +139,31 @@ void main() {
         reason: 'a waiting remote stage keeps its surfaces');
     await tester.pumpWidget(const SizedBox.shrink());
   });
+
+  testWidgets('a frame too flat for your camera reports no height for it',
+      (tester) async {
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final pictures = ValueNotifier(const CallVideoPictures(
+        local: _preview, remote: CallVideoPicture(8, 3200, 80)));
+    addTearDown(pictures.dispose);
+    final reported = <CallVideoSurfaces>[];
+    await pumpScreen(
+        tester,
+        CallVideoSurfaceScope(
+            onSurfaces: reported.add,
+            child: Center(
+                child: SizedBox(
+                    width: 640,
+                    child: CallVideoStage(
+                        video: pictures, peer: 'Alice', remoteCamera: true)))),
+        settle: false);
+    await tester.pump();
+    expect(reported.single, _surfaces((160, 0), (640, 16)),
+        reason: 'the engine takes unsigned sizes');
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
 }
 
 /// The preview is a quarter of the stage's width, a sixtieth of that width
