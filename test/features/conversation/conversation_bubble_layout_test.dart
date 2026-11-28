@@ -147,7 +147,8 @@ void main() {
     expect(text.height, greaterThan(24));
   });
 
-  for (final body in ['hello', 'a longer first line\nok']) {
+  // The last case's bubble has to grow past its longest line to fit the time.
+  for (final body in ['hello', 'a longer first line\nok', 'ok\nabcdef']) {
     testWidgets('time shares the last line when it fits: $body',
         (tester) async {
       await _pumpBubble(tester, body, own: true);
