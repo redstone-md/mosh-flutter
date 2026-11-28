@@ -255,7 +255,7 @@
   "orgMissingOne": "участник из списка не в этой группе",
   "orgMissingMany": "участников из списка не в этой группе",
   "orgRejoinNeededTitle": "Группа рассинхронизирована",
-  "orgRejoinNeededBody": "Попросите администратора пригласить вас заново",
+  "orgRejoinNeededBody": "Попросите администратора пригласить вас заново.",
   "diagnosticsDiagnostics": "Диагностика",
   "attachmentProgressOf": "{percent}% из {size}",
   "@attachmentProgressOf": {
@@ -589,7 +589,7 @@
       }
     }
   },
-  "groupMlsState": "MLS {state}",
+  "groupMlsState": "MLS {state, select, ready{готов} waiting{ожидает} other{{state}}}",
   "@groupMlsState": {
     "description": "The group's MLS state as it reads in the line under the group's name in the top bar, after the role and the member count",
     "placeholders": {

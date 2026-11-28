@@ -826,7 +826,7 @@
   "@orgRejoinNeededTitle": {
     "description": "Title of the rejoin-needed notice"
   },
-  "orgRejoinNeededBody": "Ask an administrator to invite you again",
+  "orgRejoinNeededBody": "Ask an administrator to invite you again.",
   "@orgRejoinNeededBody": {
     "description": "Body of the rejoin-needed notice"
   },
@@ -1207,7 +1207,7 @@
       }
     }
   },
-  "groupMlsState": "MLS {state}",
+  "groupMlsState": "MLS {state, select, ready{ready} waiting{waiting} other{{state}}}",
   "@groupMlsState": {
     "description": "The group's MLS state as it reads in the line under the group's name in the top bar, after the role and the member count",
     "placeholders": {

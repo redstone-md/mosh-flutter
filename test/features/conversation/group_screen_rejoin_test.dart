@@ -22,7 +22,7 @@ Future<void> _pump(WidgetTester tester, GroupSnapshot snapshot) =>
 
 void main() {
   const title = 'Group out of sync';
-  const body = 'Ask an administrator to invite you again';
+  const body = 'Ask an administrator to invite you again.';
   testWidgets(
       'needsRejoin=true renders the rejoin-needed inline-error (title + body)',
       (tester) async {
