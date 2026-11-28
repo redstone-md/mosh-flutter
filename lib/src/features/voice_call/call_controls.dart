@@ -113,20 +113,20 @@ class CallDock extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = MoshColors.of(context);
-    return DecoratedBox(
+    // A Container, so the plate's edge takes room of its own around the
+    // padding, as it does on the card.
+    return Container(
       decoration: MoshLevel.popup
           .decoration(colors)
           .copyWith(borderRadius: MoshShapes.pillCorners),
-      child: Padding(
-        padding: const EdgeInsets.all(MoshSpace.s3),
-        child: Row(
-            mainAxisSize: MainAxisSize.min,
-            spacing: large ? MoshSpace.s4 : MoshSpace.s3,
-            children: [
-              for (final control in controls)
-                CallButton(control: control, large: large)
-            ]),
-      ),
+      padding: const EdgeInsets.all(MoshSpace.s3),
+      child: Row(
+          mainAxisSize: MainAxisSize.min,
+          spacing: large ? MoshSpace.s4 : MoshSpace.s3,
+          children: [
+            for (final control in controls)
+              CallButton(control: control, large: large)
+          ]),
     );
   }
 }
