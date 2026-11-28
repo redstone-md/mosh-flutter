@@ -98,19 +98,25 @@ class ConversationDetailsModel {
     return authors.values.toList();
   }
 
-  /// One row of a group's roster. The roster says who a member is, so it
-  /// decides which row is the user's own; a message only lends the row its
-  /// name. A message proves its author by a signed origin, and the user's
-  /// own rename notice carries none.
-  ConversationParticipant _member(String id, ConversationParticipant? author) {
-    final own = id == snapshot.ownFingerprint;
-    return (
-      identity: id,
-      name: author?.name ?? (own ? snapshot.ownDeviceName : shorten(id, 8)),
-      authenticated: author?.authenticated ?? true,
-      own: own
-    );
-  }
+  /// One row of a group's roster. The roster says who a member is, so the
+  /// user's own row is known without a message: a message proves its author
+  /// by a signed origin, and the user's own rename notice carries none.
+  /// Another member is named by what they wrote, or by their identity.
+  ConversationParticipant _member(String id, ConversationParticipant? author) =>
+      id == snapshot.ownFingerprint
+          ? (
+              identity: id,
+              name: snapshot.ownDeviceName,
+              authenticated: true,
+              own: true
+            )
+          : author ??
+              (
+                identity: id,
+                name: shorten(id, 8),
+                authenticated: true,
+                own: false
+              );
 
   List<ConversationMessage> get files {
     final byId = <String, ConversationMessage>{};
