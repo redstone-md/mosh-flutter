@@ -36,7 +36,7 @@ class _AppLockSettingsCardState extends ConsumerState<AppLockSettingsCard> {
     if (access == null) return const SizedBox.shrink();
     final l = AppLocalizations.of(context)!;
     return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.only(bottom: SettingsSurface.gap),
       child: SettingsSurface(
         child: ListenableBuilder(
             listenable: access,

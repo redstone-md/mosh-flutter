@@ -1,6 +1,6 @@
 # Settings redesign
 
-The settings frame has six sections: Sound & Video, Profile, Devices,
+The settings frame has six sections: Sound and video, Profile, Devices,
 Connection, Privacy and About. The original
 [approved plan](../Archive/settings-redesign.plan.md) is archived for reference.
 Read receipts have moved to Privacy.
@@ -13,7 +13,7 @@ Read receipts have moved to Privacy.
 - At widths of at least 800px a 248px sidebar on the panel level accompanies
   cards capped at 560px. The existing titlebar retains branding without a
   global network badge.
-  Sound & Video opens first; the last section survives closing settings during this
+  Sound and video opens first; the last section survives closing settings during this
   application launch. Restarting the application resets that choice.
 - Narrow windows and Android start with the section list. Selecting a section
   opens its detail view. Each narrow screen starts with the Page header card:
@@ -30,9 +30,13 @@ Read receipts have moved to Privacy.
 
 ## Card headers
 
-Every section is a column of Settings cards (`scripts/figma-design/cards/settings.js`).
-A card is a panel with a quiet edge, 28px corners and 20px of padding, 16px on
-a phone. The shared SettingsCardHeader puts a 40px icon plate beside the
+Every section is a column of Settings cards (`scripts/figma-design/cards/settings.js`)
+under its page header, which may carry a line about the whole section. The
+page keeps 32px above and below and 40px at the sides on the desktop, 24px
+between header and cards and 12px between cards.
+A card is a panel with a quiet edge, 28px corners and, inside the edge, 20px of
+padding, 16px on a phone. A select that says so (`MoshSelect.showLabel`) draws
+its label above the well. The shared SettingsCardHeader puts a 40px icon plate beside the
 title and its description, 12px apart, and the control that matters most at
 its right: the switch of an opt-in (`SettingsToggleCard`), a retry, a spinner.
 What explains a control is folded under a MoshDisclosure, the line of the
@@ -82,7 +86,7 @@ The feature uses existing ARB generation and settings controls. It adds a separa
 Rust APIs, bridge bindings and database schemas retain their existing contracts.
 The host-architecture macOS CI lane runs RunnerTests against the compiled menu.
 
-## Sound & Video
+## Sound and video
 
 - Microphone, desktop camera and speaker cards consume Riverpod device providers
   and persisted `audio-devices.json` choices. Changing one preserves the others.

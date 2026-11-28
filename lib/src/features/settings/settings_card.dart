@@ -37,8 +37,8 @@ class SettingsCard extends StatelessWidget {
 }
 
 /// A panel drawn as a card inside the background: the panel's tone with a
-/// quiet edge and the card's padding, 20 px on the desktop and 16 px on a
-/// phone.
+/// quiet edge and, inside the edge, the card's padding: 20 px on the desktop
+/// and 16 px on a phone. Cards of one page stand [gap] apart.
 class SettingsSurface extends StatelessWidget {
   const SettingsSurface({super.key, required this.child});
 
@@ -46,6 +46,9 @@ class SettingsSurface extends StatelessWidget {
 
   static const radius =
       BorderRadius.all(Radius.circular(MoshRadius.extraLarge));
+
+  /// The room between two cards of a page.
+  static const double gap = MoshSpace.s3;
 
   /// The card's padding on the device of [context].
   static double inset(BuildContext context) =>
@@ -60,7 +63,9 @@ class SettingsSurface extends StatelessWidget {
       color: card.color,
       shape: card.shape,
       clipBehavior: Clip.antiAlias,
-      child: Padding(padding: EdgeInsets.all(inset(context)), child: child),
+      child: Padding(
+          padding: EdgeInsets.all(MoshBorder.thin + inset(context)),
+          child: child),
     );
   }
 }

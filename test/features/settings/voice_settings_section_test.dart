@@ -34,6 +34,17 @@ void main() {
     expect(picks.state.inputDeviceId, 'missing-mic');
   });
 
+  testWidgets('a picker is named above its list and announced once',
+      (tester) async {
+    final semantics = tester.ensureSemantics();
+    await pumpScreen(tester, const Scaffold(body: VoiceSettingsSection()),
+        overrides: settingsAudioOverrides());
+    expect(find.text('Input device'), findsOneWidget);
+    expect(find.bySemanticsLabel(RegExp('Input device')), findsOneWidget);
+    expect(find.bySemanticsLabel(RegExp('Output device')), findsOneWidget);
+    semantics.dispose();
+  });
+
   testWidgets('leaving Sound stops the speaker test immediately',
       (tester) async {
     final ringtone = RecordingSettingsRingtone();

@@ -80,7 +80,7 @@ final settingsScenes = <FigmaScene>[
     await mountSettings(tester, size);
   }, devices: [FigmaDevice.mobile]),
 
-  // Sound & Video
+  // Sound and video
   FigmaScene('sound', 'Settings / Sound & Video / Default',
       (tester, size) async {
     await mountSettings(tester, size, section: _sound);

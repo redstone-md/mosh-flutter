@@ -21,7 +21,7 @@ fastlane/metadata/
 ```
 
 Locales are `en-US` and `ru-RU`. The screenshots show, in order, the chat
-list, a conversation, a call and the Sound & Video settings.
+list, a conversation, a call and the Sound and video settings.
 
 ## What the texts may promise
 

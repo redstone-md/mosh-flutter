@@ -22,6 +22,13 @@ enum SettingsSection {
         privacy => l.settingsSectionPrivacy,
         about => l.settingsSectionAbout,
       };
+
+  /// What the page's header says about the whole section, where it has
+  /// something to say.
+  String? line(AppLocalizations l) => switch (this) {
+        sound => l.settingsAudioAppliesAutomatically,
+        _ => null,
+      };
 }
 
 /// Application-launch memory; null starts narrow windows at the section list.

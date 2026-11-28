@@ -43,7 +43,8 @@ void main() {
     expect(find.byType(MoshShell), findsNothing);
     expect(find.byType(SessionsScreen, skipOffstage: false), findsOneWidget);
     expect(find.text('Microphone'), findsOneWidget);
-    expect(find.text('Sound & Video'), findsNWidgets(2));
+    expect(find.text('Sound and video'), findsNWidgets(2));
+    expect(find.text('Changes are saved as you make them'), findsOneWidget);
     expect(find.text('Devices'), findsOneWidget);
     expect(find.text('Connection'), findsOneWidget);
     expect(find.text('Privacy'), findsOneWidget);
@@ -114,12 +115,13 @@ void main() {
       (tester) async {
     _size(tester, const Size(390, 844));
     await _route(tester);
-    expect(find.text('Sound & Video'), findsOneWidget);
+    expect(find.text('Sound and video'), findsOneWidget);
     expect(find.text('Microphone'), findsNothing);
-    await tester.tap(find.text('Sound & Video'));
+    await tester.tap(find.text('Sound and video'));
     await tester.pumpAndSettle();
     expect(find.text('Microphone'), findsOneWidget);
     expect(find.text('Connection'), findsNothing);
+    expect(find.text('Changes are saved as you make them'), findsOneWidget);
     await tester.tap(find.byTooltip('Back to settings sections'));
     await tester.pumpAndSettle();
     expect(find.text('Microphone'), findsNothing);
@@ -132,7 +134,7 @@ void main() {
     final router = await _route(tester, AppRoutes.sessions);
     await tester.tap(find.byIcon(MoshIcons.settings));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Sound & Video'));
+    await tester.tap(find.text('Sound and video'));
     await tester.pumpAndSettle();
     expect(find.text('Microphone'), findsOneWidget);
     await tester.binding.handlePopRoute();
@@ -144,9 +146,9 @@ void main() {
     await tester.tap(find.byIcon(MoshIcons.settings));
     await tester.pumpAndSettle();
     expect(find.text('Microphone'), findsNothing);
-    expect(find.text('Sound & Video'), findsOneWidget);
+    expect(find.text('Sound and video'), findsOneWidget);
     expect(find.text('Devices'), findsOneWidget);
-    await tester.tap(find.text('Sound & Video'));
+    await tester.tap(find.text('Sound and video'));
     await tester.pumpAndSettle();
     await tester.sendKeyEvent(LogicalKeyboardKey.escape);
     await tester.pumpAndSettle();

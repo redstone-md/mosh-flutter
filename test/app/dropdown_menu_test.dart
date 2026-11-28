@@ -67,8 +67,10 @@ void main() {
         platform: TargetPlatform.android, onChanged: (_) => changed = true);
     await tester.tap(find.text('USB microphone'));
     await tester.pumpAndSettle();
-    expect(find.byType(BottomSheet), findsOneWidget);
-    expect(find.text('Microphone'), findsOneWidget);
+    expect(
+        find.descendant(
+            of: find.byType(BottomSheet), matching: find.text('Microphone')),
+        findsOneWidget);
     await tester.tap(find.byTooltip('Close'));
     await tester.pumpAndSettle();
     expect(changed, isFalse);

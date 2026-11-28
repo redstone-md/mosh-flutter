@@ -40,7 +40,7 @@ class _CameraSettingsCardState extends ConsumerState<CameraSettingsCard> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           AudioDevicePicker(
-            label: l.callCamera,
+            label: l.settingsCameraPickerLabel,
             devices: devices,
             preferredId: ref.watch(defaultCameraProvider),
             onChanged: _save,

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:mosh/l10n/app_localizations.dart';
+import 'package:mosh/src/app/mosh_dimensions.dart';
 import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/features/voice_call/ringtone_player.dart';
 import 'package:mosh/src/state/audio_device_picks_provider.dart';
@@ -86,23 +87,21 @@ class _VoiceSettingsSectionState extends ConsumerState<VoiceSettingsSection> {
             (defaultTargetPlatform == TargetPlatform.macOS ||
                 defaultTargetPlatform == TargetPlatform.windows ||
                 defaultTargetPlatform == TargetPlatform.linux)) ...[
-          const SizedBox(height: 16),
+          const SizedBox(height: SettingsSurface.gap),
           const CameraSettingsCard(),
         ],
-        const SizedBox(height: 16),
+        const SizedBox(height: SettingsSurface.gap),
         _speakers(l, picks),
-        const SizedBox(height: 24),
-        _testButton(l),
+        const SizedBox(height: MoshSpace.s6),
+        Align(
+            alignment: AlignmentDirectional.centerStart, child: _testButton(l)),
         if (_error != null) ...[
-          const SizedBox(height: 12),
+          const SizedBox(height: MoshSpace.s3),
           Semantics(
               liveRegion: true,
               child:
                   Text(_error!, style: Theme.of(context).textTheme.bodySmall)),
         ],
-        const SizedBox(height: 24),
-        Text(l.settingsAudioAppliesAutomatically,
-            style: Theme.of(context).textTheme.bodySmall),
       ],
     );
   }
@@ -120,7 +119,7 @@ class _VoiceSettingsSectionState extends ConsumerState<VoiceSettingsSection> {
           ? l.settingsInputDeviceHintAndroid
           : l.settingsInputDeviceHint,
       child: AudioDevicePicker(
-        label: l.settingsInputDeviceLabel,
+        label: l.settingsInputDevicePickerLabel,
         devices: inputs,
         preferredId: picks.inputDeviceId,
         onChanged: (id) => _save(input: id, output: picks.outputDeviceId),
@@ -138,7 +137,7 @@ class _VoiceSettingsSectionState extends ConsumerState<VoiceSettingsSection> {
       title: l.settingsOutputDeviceLabel,
       hint: l.settingsOutputDeviceHint,
       child: AudioDevicePicker(
-        label: l.settingsOutputDeviceLabel,
+        label: l.settingsOutputDevicePickerLabel,
         devices: outputs,
         preferredId: picks.outputDeviceId,
         onChanged: (id) => _save(input: picks.inputDeviceId, output: id),
@@ -147,7 +146,7 @@ class _VoiceSettingsSectionState extends ConsumerState<VoiceSettingsSection> {
     );
   }
 
-  Widget _testButton(AppLocalizations l) => FilledButton.icon(
+  Widget _testButton(AppLocalizations l) => OutlinedButton.icon(
         onPressed: _toggleTest,
         icon: Icon(_ringtone == null ? MoshIcons.speaker : MoshIcons.stop),
         label: Text(_ringtone == null

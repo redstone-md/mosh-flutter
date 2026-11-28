@@ -36,6 +36,7 @@ class AudioDevicePicker extends StatelessWidget {
       children: [
         MoshSelect<String?>(
           label: label,
+          showLabel: true,
           value: preferredId,
           options: _items(l, options, missing),
           onChanged: devices.isLoading ? null : onChanged,

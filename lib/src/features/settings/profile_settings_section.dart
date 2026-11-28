@@ -17,7 +17,7 @@ class ProfileSettingsSection extends ConsumerWidget {
     final l = AppLocalizations.of(context)!;
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       const LanguageSettingsCard(),
-      const SizedBox(height: 20),
+      const SizedBox(height: SettingsSurface.gap),
       ref.watch(firstRunProfileProvider).when(
             loading: () => const Center(child: CircularProgressIndicator()),
             error: (_, __) => Column(children: [
@@ -37,7 +37,7 @@ class ProfileSettingsSection extends ConsumerWidget {
                     onSave:
                         ref.read(firstRunProfileProvider.notifier).saveName)),
           ),
-      const SizedBox(height: 20),
+      const SizedBox(height: SettingsSurface.gap),
       const PlusSettingsCard(),
     ]);
   }

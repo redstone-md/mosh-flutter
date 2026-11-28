@@ -54,7 +54,7 @@ const _listings = [
   _Listing(Locale('en'), 'en-US',
       me: 'Alex',
       peer: 'Maya Chen',
-      settings: 'Sound & Video',
+      settings: 'Sound and video',
       chat: [
         (false, 'Coffee after the walk?'),
         (true, 'Absolutely. Riverside at 10?'),

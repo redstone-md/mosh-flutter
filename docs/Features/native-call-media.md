@@ -18,7 +18,7 @@ input, preserving video and playback. Losing output returns to default output.
 Capture is never reenabled automatically when a device returns. Camera IDs
 without a stable platform identity remain scoped to the call.
 
-Sound & Video settings stores a desktop camera default beside microphone and
+Sound and video settings stores a desktop camera default beside microphone and
 speaker preferences. When the camera is first enabled, the native owner resolves
 that stable ID against its asynchronous helper inventory; an unavailable default
 uses the normal default camera. Voice-only preparation never waits for camera

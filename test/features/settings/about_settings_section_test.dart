@@ -223,7 +223,7 @@ void main() {
         tester, Theme(data: buildMoshTheme(), child: const SettingsScreen()),
         container: container);
     expect(find.text('Version unavailable'), findsOneWidget);
-    await tester.tap(find.text('Sound & Video'));
+    await tester.tap(find.text('Sound and video'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('About'));
     await tester.pumpAndSettle();

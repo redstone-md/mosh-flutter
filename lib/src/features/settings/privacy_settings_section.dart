@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:mosh/src/features/crash_reporting/crash_reporting_toggle.dart';
 import 'package:mosh/src/features/shared/read_receipts_toggle.dart';
 import 'app_lock_settings_card.dart';
+import 'settings_card.dart';
 
 class PrivacySettingsSection extends StatelessWidget {
   const PrivacySettingsSection({super.key});
@@ -12,7 +13,7 @@ class PrivacySettingsSection extends StatelessWidget {
         children: [
           AppLockSettingsCard(),
           CrashReportingToggle(),
-          SizedBox(height: 16),
+          SizedBox(height: SettingsSurface.gap),
           ReadReceiptsToggle(),
         ],
       );

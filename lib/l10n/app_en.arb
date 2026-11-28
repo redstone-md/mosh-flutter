@@ -1487,9 +1487,9 @@
   "@settingsTitle": {
     "description": "AppBar title of the settings screen reached from the rail gear"
   },
-  "settingsSectionVoice": "Sound & Video",
+  "settingsSectionVoice": "Sound and video",
   "@settingsSectionVoice": {
-    "description": "Navigation label of the Sound & Video settings section"
+    "description": "Navigation label and page title of the sound and video settings section"
   },
   "settingsSectionConnection": "Connection",
   "@settingsSectionConnection": {
@@ -1505,24 +1505,36 @@
   },
   "settingsInputDeviceLabel": "Microphone",
   "@settingsInputDeviceLabel": {
-    "description": "Field label of the input-device dropdown in Sound settings"
+    "description": "Title of the microphone card in Sound settings"
   },
-  "settingsInputDeviceHint": "The microphone used for voice messages and calls. Applies from the next recording.",
+  "settingsInputDevicePickerLabel": "Input device",
+  "@settingsInputDevicePickerLabel": {
+    "description": "Label above the input-device dropdown in Sound settings; also names it to a screen reader and titles its sheet on a phone"
+  },
+  "settingsInputDeviceHint": "Used for calls and voice messages",
   "settingsInputDeviceHintAndroid": "Used for voice messages. In calls, the microphone follows the selected audio output.",
   "@settingsInputDeviceHint": {
-    "description": "Hint under the input-device dropdown"
+    "description": "Line under the title of the microphone card"
   },
   "settingsOutputDeviceLabel": "Speakers",
   "@settingsOutputDeviceLabel": {
-    "description": "Field label of the output-device dropdown in Sound settings"
+    "description": "Title of the speakers card in Sound settings"
   },
-  "settingsOutputDeviceHint": "Where call audio and ringtones play. Applies from the next call.",
+  "settingsOutputDevicePickerLabel": "Output device",
+  "@settingsOutputDevicePickerLabel": {
+    "description": "Label above the output-device dropdown in Sound settings; also names it to a screen reader and titles its sheet on a phone"
+  },
+  "settingsOutputDeviceHint": "Where calls and ringtones play",
   "@settingsOutputDeviceHint": {
-    "description": "Hint under the output-device dropdown"
+    "description": "Line under the title of the speakers card"
   },
-  "settingsCameraDeviceHint": "Default camera for video calls. Applies from the next call.",
+  "settingsCameraDeviceHint": "Used for video calls",
   "@settingsCameraDeviceHint": {
-    "description": "Hint for the saved desktop camera selection in Sound & Video settings"
+    "description": "Line under the title of the camera card in sound and video settings"
+  },
+  "settingsCameraPickerLabel": "Video device",
+  "@settingsCameraPickerLabel": {
+    "description": "Label above the camera dropdown in sound and video settings; also names it to a screen reader"
   },
   "settingsDeviceDefault": "System default",
   "@settingsDeviceDefault": {
@@ -2050,9 +2062,9 @@
   "@settingsAudioSaveError": {
     "description": "Audio preference write failed; the previous selection remains active"
   },
-  "settingsAudioAppliesAutomatically": "Changes are saved automatically.",
+  "settingsAudioAppliesAutomatically": "Changes are saved as you make them",
   "@settingsAudioAppliesAutomatically": {
-    "description": "Audio settings footer explaining immediate preference persistence"
+    "description": "Line under the title of the sound and video settings page: a choice is saved the moment it is made"
   },
   "deviceLinkConnectThis": "Connect this device",
   "deviceLinkDevicesTitle": "Your devices",
