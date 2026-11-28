@@ -39,7 +39,7 @@ ThemeData buildMoshTheme(
     fontFamily: _kSansFamily,
     fontFamilyFallback: _kSansFallback,
     textTheme: text,
-    appBarTheme: _appBarTheme(colors, text),
+    appBarTheme: _appBarTheme(colors, text, platform),
     dividerTheme: _dividerTheme(colors),
     inputDecorationTheme: _inputDecorationTheme(colors, text, platform),
     listTileTheme: _listTileTheme(colors, text),

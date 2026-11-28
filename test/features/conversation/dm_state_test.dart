@@ -71,15 +71,15 @@ void main() {
     test('connected names the transport next to it', () {
       expect(
         dmStateSentence(en, DmSessionState.connected, PeerTransport.direct),
-        'Connected · direct',
+        'Connected, direct',
       );
       expect(
         dmStateSentence(en, DmSessionState.connected, PeerTransport.relayed),
-        'Connected · relayed by the network',
+        'Connected, relayed by the network',
       );
       expect(
         dmStateSentence(ru, DmSessionState.connected, PeerTransport.relayed),
-        'Подключено · через ретранслятор сети',
+        'Подключено, через ретранслятор сети',
       );
     });
 
@@ -88,11 +88,11 @@ void main() {
       // it: gossip carries the chat through other peers.
       expect(
         dmStateSentence(en, DmSessionState.connected, PeerTransport.none),
-        'Connected · through the mesh',
+        'Connected, through the mesh',
       );
       expect(
         dmStateSentence(ru, DmSessionState.connected, PeerTransport.none),
-        'Подключено · через сеть',
+        'Подключено, через сеть',
       );
     });
   });
@@ -153,7 +153,7 @@ void main() {
       // suffix (confirmed/unverified) is gone with the confirm state --
       // the fingerprint now lives behind the header lock's dialog.
       expect(
-        find.text('Connected · relayed by the network'),
+        find.text('Connected, relayed by the network'),
         findsOneWidget,
       );
       expect(find.byType(DmScreen), findsOneWidget);

@@ -19,7 +19,7 @@ import 'package:mosh/src/features/conversation/conversation_helpers.dart'
 import 'package:mosh/src/features/conversation/dm_state.dart';
 import 'package:mosh/src/features/conversation/peer_label.dart';
 import 'package:mosh/src/rust/private_dm_runtime/contracts.dart'
-    show DmSessionState, SessionSnapshot;
+    show SessionSnapshot;
 
 class DmScreenHeader extends ConsumerStatefulWidget
     implements PreferredSizeWidget {
@@ -99,7 +99,6 @@ class _DmScreenHeaderState extends ConsumerState<DmScreenHeader> {
     final name = chatDisplayName(original, personal);
     return ConversationAppBar(
       chrome: widget.chrome,
-      peerOnline: s?.state == DmSessionState.connected,
       avatarName: name,
       plusIdentity: target.key,
       title: ConversationHeaderTitle(
