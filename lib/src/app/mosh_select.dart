@@ -27,12 +27,16 @@ class MoshSelect<T> extends StatefulWidget {
     required this.value,
     required this.options,
     required this.onChanged,
+    this.showLabel = false,
     this.failed = false,
   });
 
-  /// Names the control to a screen reader and titles the phone's sheet;
-  /// on screen the heading above the select says what is chosen.
+  /// Names the control to a screen reader and titles the phone's sheet.
   final String label;
+
+  /// Whether [label] is drawn above the well, as the Select card has it.
+  /// Without it the heading above the select says what is chosen.
+  final bool showLabel;
 
   /// True while the choices could not be loaded: the well's edge turns red.
   final bool failed;
@@ -64,6 +68,29 @@ class _MoshSelectState<T> extends State<MoshSelect<T>> {
     final sheet = size.width < 600 ||
         theme.platform == TargetPlatform.android ||
         theme.platform == TargetPlatform.iOS;
+    final select = _anchor(theme, size, sheet);
+    if (!widget.showLabel) return select;
+    final colors = MoshColors.from(theme);
+    // The well already carries the label for a screen reader.
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        ExcludeSemantics(
+          child: Text(widget.label,
+              style: theme.textTheme.labelMedium!.copyWith(
+                  color: widget.onChanged == null
+                      ? MoshState.tint(
+                          colors.onSurface, MoshState.disabledContent)
+                      : colors.onSurfaceVariant)),
+        ),
+        const SizedBox(height: MoshSpace.s2),
+        select,
+      ],
+    );
+  }
+
+  Widget _anchor(ThemeData theme, Size size, bool sheet) {
     return LayoutBuilder(builder: (context, constraints) {
       final width = math.min(constraints.maxWidth, 440.0);
       return PageStorage(
