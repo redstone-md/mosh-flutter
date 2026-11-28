@@ -69,7 +69,7 @@ stateDiagram-v2
 |---|---|---|
 | `pending` | Waiting for your contact | Waiting for your contact |
 | `handshaking` | Contact is offline. Messages will be delivered when you are both online | Contact is offline |
-| `connected` | Connected · direct / relayed by the network | Connected |
+| `connected` | Connected, direct / relayed by the network / through the mesh | Connected |
 
 ## A text on its way out
 

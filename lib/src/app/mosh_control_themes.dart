@@ -73,14 +73,13 @@ TextButtonThemeData _textButtonTheme(
 /// The Standard kind of the Icon button card; [moshTonalIconButtonStyle] is
 /// the Tonal one.
 IconButtonThemeData _iconButtonTheme(MoshColors c, TargetPlatform platform) {
-  final touch = MoshControl.touch(platform);
   return IconButtonThemeData(
     style: ButtonStyle(
       visualDensity: VisualDensity.standard,
       fixedSize:
           WidgetStatePropertyAll(Size.square(MoshControl.height(platform))),
       padding: const WidgetStatePropertyAll(EdgeInsets.zero),
-      iconSize: WidgetStatePropertyAll(touch ? MoshSpace.s6 : MoshSpace.s5),
+      iconSize: WidgetStatePropertyAll(MoshControl.iconSize(platform)),
       shape: const WidgetStatePropertyAll(MoshShapes.pill),
       foregroundColor:
           MoshState.unlessDisabled(c.onSurfaceVariant, _disabledInk(c)),

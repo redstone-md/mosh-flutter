@@ -91,7 +91,7 @@ void main() {
     await tester.tap(find.text('Alice'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Write a message\u2026'), findsOneWidget);
+    expect(find.text('Write a message'), findsOneWidget);
   });
 
   testWidgets('a DM row has one accessible name: type, visible label and state',
@@ -255,7 +255,7 @@ void main() {
     expect(bridge.countOf(BridgeMethod.listSessions),
         sessionCallsBeforeAccept + 1);
     // The DM screen rendered: its composer placeholder is the sentinel.
-    expect(find.text('Write a message\u2026'), findsOneWidget);
+    expect(find.text('Write a message'), findsOneWidget);
   });
 
   testWidgets(
@@ -272,7 +272,7 @@ void main() {
 
     expect(bridge.countOf(BridgeMethod.listSessions), sessionCallsBeforeAccept);
     expect(gateway.countOf(GatewayMethod.dismissDmOffer), 0);
-    expect(find.text('Write a message\u2026'), findsNothing);
+    expect(find.text('Write a message'), findsNothing);
   });
 
   testWidgets(
@@ -292,7 +292,7 @@ void main() {
     await tester.tap(find.byTooltip('Accept chat invite from alpha-peer'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Write a message\u2026'), findsOneWidget);
+    expect(find.text('Write a message'), findsOneWidget);
     // Both shell panes host a Scaffold, and the messenger toasts in each.
     expect(find.text(l.chatActionErrorUnavailable), findsWidgets);
   });

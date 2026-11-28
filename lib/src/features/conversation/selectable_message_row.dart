@@ -30,10 +30,9 @@ class SelectableMessageRow extends StatelessWidget {
   final bool grouped;
   final Widget child;
 
-  /// Half the gap between the bubbles of a run: what a row keeps above and
-  /// below its bubble, and how far the band of a picked row reaches past
-  /// that, into the gap to its neighbour.
-  static const double _band = MoshSpace.s1 / 2;
+  /// What a row keeps above and below its bubble, and how far the band of a
+  /// picked row reaches past that, into the gap to its neighbour.
+  static const double _band = kFeedHalfGap;
 
   @override
   Widget build(BuildContext context) {

@@ -30,7 +30,6 @@ class ConversationAppBar extends StatelessWidget
     required this.leaveMenuIcon,
     this.avatarName,
     this.plusIdentity,
-    this.peerOnline = false,
     this.kind = ConversationKind.dm,
     this.menuActions = const [],
     this.inlineActions = const [],
@@ -40,7 +39,6 @@ class ConversationAppBar extends StatelessWidget
   final Widget title;
   final String? avatarName;
   final String? plusIdentity;
-  final bool peerOnline;
   final ConversationKind kind;
 
   /// The kebab's leave item: label + icon. The item is always `danger`.
@@ -110,7 +108,6 @@ class ConversationAppBar extends StatelessWidget
                     kind: kind,
                     plusIdentity: plusIdentity,
                     name: name,
-                    online: peerOnline,
                     radius: narrow ? MoshSpace.s5 : MoshSpace.s6),
               ),
             ),

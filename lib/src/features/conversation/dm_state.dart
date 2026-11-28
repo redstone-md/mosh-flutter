@@ -25,7 +25,7 @@ String dmStateSentence(
       DmSessionState.pending => l.dmStateWaiting,
       DmSessionState.handshaking => l.stateOfflineSentence,
       DmSessionState.connected =>
-        '${l.stateReady} · ${_connectedVia(l, transport)}',
+        '${l.stateReady}, ${_connectedVia(l, transport)}',
     };
 
 String _connectedVia(AppLocalizations l, PeerTransport transport) =>

@@ -2,9 +2,15 @@ part of 'mosh_theme.dart';
 
 /// A bar at the top of a screen, as the Top bar card draws it: the
 /// background's own tone, 64 px tall, with no line under it.
-AppBarTheme _appBarTheme(MoshColors c, TextTheme text) => AppBarTheme(
+/// The bar's action icons take the Icon button's glyph size for the device:
+/// left alone, an app bar draws them at 24 px everywhere.
+AppBarTheme _appBarTheme(
+        MoshColors c, TextTheme text, TargetPlatform platform) =>
+    AppBarTheme(
       backgroundColor: c.surface,
       foregroundColor: c.onSurface,
+      actionsIconTheme: IconThemeData(
+          color: c.onSurface, size: MoshControl.iconSize(platform)),
       elevation: 0,
       scrolledUnderElevation: 0,
       toolbarHeight: MoshSpace.s16,

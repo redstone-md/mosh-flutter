@@ -223,15 +223,18 @@ class _ConversationMessageListViewState
     final l = AppLocalizations.of(context)!;
     final kind = widget.snapshot.target.kind;
     final rows = groupConversationMessages(widget.messages).reversed.toList();
-    final sides = EdgeInsets.symmetric(
-        horizontal: feedPadding(compact: isMobileBreakpoint(context)).left);
+    final feed = feedPadding(compact: isMobileBreakpoint(context));
+    // A divider stands in the feed's rhythm like a row: half a gap on each
+    // side of it.
+    final divider =
+        EdgeInsets.symmetric(horizontal: feed.left, vertical: kFeedHalfGap);
     return MessageSelectionArea(
       key: ValueKey(widget.snapshot.target),
       child: ListView.builder(
         controller: _scroll,
         // The rows keep the side padding themselves, so the band of a
         // picked one runs across the feed.
-        padding: const EdgeInsets.symmetric(vertical: MoshSpace.s4),
+        padding: EdgeInsets.symmetric(vertical: feed.top - kFeedHalfGap),
         reverse: true,
         itemCount: rows.length,
         itemBuilder: (context, index) {
@@ -244,12 +247,12 @@ class _ConversationMessageListViewState
               children: [
                 if (date != null && !DateUtils.isSameDay(date, previous))
                   Padding(
-                      padding: sides,
+                      padding: divider,
                       child: ConversationDateDivider(date: date)),
                 if (widget.firstUnreadId != null &&
                     rows[index].message.messageId == widget.firstUnreadId)
                   Padding(
-                      padding: sides,
+                      padding: divider,
                       child: ConversationUnreadDivider(key: _unreadDivider)),
                 SelectableMessageRow(
                     message: rows[index].message,

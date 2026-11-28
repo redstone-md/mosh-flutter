@@ -300,7 +300,11 @@ class _MemberRow extends StatelessWidget {
                     : null),
             const SizedBox(width: MoshSpace.s3),
             Expanded(
-                child: Text(participant.name,
+                child: Text(
+                    participant.own
+                        ? AppLocalizations.of(context)!
+                            .ownMemberName(participant.name)
+                        : participant.name,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.labelLarge)),

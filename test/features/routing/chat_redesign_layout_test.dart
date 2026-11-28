@@ -263,7 +263,7 @@ void main() {
         ]);
       await pumpShellApp(tester, gateway: gateway, physical: Size(width, 900));
       await _open(tester, 'Alice');
-      await tester.tap(find.widgetWithText(TextField, 'Write a message…'));
+      await tester.tap(find.widgetWithText(TextField, 'Write a message'));
       await tester.sendKeyDownEvent(LogicalKeyboardKey.controlLeft);
       await tester.sendKeyEvent(LogicalKeyboardKey.keyK);
       await tester.sendKeyUpEvent(LogicalKeyboardKey.controlLeft);

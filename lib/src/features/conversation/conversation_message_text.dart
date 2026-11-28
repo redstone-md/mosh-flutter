@@ -50,14 +50,15 @@ class ConversationMessageText extends StatelessWidget {
     final painter = conversationTextPainter(context, body, style,
         widthBasis: TextWidthBasis.longestLine)
       ..layout(maxWidth: maxWidth);
-    final lines = painter.computeLineMetrics();
     final reserved = footerSize.width == 0 ? 0.0 : footerSize.width + 8;
-    final width = math.min(
-        maxWidth,
-        math.max(
-            footerSize.width,
-            (painter.width + (lines.length == 1 ? reserved : 0))
-                .ceilToDouble()));
+    // The bubble grows, as far as its measure lets it, to keep the time
+    // beside the last line; only then does the time take a line of its own.
+    final beside = painter.computeLineMetrics().last.width + reserved;
+    final text = beside.ceilToDouble() <= maxWidth
+        ? math.max(painter.width, beside)
+        : painter.width;
+    final width =
+        math.min(maxWidth, math.max(footerSize.width, text.ceilToDouble()));
     // Layout again at the final width so rounding and explicit line breaks
     // cannot make a footer overlap the paragraph actually displayed.
     painter.layout(maxWidth: width);

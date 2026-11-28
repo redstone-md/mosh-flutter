@@ -39,6 +39,10 @@ abstract final class MoshControl {
   /// Height of a button, a field and a menu row.
   static double height(TargetPlatform platform) =>
       touch(platform) ? MoshSpace.s12 : MoshSpace.s10;
+
+  /// Size of the glyph in an icon button.
+  static double iconSize(TargetPlatform platform) =>
+      touch(platform) ? MoshSpace.s6 : MoshSpace.s5;
 }
 
 /// Stroke weights of Foundations: the `border/*` variables.

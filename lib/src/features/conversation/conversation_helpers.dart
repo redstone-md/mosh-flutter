@@ -48,6 +48,13 @@ EdgeInsets feedPadding({required bool compact}) => EdgeInsets.symmetric(
 /// and a new run starts 12 px lower.
 double messageRowSpacing(bool grouped) => grouped ? MoshSpace.s1 : MoshSpace.s3;
 
+/// Half the 4 px gap every neighbour in the feed keeps from the next; a row
+/// that starts a run adds its lead-in to it. A message row keeps the half
+/// above and below its bubble, a divider is given it by the list, and the
+/// list's own padding is shorter by it, so the feed ends [feedPadding] from
+/// its last bubble.
+const double kFeedHalfGap = MoshSpace.s1 / 2;
+
 /// The box a delivery mark takes beside the time, whatever its glyph.
 const double kDeliveryMarkSize = MoshSpace.s4;
 
@@ -57,10 +64,7 @@ TextStyle messageBodyStyle(BuildContext context, MessageTone tone) =>
 
 /// The time of a message, and the other quiet lines of its size.
 TextStyle messageTimeStyle(BuildContext context, MessageTone tone) =>
-    Theme.of(context)
-        .textTheme
-        .labelSmall!
-        .copyWith(color: tone.quiet, fontFeatures: kLiveNumberFontFeatures);
+    Theme.of(context).textTheme.labelSmall!.copyWith(color: tone.quiet);
 
 /// The Delivery ticks card, beside the time of a message the user sent: a
 /// clock while the message is queued or on its way, one tick once it is
