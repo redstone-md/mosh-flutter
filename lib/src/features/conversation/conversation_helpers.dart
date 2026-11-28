@@ -63,10 +63,7 @@ TextStyle messageBodyStyle(BuildContext context, MessageTone tone) =>
 
 /// The time of a message, and the other quiet lines of its size.
 TextStyle messageTimeStyle(BuildContext context, MessageTone tone) =>
-    Theme.of(context)
-        .textTheme
-        .labelSmall!
-        .copyWith(color: tone.quiet, fontFeatures: kLiveNumberFontFeatures);
+    Theme.of(context).textTheme.labelSmall!.copyWith(color: tone.quiet);
 
 /// The Delivery ticks card, beside the time of a message the user sent: a
 /// clock while the message is queued or on its way, one tick once it is

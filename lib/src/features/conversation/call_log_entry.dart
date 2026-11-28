@@ -4,7 +4,6 @@ import 'package:mosh/l10n/app_localizations.dart';
 import 'package:mosh/src/app/mosh_dimensions.dart';
 import 'package:mosh/src/app/mosh_icons.dart';
 import 'package:mosh/src/app/mosh_shapes.dart';
-import 'package:mosh/src/app/mosh_theme.dart' show kLiveNumberFontFeatures;
 import 'package:mosh/src/features/conversation/conversation_call_binding.dart';
 import 'package:mosh/src/features/conversation/conversation_helpers.dart';
 import 'package:mosh/src/features/conversation/message_tone.dart';
@@ -77,8 +76,7 @@ class CallLogEntry extends StatelessWidget {
   Widget _meta(ThemeData theme, MessageTone tone) {
     final full = formatClockFull(sentAtMs, locale: l.localeName);
     final detail = Text(_detail,
-        style: theme.textTheme.labelMedium!.copyWith(
-            color: tone.quiet, fontFeatures: kLiveNumberFontFeatures));
+        style: theme.textTheme.labelMedium!.copyWith(color: tone.quiet));
     return Row(
       mainAxisSize: MainAxisSize.min,
       spacing: MoshSpace.s1,
