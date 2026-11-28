@@ -154,18 +154,18 @@ class _CallViewState extends State<CallView> {
     if (_notice(l) case final notice?) {
       return CallLine(notice.text, tone: notice.tone);
     }
-    final status = _status(l);
     // Failed audio is the status itself, in the tone the open call gives it.
     if (widget.call.audioFailed) {
-      return CallLine(status, tone: MoshNoticeTone.error);
+      return CallLine(_status(l), tone: MoshNoticeTone.error);
     }
-    final muted =
-        widget.call.phase == CallViewPhase.active && widget.call.muted;
-    return CallLine(muted ? l.callMuted(status) : status,
+    return CallLine(_status(l, muted: widget.call.muted),
         fontFeatures: figures);
   }
 
-  String _status(AppLocalizations l) {
+  /// How the call is going. A minimized call names a [muted] microphone
+  /// after the time, before what is still under way, so the line ends with
+  /// that ellipsis.
+  String _status(AppLocalizations l, {bool muted = false}) {
     final call = widget.call;
     if (call.audioFailed) return l.callAudioFailed;
     if (call.phase == CallViewPhase.confirming) return l.callAnswerPending;
@@ -175,8 +175,9 @@ class _CallViewState extends State<CallView> {
           : l.callOutgoingStatus;
     }
     final clock = formatCallClock(BigInt.from(widget.now() - call.startedAtMs));
-    if (call.media?.reconnecting == true) return l.callReconnecting(clock);
-    return call.audioReady ? clock : l.callAudioConnecting(clock);
+    final time = muted ? l.callMuted(clock) : clock;
+    if (call.media?.reconnecting == true) return l.callReconnecting(time);
+    return call.audioReady ? time : l.callAudioConnecting(time);
   }
 
   CallNotice? _notice(AppLocalizations l) {

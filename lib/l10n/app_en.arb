@@ -2220,7 +2220,7 @@
   "callRemoteVideo": "Video from {peer}",
   "@callRemoteVideo": {"placeholders": {"peer": {"type": "String"}}},
   "callAudioConnecting": "{clock}, connecting audio…",
-  "@callAudioConnecting": {"description": "How an answered call is going while its audio connects; clock is the time since the answer.", "placeholders": {"clock": {"type": "String"}}},
+  "@callAudioConnecting": {"description": "How an answered call is going while its audio connects; clock is the time since the answer, with callMuted after it when the microphone is muted.", "placeholders": {"clock": {"type": "String"}}},
   "callExpand": "Expand call",
   "callIncomingNotification": "Incoming call from {peer}",
   "@callIncomingNotification": {
@@ -2241,7 +2241,7 @@
   "callCameraUnavailable": "Camera unavailable. Voice remains available.",
   "callMicrophoneUnavailable": "Microphone unavailable. You can still listen.",
   "callReconnecting": "{clock}, reconnecting…",
-  "@callReconnecting": {"description": "How a call is going while its connection is restored; clock is the time since the answer.", "placeholders": {"clock": {"type": "String"}}},
+  "@callReconnecting": {"description": "How a call is going while its connection is restored; clock is the time since the answer, with callMuted after it when the microphone is muted.", "placeholders": {"clock": {"type": "String"}}},
   "callWaitingForVideo": "Waiting for video…",
   "callDevices": "Call devices",
   "callMicrophone": "Microphone",

@@ -12,6 +12,7 @@ native.Snapshot nativeCallSnapshot(
         bool camera = false,
         bool remoteCamera = true,
         bool cameraFailed = false,
+        bool reconnecting = false,
         List<native.Device> inputs = const [
           native.Device(id: 'mic', name: 'Microphone', stable: true)
         ],
@@ -30,7 +31,7 @@ native.Snapshot nativeCallSnapshot(
         cameraStarting: false,
         cameraFailed: cameraFailed,
         remoteCamera: remoteCamera,
-        reconnecting: false,
+        reconnecting: reconnecting,
         failed: false,
         videoWidth: 0,
         videoHeight: 0,

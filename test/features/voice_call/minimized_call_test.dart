@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/misc.dart' show Override;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:mosh/src/app/mosh_theme.dart';
+import 'package:mosh/src/features/voice_call/call_media_view.dart';
 import 'package:mosh/src/features/voice_call/call_strip.dart';
 import 'package:mosh/src/features/voice_call/call_view.dart';
 import 'package:mosh/src/features/voice_call/call_view_state.dart';
@@ -185,18 +186,27 @@ void main() {
     });
   }
 
-  testWidgets('the plate says a muted call is muted beside its time',
-      (tester) async {
-    await _plate(
-        tester,
-        const CallViewState(
+  testWidgets(
+      'the plate names a muted microphone after the time and ends with '
+      'what is still under way', (tester) async {
+    CallViewState muted({bool audioReady = true, bool reconnecting = false}) =>
+        CallViewState(
             sessionId: 'dm',
             callId: 'call',
             peer: 'Alice',
             phase: CallViewPhase.active,
-            audioReady: true,
-            muted: true));
-    expect(find.text('0:05, muted'), findsOneWidget);
+            audioReady: audioReady,
+            muted: true,
+            media: CallMediaView.fromSnapshot(nativeCallSnapshot(
+                microphone: true, reconnecting: reconnecting)));
+    for (final (call, line) in [
+      (muted(), '0:05, muted'),
+      (muted(audioReady: false), '0:05, muted, connecting audio…'),
+      (muted(reconnecting: true), '0:05, muted, reconnecting…'),
+    ]) {
+      await _plate(tester, call);
+      expect(find.text(line), findsOneWidget);
+    }
     expect(find.byTooltip('Unmute'), findsOneWidget);
     await tester.pumpWidget(const SizedBox.shrink());
   });
