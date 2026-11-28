@@ -1765,10 +1765,6 @@
   "@orgMemberDmHint": {
     "description": "Tooltip prefix for a roster member row (React OrgSection.tsx orgText.memberDmHint)"
   },
-  "orgYouBadge": "you",
-  "@orgYouBadge": {
-    "description": "Badge appended to the self member's name (React OrgSection.tsx orgText.youBadge)"
-  },
   "orgAdminBadge": "Org admin",
   "@orgAdminBadge": {
     "description": "Tooltip for the admin crown on a roster member (React OrgSection.tsx orgText.adminBadge)"
@@ -1804,11 +1800,6 @@
   "orgMemberAria": "Message {name}",
   "@orgMemberAria": {
  "description": "aria-label for a non-self roster member row; {name} is the member (React OrgSection.tsx)",
-    "placeholders": { "name": { "type": "String" } }
-  },
-  "chatDetailsOwnName": "{name} (you)",
-  "@chatDetailsOwnName": {
- "description": "The user's own row among a conversation's participants; {name} is their display name",
     "placeholders": { "name": { "type": "String" } }
   },
   "orgNewGroupAria": "New org group in {name}",
@@ -2009,6 +2000,11 @@
   "chatDetailsOpenStatus": "Open connection status",
   "@chatDetailsOpenStatus": {
     "description": "Button under the readings of 'Connection details': opens the full connection status in place of the details"
+  },
+  "ownMemberName": "{name} (you)",
+  "@ownMemberName": {
+    "description": "The user's own row in a list of people: a conversation's participants, an organisation's members; {name} is their display name",
+    "placeholders": { "name": { "type": "String" } }
   },
   "chatDetailsParticipants": "Participants",
   "chatDetailsDiagnostics": "Connection details",

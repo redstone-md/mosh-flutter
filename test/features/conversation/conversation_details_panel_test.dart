@@ -107,6 +107,13 @@ void main() {
     expect(find.text('End-to-end encrypted'), findsNothing);
   });
 
+  testWidgets('the user\'s own row among the participants says it is theirs',
+      (tester) async {
+    await _pump(tester, AsyncData(_dm()));
+    expect(find.textContaining('(you)'), findsOneWidget);
+    expect(find.text('Alice (you)'), findsNothing);
+  });
+
   testWidgets('only the admin of a group carries the admin mark',
       (tester) async {
     for (final admin in [true, false]) {

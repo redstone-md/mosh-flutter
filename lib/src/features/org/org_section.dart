@@ -285,8 +285,7 @@ class _MemberRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colors = MoshColors.of(context);
-    final name =
-        member.isSelf ? '${member.name} (${l.orgYouBadge})' : member.name;
+    final name = member.isSelf ? l.ownMemberName(member.name) : member.name;
     return InkWell(
       borderRadius: MoshShapes.conversationRow,
       onTap: (busy || member.isSelf) ? null : () => onMember(org, member),
