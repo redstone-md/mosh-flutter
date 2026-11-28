@@ -140,7 +140,9 @@ class _OrgAddMissing extends ConsumerWidget {
   }
 }
 
-/// A banner where it stands in a conversation: above the feed, set in as far
+/// A banner where it stands in a conversation: straight under the top bar,
+/// which keeps its own room below its content, 8 px clear of the feed or of
+/// the next banner, and set in as far
 /// as the feed's own content.
 class FeedBanner extends StatelessWidget {
   const FeedBanner(this.banner, {super.key});
@@ -150,7 +152,7 @@ class FeedBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Padding(
         padding: feedPadding(compact: isMobileBreakpoint(context))
-            .copyWith(top: MoshSpace.s2, bottom: 0),
+            .copyWith(top: 0, bottom: MoshSpace.s2),
         child: banner,
       );
 }
