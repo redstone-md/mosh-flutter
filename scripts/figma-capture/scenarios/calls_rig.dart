@@ -31,15 +31,30 @@ const _me = 'Alex';
 const _peer = 'Maya Chen';
 final _time = DateTime(2026, 10, 3, 9, 41);
 
-/// The main window, without its platform channel: with it the call host
-/// behaves as on desktop (incoming calls ring in the mini view, the
-/// expanded call offers full screen).
+/// The main window, without its platform channel: with it the app is framed
+/// as on desktop (the title bar stays above the open call) and the call host
+/// behaves as there (incoming calls ring in the mini view, the expanded call
+/// offers full screen). Windows, as the harness renders desktop scenes.
 class _Window extends DesktopWindowController {
-  _Window() : super(platform: TargetPlatform.linux);
+  _Window() : super(platform: TargetPlatform.windows);
 
   @override
   Future<void> setFullScreen(bool fullScreen) async =>
       fullScreen ? onWindowEnterFullScreen() : onWindowLeaveFullScreen();
+}
+
+/// The desktop's window; what its title bar asks of the platform goes
+/// unanswered.
+_Window _framed(WidgetTester tester) {
+  final messenger = tester.binding.defaultBinaryMessenger;
+  messenger.setMockMethodCallHandler(
+      DesktopWindowController.channel, (_) async => null);
+  final window = _Window();
+  addTearDown(() {
+    window.dispose();
+    messenger.setMockMethodCallHandler(DesktopWindowController.channel, null);
+  });
+  return window;
 }
 
 /// An active call that started four minutes ago.
@@ -208,12 +223,12 @@ Future<void> openCall(WidgetTester tester, Size size,
   }
   script?.call(bridge);
   mockCallVideoPlugin(tester);
-  final window = size == FigmaDevice.desktop.size ? _Window() : null;
-  if (window != null) addTearDown(window.dispose);
+  final window = size == FigmaDevice.desktop.size ? _framed(tester) : null;
   await pumpShellApp(tester,
       gateway: gateway,
       bridge: bridge,
       physical: size,
+      windowController: window,
       location: location ?? AppRoutes.dmFor(callSession),
       overrides: [
         ...figmaLocale,
